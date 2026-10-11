@@ -1,5 +1,8 @@
 node_modules/
 dist/
 data/derived/
+data/wuhan.json
+data/hubei.json
 *.log
 .claude/
+wuhan.json
