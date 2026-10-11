@@ -52,7 +52,7 @@ npm run dev
 ## 数据管线
 
 ```
-data/wuhan.json (教师备份,162MB,OSM JSON: nodes/ways/relations)
+data/wuhan.json (教师备份,162MB,不入库——经教师/组内渠道获取后置于 data/)
    │  npm run prepare:data
    ▼
 data/derived/wuhan-roads.json (~30MB, 不入库)
@@ -61,6 +61,7 @@ data/derived/wuhan-roads.json (~30MB, 不入库)
 内存路网:69,382 条道路 / 627,900 节点 / 673,120 条边
 ```
 
+- 源数据 `data/wuhan.json` 与 `data/hubei.json` 已从 Git 历史彻底移除,不随仓库分发;克隆后需自行获取 `wuhan.json` 放入 `data/`,否则预处理无法执行(可直接向组内索取现成的 `data/derived/wuhan-roads.json` 放到同路径使用);
 - 预处理只保留带 `highway` 标签的 way 及其关联节点,保留 OSM 节点 ID(`nds`),供 Sprint 1 图引擎构建拓扑;
 - 处理脚本读取 162MB JSON 需要较大堆内存,已通过 `NODE_OPTIONS=--max-old-space-size` 注入,无需手动设置。
 

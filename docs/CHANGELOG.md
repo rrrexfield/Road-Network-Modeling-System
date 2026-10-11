@@ -13,3 +13,7 @@
 - Vitest 解析器单元测试;ESLint + Prettier 基础配置
 - 协作规范文档(`CLAUDE.md` / `AGENTS.md`,内容一致)与 AI 日志模板
 - `npm run dev` 一键启动:自动补数据 → 服务端(3000)+ 前端(5173)
+
+### Changed
+
+- `data/wuhan.json`、`data/hubei.json` 自 Git 历史彻底移除,源数据不随仓库分发(经教师渠道获取);运行时数据由 `npm run prepare:data` 本地生成或直接使用组内分发的 `data/derived/wuhan-roads.json`
