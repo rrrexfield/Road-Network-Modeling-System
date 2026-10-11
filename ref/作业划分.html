@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Untitled2</title>
+  <style>
+    body { max-width: 860px; margin: 0 auto; padding: 40px 20px; line-height: 1.8; color: #2a2a2e; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    h1, h2, h3, h4, h5, h6 { margin-top: 24px; margin-bottom: 12px; font-weight: 600; line-height: 1.3; }
+    h1 { font-size: 2em; border-bottom: 2px solid #d4d4d8; padding-bottom: 10px; }
+    h2 { font-size: 1.5em; border-bottom: 1px solid #d4d4d8; padding-bottom: 8px; }
+    h3 { font-size: 1.25em; }
+    h4 { font-size: 1.1em; }
+    h5 { font-size: 1em; color: #5e5e62; }
+    h6 { font-size: 0.9em; color: #5e5e62; }
+    p { margin-bottom: 14px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    strong { font-weight: 600; }
+    em { font-style: italic; }
+    del { text-decoration: line-through; color: #5e5e62; }
+    code { padding: 2px 6px; background: #f0efee; border: 1px solid #d4d4d8; border-radius: 4px; font-family: "SF Mono", "Fira Code", monospace; font-size: 0.88em; }
+    pre { padding: 16px; background: #f6f5f4; border-radius: 6px; white-space: pre-wrap; word-wrap: break-word; word-break: break-word; overflow: visible; margin: 16px 0; max-width: 100%; border: 1px solid #d4d4d8; }
+    pre code { padding: 0; background: transparent; border: none; font-size: 0.9em; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; word-break: break-word; }
+    /* 代码块：hljs 主题里 .hljs{background:#fff}（specificity 0,1,0）会盖住上面 pre code(0,0,2) 的 transparent，
+       形成"内白外灰"。用 .hljs 同类选择 + !important 显式压住，让 pre 的灰底透出到 code 上。 */
+    pre code.hljs, pre code .hljs { background: transparent !important; padding: 0; }
+    /* 代码块行结构（code-block.js 输出的 .code-line/.code-line-num/.code-line-text 在导出里也要换行） */
+    .code-scroll { max-height: none; overflow: visible; }
+    .code-line { display: flex; line-height: 1.8; min-width: 0; }
+    .code-line-num { flex-shrink: 0; width: 3em; text-align: right; padding-right: 0.8em; color: #888; user-select: none; display: none; }
+    .preview-content.code-line-numbers .code-line-num { display: inline; }
+    .code-line-text { white-space: pre-wrap; word-wrap: break-word; word-break: break-word; flex: 1 1 auto; min-width: 0; }
+    blockquote { padding: 12px 20px; margin: 0 0 16px 0; border-left: 4px solid #2563eb; background: #f6f5f4; border-radius: 0 6px 6px 0; color: #5e5e62; }
+    blockquote p:last-child { margin-bottom: 0; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+    th, td { padding: 8px 12px; border: 1px solid #d4d4d8; text-align: left; }
+    th { background: #f0efee; font-weight: 600; }
+    img { max-width: 100%; }
+    hr { border: none; border-top: 1px solid #d4d4d8; margin: 24px 0; }
+    ul, ol { padding-left: 24px; margin-bottom: 14px; }
+    li { margin-bottom: 4px; }
+    mark { display: inline-block; background: #fbbf24; color: #1a1a1a; padding: 1px 4px; border-radius: 3px; }
+    kbd { display: inline-block; padding: 2px 7px; font-size: 0.82em; font-family: "SF Mono", "Fira Code", monospace; background: #f0efee; border: 1px solid #d4d4d8; border-bottom-width: 2px; border-radius: 4px; line-height: 1.5; }
+    abbr { text-decoration: underline dotted; cursor: help; }
+    .mermaid-container { text-align: center; margin: 16px 0; padding: 16px; max-width: 100%; background: #f0efee; border-radius: 8px; border: 1px solid #d4d4d8; overflow-x: auto; }
+    .mermaid-container svg { max-width: 100%; height: auto; }
+    .alert { border-radius: 10px; padding: 14px 18px; margin: 16px 0; max-width: 100%; border-left: 4px solid; overflow-wrap: break-word; }
+    .alert-title { font-weight: 700; margin-bottom: 6px; font-size: 0.95em; display: flex; align-items: center; gap: 8px; }
+    .alert-icon { width: 18px; height: 18px; flex-shrink: 0; }
+    .alert-content p:last-child { margin-bottom: 0; }
+    .alert-note { background: rgba(56,132,255,0.06); border-left-color: #3884ff; }
+    .alert-tip { background: rgba(16,185,129,0.06); border-left-color: #10b981; }
+    .alert-important { background: rgba(139,92,246,0.06); border-left-color: #8b5cf6; }
+    .alert-warning { background: rgba(245,158,11,0.06); border-left-color: #f59e0b; }
+    .alert-caution { background: rgba(239,68,68,0.06); border-left-color: #ef4444; }
+    .math-display { display: block; text-align: center; margin: 16px 0; overflow-x: auto; }
+    .toc-wrapper { padding: 12px 16px; margin: 16px 0; background: #f6f5f4; border-radius: 8px; border: 1px solid #d4d4d8; }
+    .toc-list ul { list-style: none; padding-left: 16px; margin: 2px 0; }
+    .toc-list li { margin-bottom: 3px; line-height: 1.6; }
+.toc a { color: #2563eb; text-decoration: underline; font-size: 0.92em; }
+input[type="checkbox"] { -webkit-appearance: none; appearance: none; margin-right: 8px; width: 16px; height: 16px; border: 1.5px solid #d4d4d8; border-radius: 3px; vertical-align: middle; position: relative; top: -1px; cursor: default; }
+input[type="checkbox"]:checked { background: #16a34a url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIzIiBmaWxsPSJub25lIj48cGF0aCBkPSJNNSAxM2w0IDRMMTkgNyIvPjwvc3ZnPg==") center / 14px no-repeat; border-color: #16a34a; }
+    input[type="checkbox"] { -webkit-appearance: none; appearance: none; margin-right: 8px; width: 16px; height: 16px; border: 1.5px solid #d4d4d8; border-radius: 3px; vertical-align: middle; position: relative; top: -1px; cursor: default; }
+    input[type="checkbox"]:checked { background: #16a34a; border-color: #16a34a; }
+    input[type="checkbox"]:checked::after { content: ''; position: absolute; left: 4px; top: 1px; width: 5px; height: 9px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+    details { margin-bottom: 14px; padding: 8px 12px; background: #f6f5f4; border-radius: 6px; border: 1px solid #d4d4d8; }
+    summary { font-weight: 600; cursor: pointer; }
+@font-face{font-display:block;font-family:KaTeX_AMS;font-style:normal;font-weight:400;src:url(fonts/KaTeX_AMS-Regular.woff2) format("woff2"),url(fonts/KaTeX_AMS-Regular.woff) format("woff"),url(fonts/KaTeX_AMS-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Caligraphic;font-style:normal;font-weight:700;src:url(fonts/KaTeX_Caligraphic-Bold.woff2) format("woff2"),url(fonts/KaTeX_Caligraphic-Bold.woff) format("woff"),url(fonts/KaTeX_Caligraphic-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Caligraphic;font-style:normal;font-weight:400;src:url(fonts/KaTeX_Caligraphic-Regular.woff2) format("woff2"),url(fonts/KaTeX_Caligraphic-Regular.woff) format("woff"),url(fonts/KaTeX_Caligraphic-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Fraktur;font-style:normal;font-weight:700;src:url(fonts/KaTeX_Fraktur-Bold.woff2) format("woff2"),url(fonts/KaTeX_Fraktur-Bold.woff) format("woff"),url(fonts/KaTeX_Fraktur-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Fraktur;font-style:normal;font-weight:400;src:url(fonts/KaTeX_Fraktur-Regular.woff2) format("woff2"),url(fonts/KaTeX_Fraktur-Regular.woff) format("woff"),url(fonts/KaTeX_Fraktur-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:normal;font-weight:700;src:url(fonts/KaTeX_Main-Bold.woff2) format("woff2"),url(fonts/KaTeX_Main-Bold.woff) format("woff"),url(fonts/KaTeX_Main-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:italic;font-weight:700;src:url(fonts/KaTeX_Main-BoldItalic.woff2) format("woff2"),url(fonts/KaTeX_Main-BoldItalic.woff) format("woff"),url(fonts/KaTeX_Main-BoldItalic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:italic;font-weight:400;src:url(fonts/KaTeX_Main-Italic.woff2) format("woff2"),url(fonts/KaTeX_Main-Italic.woff) format("woff"),url(fonts/KaTeX_Main-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Main;font-style:normal;font-weight:400;src:url(fonts/KaTeX_Main-Regular.woff2) format("woff2"),url(fonts/KaTeX_Main-Regular.woff) format("woff"),url(fonts/KaTeX_Main-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Math;font-style:italic;font-weight:700;src:url(fonts/KaTeX_Math-BoldItalic.woff2) format("woff2"),url(fonts/KaTeX_Math-BoldItalic.woff) format("woff"),url(fonts/KaTeX_Math-BoldItalic.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Math;font-style:italic;font-weight:400;src:url(fonts/KaTeX_Math-Italic.woff2) format("woff2"),url(fonts/KaTeX_Math-Italic.woff) format("woff"),url(fonts/KaTeX_Math-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:normal;font-weight:700;src:url(fonts/KaTeX_SansSerif-Bold.woff2) format("woff2"),url(fonts/KaTeX_SansSerif-Bold.woff) format("woff"),url(fonts/KaTeX_SansSerif-Bold.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:italic;font-weight:400;src:url(fonts/KaTeX_SansSerif-Italic.woff2) format("woff2"),url(fonts/KaTeX_SansSerif-Italic.woff) format("woff"),url(fonts/KaTeX_SansSerif-Italic.ttf) format("truetype")}@font-face{font-display:block;font-family:"KaTeX_SansSerif";font-style:normal;font-weight:400;src:url(fonts/KaTeX_SansSerif-Regular.woff2) format("woff2"),url(fonts/KaTeX_SansSerif-Regular.woff) format("woff"),url(fonts/KaTeX_SansSerif-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Script;font-style:normal;font-weight:400;src:url(fonts/KaTeX_Script-Regular.woff2) format("woff2"),url(fonts/KaTeX_Script-Regular.woff) format("woff"),url(fonts/KaTeX_Script-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size1;font-style:normal;font-weight:400;src:url(fonts/KaTeX_Size1-Regular.woff2) format("woff2"),url(fonts/KaTeX_Size1-Regular.woff) format("woff"),url(fonts/KaTeX_Size1-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size2;font-style:normal;font-weight:400;src:url(fonts/KaTeX_Size2-Regular.woff2) format("woff2"),url(fonts/KaTeX_Size2-Regular.woff) format("woff"),url(fonts/KaTeX_Size2-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size3;font-style:normal;font-weight:400;src:url(fonts/KaTeX_Size3-Regular.woff2) format("woff2"),url(fonts/KaTeX_Size3-Regular.woff) format("woff"),url(fonts/KaTeX_Size3-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Size4;font-style:normal;font-weight:400;src:url(fonts/KaTeX_Size4-Regular.woff2) format("woff2"),url(fonts/KaTeX_Size4-Regular.woff) format("woff"),url(fonts/KaTeX_Size4-Regular.ttf) format("truetype")}@font-face{font-display:block;font-family:KaTeX_Typewriter;font-style:normal;font-weight:400;src:url(fonts/KaTeX_Typewriter-Regular.woff2) format("woff2"),url(fonts/KaTeX_Typewriter-Regular.woff) format("woff"),url(fonts/KaTeX_Typewriter-Regular.ttf) format("truetype")}.katex{font:normal 1.21em KaTeX_Main,Times New Roman,serif;line-height:1.2;position:relative;text-indent:0;text-rendering:auto}.katex *{-ms-high-contrast-adjust:none!important;border-color:currentColor}.katex .katex-version:after{content:"0.17.0"}.katex .katex-mathml{border:0;-webkit-clip-path:inset(50%);clip-path:inset(50%);height:1px;overflow:hidden;padding:0;position:absolute;width:1px}.katex .katex-html>.newline{display:block}.katex .base{position:relative;white-space:nowrap;width:-webkit-min-content;width:-moz-min-content;width:min-content}.katex .base,.katex .strut{display:inline-block}.katex .textbf{font-weight:700}.katex .textit{font-style:italic}.katex .textrm{font-family:KaTeX_Main}.katex .textsf{font-family:KaTeX_SansSerif}.katex .texttt{font-family:KaTeX_Typewriter}.katex .mathnormal{font-family:KaTeX_Math;font-style:italic}.katex .mathit{font-family:KaTeX_Main;font-style:italic}.katex .mathrm{font-style:normal}.katex .mathbf{font-family:KaTeX_Main;font-weight:700}.katex .boldsymbol{font-family:KaTeX_Math;font-style:italic;font-weight:700}.katex .amsrm,.katex .mathbb,.katex .textbb{font-family:KaTeX_AMS}.katex .mathcal{font-family:KaTeX_Caligraphic}.katex .mathfrak,.katex .textfrak{font-family:KaTeX_Fraktur}.katex .mathboldfrak,.katex .textboldfrak{font-family:KaTeX_Fraktur;font-weight:700}.katex .mathtt{font-family:KaTeX_Typewriter}.katex .mathscr,.katex .textscr{font-family:KaTeX_Script}.katex .mathsf,.katex .textsf{font-family:KaTeX_SansSerif}.katex .mathboldsf,.katex .textboldsf{font-family:KaTeX_SansSerif;font-weight:700}.katex .mathitsf,.katex .mathsfit,.katex .textitsf{font-family:KaTeX_SansSerif;font-style:italic}.katex .mainrm{font-family:KaTeX_Main;font-style:normal}.katex .vlist-t{border-collapse:collapse;display:inline-table;table-layout:fixed}.katex .vlist-r{display:table-row}.katex .vlist{display:table-cell;position:relative;vertical-align:bottom}.katex .vlist>span{display:block;height:0;position:relative}.katex .vlist>span>span{display:inline-block}.katex .vlist>span>.pstrut{overflow:hidden;width:0}.katex .vlist-t2{margin-right:-2px}.katex .vlist-s{display:table-cell;font-size:1px;min-width:2px;vertical-align:bottom;width:2px}.katex .vbox{align-items:baseline;display:inline-flex;flex-direction:column}.katex .hbox{width:100%}.katex .hbox,.katex .thinbox{display:inline-flex;flex-direction:row}.katex .thinbox{max-width:0;width:0}.katex .msupsub{text-align:left}.katex .mfrac>span>span{text-align:center}.katex .mfrac .frac-line{border-bottom-style:solid;display:inline-block;width:100%}.katex .hdashline,.katex .hline,.katex .mfrac .frac-line,.katex .overline .overline-line,.katex .rule,.katex .underline .underline-line{min-height:1px}.katex .mspace{display:inline-block}.katex .smash{display:inline;line-height:0}.katex .clap,.katex .llap,.katex .rlap{position:relative;width:0}.katex .clap>.inner,.katex .llap>.inner,.katex .rlap>.inner{position:absolute}.katex .clap>.fix,.katex .llap>.fix,.katex .rlap>.fix{display:inline-block}.katex .llap>.inner{right:0}.katex .clap>.inner,.katex .rlap>.inner{left:0}.katex .clap>.inner>span{margin-left:-50%;margin-right:50%}.katex .rule{border:0 solid;display:inline-block;position:relative}.katex .hline,.katex .overline .overline-line,.katex .underline .underline-line{border-bottom-style:solid;display:inline-block;width:100%}.katex .hdashline{border-bottom-style:dashed;display:inline-block;width:100%}.katex .sqrt>.root{margin-left:.2777777778em;margin-right:-.5555555556em}.katex .fontsize-ensurer.reset-size1.size1,.katex .sizing.reset-size1.size1{font-size:1em}.katex .fontsize-ensurer.reset-size1.size2,.katex .sizing.reset-size1.size2{font-size:1.2em}.katex .fontsize-ensurer.reset-size1.size3,.katex .sizing.reset-size1.size3{font-size:1.4em}.katex .fontsize-ensurer.reset-size1.size4,.katex .sizing.reset-size1.size4{font-size:1.6em}.katex .fontsize-ensurer.reset-size1.size5,.katex .sizing.reset-size1.size5{font-size:1.8em}.katex .fontsize-ensurer.reset-size1.size6,.katex .sizing.reset-size1.size6{font-size:2em}.katex .fontsize-ensurer.reset-size1.size7,.katex .sizing.reset-size1.size7{font-size:2.4em}.katex .fontsize-ensurer.reset-size1.size8,.katex .sizing.reset-size1.size8{font-size:2.88em}.katex .fontsize-ensurer.reset-size1.size9,.katex .sizing.reset-size1.size9{font-size:3.456em}.katex .fontsize-ensurer.reset-size1.size10,.katex .sizing.reset-size1.size10{font-size:4.148em}.katex .fontsize-ensurer.reset-size1.size11,.katex .sizing.reset-size1.size11{font-size:4.976em}.katex .fontsize-ensurer.reset-size2.size1,.katex .sizing.reset-size2.size1{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size2.size2,.katex .sizing.reset-size2.size2{font-size:1em}.katex .fontsize-ensurer.reset-size2.size3,.katex .sizing.reset-size2.size3{font-size:1.1666666667em}.katex .fontsize-ensurer.reset-size2.size4,.katex .sizing.reset-size2.size4{font-size:1.3333333333em}.katex .fontsize-ensurer.reset-size2.size5,.katex .sizing.reset-size2.size5{font-size:1.5em}.katex .fontsize-ensurer.reset-size2.size6,.katex .sizing.reset-size2.size6{font-size:1.6666666667em}.katex .fontsize-ensurer.reset-size2.size7,.katex .sizing.reset-size2.size7{font-size:2em}.katex .fontsize-ensurer.reset-size2.size8,.katex .sizing.reset-size2.size8{font-size:2.4em}.katex .fontsize-ensurer.reset-size2.size9,.katex .sizing.reset-size2.size9{font-size:2.88em}.katex .fontsize-ensurer.reset-size2.size10,.katex .sizing.reset-size2.size10{font-size:3.4566666667em}.katex .fontsize-ensurer.reset-size2.size11,.katex .sizing.reset-size2.size11{font-size:4.1466666667em}.katex .fontsize-ensurer.reset-size3.size1,.katex .sizing.reset-size3.size1{font-size:.7142857143em}.katex .fontsize-ensurer.reset-size3.size2,.katex .sizing.reset-size3.size2{font-size:.8571428571em}.katex .fontsize-ensurer.reset-size3.size3,.katex .sizing.reset-size3.size3{font-size:1em}.katex .fontsize-ensurer.reset-size3.size4,.katex .sizing.reset-size3.size4{font-size:1.1428571429em}.katex .fontsize-ensurer.reset-size3.size5,.katex .sizing.reset-size3.size5{font-size:1.2857142857em}.katex .fontsize-ensurer.reset-size3.size6,.katex .sizing.reset-size3.size6{font-size:1.4285714286em}.katex .fontsize-ensurer.reset-size3.size7,.katex .sizing.reset-size3.size7{font-size:1.7142857143em}.katex .fontsize-ensurer.reset-size3.size8,.katex .sizing.reset-size3.size8{font-size:2.0571428571em}.katex .fontsize-ensurer.reset-size3.size9,.katex .sizing.reset-size3.size9{font-size:2.4685714286em}.katex .fontsize-ensurer.reset-size3.size10,.katex .sizing.reset-size3.size10{font-size:2.9628571429em}.katex .fontsize-ensurer.reset-size3.size11,.katex .sizing.reset-size3.size11{font-size:3.5542857143em}.katex .fontsize-ensurer.reset-size4.size1,.katex .sizing.reset-size4.size1{font-size:.625em}.katex .fontsize-ensurer.reset-size4.size2,.katex .sizing.reset-size4.size2{font-size:.75em}.katex .fontsize-ensurer.reset-size4.size3,.katex .sizing.reset-size4.size3{font-size:.875em}.katex .fontsize-ensurer.reset-size4.size4,.katex .sizing.reset-size4.size4{font-size:1em}.katex .fontsize-ensurer.reset-size4.size5,.katex .sizing.reset-size4.size5{font-size:1.125em}.katex .fontsize-ensurer.reset-size4.size6,.katex .sizing.reset-size4.size6{font-size:1.25em}.katex .fontsize-ensurer.reset-size4.size7,.katex .sizing.reset-size4.size7{font-size:1.5em}.katex .fontsize-ensurer.reset-size4.size8,.katex .sizing.reset-size4.size8{font-size:1.8em}.katex .fontsize-ensurer.reset-size4.size9,.katex .sizing.reset-size4.size9{font-size:2.16em}.katex .fontsize-ensurer.reset-size4.size10,.katex .sizing.reset-size4.size10{font-size:2.5925em}.katex .fontsize-ensurer.reset-size4.size11,.katex .sizing.reset-size4.size11{font-size:3.11em}.katex .fontsize-ensurer.reset-size5.size1,.katex .sizing.reset-size5.size1{font-size:.5555555556em}.katex .fontsize-ensurer.reset-size5.size2,.katex .sizing.reset-size5.size2{font-size:.6666666667em}.katex .fontsize-ensurer.reset-size5.size3,.katex .sizing.reset-size5.size3{font-size:.7777777778em}.katex .fontsize-ensurer.reset-size5.size4,.katex .sizing.reset-size5.size4{font-size:.8888888889em}.katex .fontsize-ensurer.reset-size5.size5,.katex .sizing.reset-size5.size5{font-size:1em}.katex .fontsize-ensurer.reset-size5.size6,.katex .sizing.reset-size5.size6{font-size:1.1111111111em}.katex .fontsize-ensurer.reset-size5.size7,.katex .sizing.reset-size5.size7{font-size:1.3333333333em}.katex .fontsize-ensurer.reset-size5.size8,.katex .sizing.reset-size5.size8{font-size:1.6em}.katex .fontsize-ensurer.reset-size5.size9,.katex .sizing.reset-size5.size9{font-size:1.92em}.katex .fontsize-ensurer.reset-size5.size10,.katex .sizing.reset-size5.size10{font-size:2.3044444444em}.katex .fontsize-ensurer.reset-size5.size11,.katex .sizing.reset-size5.size11{font-size:2.7644444444em}.katex .fontsize-ensurer.reset-size6.size1,.katex .sizing.reset-size6.size1{font-size:.5em}.katex .fontsize-ensurer.reset-size6.size2,.katex .sizing.reset-size6.size2{font-size:.6em}.katex .fontsize-ensurer.reset-size6.size3,.katex .sizing.reset-size6.size3{font-size:.7em}.katex .fontsize-ensurer.reset-size6.size4,.katex .sizing.reset-size6.size4{font-size:.8em}.katex .fontsize-ensurer.reset-size6.size5,.katex .sizing.reset-size6.size5{font-size:.9em}.katex .fontsize-ensurer.reset-size6.size6,.katex .sizing.reset-size6.size6{font-size:1em}.katex .fontsize-ensurer.reset-size6.size7,.katex .sizing.reset-size6.size7{font-size:1.2em}.katex .fontsize-ensurer.reset-size6.size8,.katex .sizing.reset-size6.size8{font-size:1.44em}.katex .fontsize-ensurer.reset-size6.size9,.katex .sizing.reset-size6.size9{font-size:1.728em}.katex .fontsize-ensurer.reset-size6.size10,.katex .sizing.reset-size6.size10{font-size:2.074em}.katex .fontsize-ensurer.reset-size6.size11,.katex .sizing.reset-size6.size11{font-size:2.488em}.katex .fontsize-ensurer.reset-size7.size1,.katex .sizing.reset-size7.size1{font-size:.4166666667em}.katex .fontsize-ensurer.reset-size7.size2,.katex .sizing.reset-size7.size2{font-size:.5em}.katex .fontsize-ensurer.reset-size7.size3,.katex .sizing.reset-size7.size3{font-size:.5833333333em}.katex .fontsize-ensurer.reset-size7.size4,.katex .sizing.reset-size7.size4{font-size:.6666666667em}.katex .fontsize-ensurer.reset-size7.size5,.katex .sizing.reset-size7.size5{font-size:.75em}.katex .fontsize-ensurer.reset-size7.size6,.katex .sizing.reset-size7.size6{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size7.size7,.katex .sizing.reset-size7.size7{font-size:1em}.katex .fontsize-ensurer.reset-size7.size8,.katex .sizing.reset-size7.size8{font-size:1.2em}.katex .fontsize-ensurer.reset-size7.size9,.katex .sizing.reset-size7.size9{font-size:1.44em}.katex .fontsize-ensurer.reset-size7.size10,.katex .sizing.reset-size7.size10{font-size:1.7283333333em}.katex .fontsize-ensurer.reset-size7.size11,.katex .sizing.reset-size7.size11{font-size:2.0733333333em}.katex .fontsize-ensurer.reset-size8.size1,.katex .sizing.reset-size8.size1{font-size:.3472222222em}.katex .fontsize-ensurer.reset-size8.size2,.katex .sizing.reset-size8.size2{font-size:.4166666667em}.katex .fontsize-ensurer.reset-size8.size3,.katex .sizing.reset-size8.size3{font-size:.4861111111em}.katex .fontsize-ensurer.reset-size8.size4,.katex .sizing.reset-size8.size4{font-size:.5555555556em}.katex .fontsize-ensurer.reset-size8.size5,.katex .sizing.reset-size8.size5{font-size:.625em}.katex .fontsize-ensurer.reset-size8.size6,.katex .sizing.reset-size8.size6{font-size:.6944444444em}.katex .fontsize-ensurer.reset-size8.size7,.katex .sizing.reset-size8.size7{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size8.size8,.katex .sizing.reset-size8.size8{font-size:1em}.katex .fontsize-ensurer.reset-size8.size9,.katex .sizing.reset-size8.size9{font-size:1.2em}.katex .fontsize-ensurer.reset-size8.size10,.katex .sizing.reset-size8.size10{font-size:1.4402777778em}.katex .fontsize-ensurer.reset-size8.size11,.katex .sizing.reset-size8.size11{font-size:1.7277777778em}.katex .fontsize-ensurer.reset-size9.size1,.katex .sizing.reset-size9.size1{font-size:.2893518519em}.katex .fontsize-ensurer.reset-size9.size2,.katex .sizing.reset-size9.size2{font-size:.3472222222em}.katex .fontsize-ensurer.reset-size9.size3,.katex .sizing.reset-size9.size3{font-size:.4050925926em}.katex .fontsize-ensurer.reset-size9.size4,.katex .sizing.reset-size9.size4{font-size:.462962963em}.katex .fontsize-ensurer.reset-size9.size5,.katex .sizing.reset-size9.size5{font-size:.5208333333em}.katex .fontsize-ensurer.reset-size9.size6,.katex .sizing.reset-size9.size6{font-size:.5787037037em}.katex .fontsize-ensurer.reset-size9.size7,.katex .sizing.reset-size9.size7{font-size:.6944444444em}.katex .fontsize-ensurer.reset-size9.size8,.katex .sizing.reset-size9.size8{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size9.size9,.katex .sizing.reset-size9.size9{font-size:1em}.katex .fontsize-ensurer.reset-size9.size10,.katex .sizing.reset-size9.size10{font-size:1.2002314815em}.katex .fontsize-ensurer.reset-size9.size11,.katex .sizing.reset-size9.size11{font-size:1.4398148148em}.katex .fontsize-ensurer.reset-size10.size1,.katex .sizing.reset-size10.size1{font-size:.2410800386em}.katex .fontsize-ensurer.reset-size10.size2,.katex .sizing.reset-size10.size2{font-size:.2892960463em}.katex .fontsize-ensurer.reset-size10.size3,.katex .sizing.reset-size10.size3{font-size:.337512054em}.katex .fontsize-ensurer.reset-size10.size4,.katex .sizing.reset-size10.size4{font-size:.3857280617em}.katex .fontsize-ensurer.reset-size10.size5,.katex .sizing.reset-size10.size5{font-size:.4339440694em}.katex .fontsize-ensurer.reset-size10.size6,.katex .sizing.reset-size10.size6{font-size:.4821600771em}.katex .fontsize-ensurer.reset-size10.size7,.katex .sizing.reset-size10.size7{font-size:.5785920926em}.katex .fontsize-ensurer.reset-size10.size8,.katex .sizing.reset-size10.size8{font-size:.6943105111em}.katex .fontsize-ensurer.reset-size10.size9,.katex .sizing.reset-size10.size9{font-size:.8331726133em}.katex .fontsize-ensurer.reset-size10.size10,.katex .sizing.reset-size10.size10{font-size:1em}.katex .fontsize-ensurer.reset-size10.size11,.katex .sizing.reset-size10.size11{font-size:1.1996142719em}.katex .fontsize-ensurer.reset-size11.size1,.katex .sizing.reset-size11.size1{font-size:.2009646302em}.katex .fontsize-ensurer.reset-size11.size2,.katex .sizing.reset-size11.size2{font-size:.2411575563em}.katex .fontsize-ensurer.reset-size11.size3,.katex .sizing.reset-size11.size3{font-size:.2813504823em}.katex .fontsize-ensurer.reset-size11.size4,.katex .sizing.reset-size11.size4{font-size:.3215434084em}.katex .fontsize-ensurer.reset-size11.size5,.katex .sizing.reset-size11.size5{font-size:.3617363344em}.katex .fontsize-ensurer.reset-size11.size6,.katex .sizing.reset-size11.size6{font-size:.4019292605em}.katex .fontsize-ensurer.reset-size11.size7,.katex .sizing.reset-size11.size7{font-size:.4823151125em}.katex .fontsize-ensurer.reset-size11.size8,.katex .sizing.reset-size11.size8{font-size:.578778135em}.katex .fontsize-ensurer.reset-size11.size9,.katex .sizing.reset-size11.size9{font-size:.6945337621em}.katex .fontsize-ensurer.reset-size11.size10,.katex .sizing.reset-size11.size10{font-size:.8336012862em}.katex .fontsize-ensurer.reset-size11.size11,.katex .sizing.reset-size11.size11{font-size:1em}.katex .delimsizing.size1{font-family:KaTeX_Size1}.katex .delimsizing.size2{font-family:KaTeX_Size2}.katex .delimsizing.size3{font-family:KaTeX_Size3}.katex .delimsizing.size4{font-family:KaTeX_Size4}.katex .delimsizing.mult .delim-size1>span{font-family:KaTeX_Size1}.katex .delimsizing.mult .delim-size4>span{font-family:KaTeX_Size4}.katex .nulldelimiter{display:inline-block;width:.12em}.katex .delimcenter,.katex .op-symbol{position:relative}.katex .op-symbol.small-op{font-family:KaTeX_Size1}.katex .op-symbol.large-op{font-family:KaTeX_Size2}.katex .accent>.vlist-t,.katex .op-limits>.vlist-t{text-align:center}.katex .accent .accent-body{position:relative}.katex .accent .accent-body:not(.accent-full){width:0}.katex .overlay{display:block}.katex .mtable .vertical-separator{display:inline-block;min-width:1px}.katex .mtable .arraycolsep{display:inline-block}.katex .mtable .col-align-c>.vlist-t{text-align:center}.katex .mtable .col-align-l>.vlist-t{text-align:left}.katex .mtable .col-align-r>.vlist-t{text-align:right}.katex .svg-align{text-align:left}.katex svg{fill:currentColor;stroke:currentColor;display:block;height:inherit;position:absolute;width:100%}.katex svg path{stroke:none}.katex svg{fill-rule:nonzero;fill-opacity:1;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1}.katex img{border-style:none;max-height:none;max-width:none;min-height:0;min-width:0}.katex .stretchy{display:block;overflow:hidden;position:relative;width:100%}.katex .stretchy:after,.katex .stretchy:before{content:""}.katex .hide-tail{overflow:hidden;position:relative;width:100%}.katex .halfarrow-left{left:0;overflow:hidden;position:absolute;width:50.2%}.katex .halfarrow-right{overflow:hidden;position:absolute;right:0;width:50.2%}.katex .brace-left{left:0;overflow:hidden;position:absolute;width:25.1%}.katex .brace-center{left:25%;overflow:hidden;position:absolute;width:50%}.katex .brace-right{overflow:hidden;position:absolute;right:0;width:25.1%}.katex .x-arrow-pad{padding:0 .5em}.katex .cd-arrow-pad{padding:0 .55556em 0 .27778em}.katex .mover,.katex .munder,.katex .x-arrow{text-align:center}.katex .boxpad{padding:0 .3em}.katex .fbox,.katex .fcolorbox{border:.04em solid;box-sizing:border-box}.katex .cancel-pad{padding:0 .2em}.katex .cancel-lap{margin-left:-.2em;margin-right:-.2em}.katex .sout{border-bottom-style:solid;border-bottom-width:.08em}.katex .angl{border-right:.049em solid;border-top:.049em solid;box-sizing:border-box;margin-right:.03889em}.katex .anglpad{padding:0 .03889em}.katex .eqn-num:before{content:"(" counter(katexEqnNo) ")";counter-increment:katexEqnNo}.katex .mml-eqn-num:before{content:"(" counter(mmlEqnNo) ")";counter-increment:mmlEqnNo}.katex .mtr-glue{width:50%}.katex .cd-vert-arrow{display:inline-block;position:relative}.katex .cd-label-left{display:inline-block;position:absolute;right:calc(50% + .3em);text-align:left}.katex .cd-label-right{display:inline-block;left:calc(50% + .3em);position:absolute;text-align:right}.katex-display{display:block;margin:1em 0;text-align:center}.katex-display>.katex{display:block;text-align:center;white-space:nowrap}.katex-display>.katex>.katex-html{display:block;position:relative}.katex-display>.katex>.katex-html>.tag{position:absolute;right:0}.katex-display.leqno>.katex>.katex-html>.tag{left:0;right:auto}.katex-display.fleqn>.katex{padding-left:2em;text-align:left}body{counter-reset:katexEqnNo mmlEqnNo}
+
+pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5px}/*!
+  Theme: GitHub
+  Description: Light theme as seen on github.com
+  Author: github.com
+  Maintainer: @Hirse
+  Updated: 2021-05-15
+
+  Outdated base version: https://github.com/primer/github-syntax-light
+  Current colors taken from GitHub's CSS
+*/.hljs{color:#24292e;background:#fff}.hljs-doctag,.hljs-keyword,.hljs-meta .hljs-keyword,.hljs-template-tag,.hljs-template-variable,.hljs-type,.hljs-variable.language_{color:#d73a49}.hljs-title,.hljs-title.class_,.hljs-title.class_.inherited__,.hljs-title.function_{color:#6f42c1}.hljs-attr,.hljs-attribute,.hljs-literal,.hljs-meta,.hljs-number,.hljs-operator,.hljs-selector-attr,.hljs-selector-class,.hljs-selector-id,.hljs-variable{color:#005cc5}.hljs-meta .hljs-string,.hljs-regexp,.hljs-string{color:#032f62}.hljs-built_in,.hljs-symbol{color:#e36209}.hljs-code,.hljs-comment,.hljs-formula{color:#6a737d}.hljs-name,.hljs-quote,.hljs-selector-pseudo,.hljs-selector-tag{color:#22863a}.hljs-subst{color:#24292e}.hljs-section{color:#005cc5;font-weight:700}.hljs-bullet{color:#735c0f}.hljs-emphasis{color:#24292e;font-style:italic}.hljs-strong{color:#24292e;font-weight:700}.hljs-addition{color:#22863a;background-color:#f0fff4}.hljs-deletion{color:#b31d28;background-color:#ffeef0}
+  </style>
+</head>
+<body>
+<h1 data-source-line="1" id="gis算法设计与分析-12组4次作业任务书">GIS算法设计与分析 — 12组4次作业任务书</h1>
+<blockquote data-source-line="3">
+<p data-source-line="3">60人分12组（每组5人），每组提交4次作业，最终交付一个完整可运行的程序。<br>允许使用AI编程工具，但必须记录AI使用日志，答辩时能解释核心函数的作用和实现原理。<br>每次作业必须包含编码开发和可视化展示，不接受纯文档或纯算法片段。</p>
+</blockquote>
+<hr data-source-line="7">
+<h2 data-source-line="9" id="统一考核标准每组4次作业通用">统一考核标准（每组4次作业通用）</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table data-source-line="11"><thead><tr data-source-line="11"><th data-source-line="11">考核维度</th><th data-source-line="11">占比</th><th data-source-line="11">说明</th></tr></thead><tbody><tr data-source-line="13"><td data-source-line="13">功能完整性</td><td data-source-line="13">30%</td><td data-source-line="13">要求的功能是否全部实现，能否正常运行</td></tr><tr data-source-line="14"><td data-source-line="14">代码质量</td><td data-source-line="14">20%</td><td data-source-line="14">代码结构、命名规范、注释、模块化、可维护性</td></tr><tr data-source-line="15"><td data-source-line="15">可视化效果</td><td data-source-line="15">15%</td><td data-source-line="15">是否有图形界面/可视化展示，交互是否友好</td></tr><tr data-source-line="16"><td data-source-line="16">文档质量</td><td data-source-line="16">10%</td><td data-source-line="16">设计文档、使用说明、接口文档</td></tr><tr data-source-line="17"><td data-source-line="17">AI使用日志</td><td data-source-line="17">10%</td><td data-source-line="17">记录AI工具使用情况（prompt/输出/修改/理解程度）</td></tr><tr data-source-line="18"><td data-source-line="18">答辩与演示</td><td data-source-line="18">15%</td><td data-source-line="18">现场演示效果，回答问题准确性，对核心函数的理解程度</td></tr></tbody></table>
+<h3 data-source-line="20" id="编码考察要求硬性">编码考察要求（硬性）</h3>
+<ul data-source-line="21">
+<li data-source-line="21">每次作业必须提交可编译运行的源代码</li>
+<li data-source-line="22">核心算法必须自己实现，不允许直接调用第三方库的同名算法（如路径规划不能直接调用OSRM的A*，但可以调用数据结构库）</li>
+<li data-source-line="23">允许使用AI辅助生成代码，但必须能解释核心函数的作用、输入输出和实现原理</li>
+<li data-source-line="24">答辩时随机抽取核心函数要求解释，不能解释的视为抄袭</li>
+</ul>
+<h3 data-source-line="26" id="可视化要求硬性">可视化要求（硬性）</h3>
+<ul data-source-line="27">
+<li data-source-line="27">每次作业必须有可视化展示（GUI界面/网页/图表/地图渲染等）</li>
+<li data-source-line="28">不接受纯命令行输出或纯文本结果</li>
+<li data-source-line="29">可视化要能直观展示算法效果和数据处理过程</li>
+</ul>
+<h3 data-source-line="31" id="最终交付要求第4次作业硬性">最终交付要求（第4次作业硬性）</h3>
+<ul data-source-line="32">
+<li data-source-line="32">必须提交一个<strong data-source-line="32">完整可运行的程序</strong>，不是一个个独立的算法或小模块</li>
+<li data-source-line="33">程序要能从输入数据→处理→可视化展示形成完整闭环</li>
+<li data-source-line="34">提供一键运行脚本或安装说明，评委电脑上能直接运行</li>
+<li data-source-line="35">提供演示视频（3-5分钟）作为备用</li>
+</ul>
+<hr data-source-line="37">
+<h2 data-source-line="39" id="g1-数据导入组">G1 数据导入组</h2>
+<p data-source-line="41"><strong data-source-line="41">组名</strong>：数据导入与处理工具组</p>
+<p data-source-line="43"><strong data-source-line="43">总任务</strong>：开发一个完整的OSM数据导入与处理工具，支持OSM数据解析、清洗、质检、坐标转换、标准化导出，提供图形化界面和数据质量可视化仪表盘。最终交付一个可独立运行的桌面/网页端数据处理工具。</p>
+<h3 data-source-line="45" id="第1次作业第4周后osm数据解析器">第1次作业（第4周后）：OSM数据解析器</h3>
+<p data-source-line="47"><strong data-source-line="47">任务内容</strong>：</p>
+<ul data-source-line="48">
+<li data-source-line="48">实现OSM XML格式解析器，能读取节点(node)、路径(way)、关系(relation)</li>
+<li data-source-line="49">支持OSM PBF二进制格式解析（可选，加分项）</li>
+<li data-source-line="50">解析结果保存为自定义中间格式（JSON或二进制）</li>
+<li data-source-line="51">开发简单GUI界面：选择文件→解析→显示统计信息（节点数/路径数/关系数/标签分布）</li>
+</ul>
+<p data-source-line="53"><strong data-source-line="53">产出物</strong>：</p>
+<ul data-source-line="54">
+<li data-source-line="54">OSM解析器源代码（C++/Python/Java均可）</li>
+<li data-source-line="55">可运行程序（命令行+简单GUI）</li>
+<li data-source-line="56">解析测试报告（用某城市OSM数据测试，记录解析时间和内存占用）</li>
+<li data-source-line="57">设计文档（数据结构、解析流程、性能分析）</li>
+</ul>
+<p data-source-line="59"><strong data-source-line="59">考核打分</strong>：</p>
+<ul data-source-line="60">
+<li data-source-line="60">能正确解析OSM XML，输出节点/路径/关系（40%）</li>
+<li data-source-line="61">GUI界面能选择文件并显示解析统计（20%）</li>
+<li data-source-line="62">代码结构清晰，有注释（15%）</li>
+<li data-source-line="63">解析性能合理（10万节点&lt;5秒）（10%）</li>
+<li data-source-line="64">文档完整，AI使用日志（15%）</li>
+</ul>
+<h3 data-source-line="66" id="第2次作业第7周后数据清洗与质检模块">第2次作业（第7周后）：数据清洗与质检模块</h3>
+<p data-source-line="68"><strong data-source-line="68">任务内容</strong>：</p>
+<ul data-source-line="69">
+<li data-source-line="69">实现拓扑检查：悬挂边检测、孤立节点检测、重复节点检测</li>
+<li data-source-line="70">实现属性补全：道路名称缺失检测、道路等级推断、单行道标识校验</li>
+<li data-source-line="71">实现数据质量评分：从完整性/准确性/一致性/时效性四个维度打分</li>
+<li data-source-line="72">开发数据质量可视化仪表盘：问题点地图标注、质量评分图表、修复前后对比</li>
+</ul>
+<p data-source-line="74"><strong data-source-line="74">产出物</strong>：</p>
+<ul data-source-line="75">
+<li data-source-line="75">数据清洗与质检模块源代码（集成到第1次作业的程序中）</li>
+<li data-source-line="76">更新后的可运行程序（解析→清洗→质检→可视化完整流程）</li>
+<li data-source-line="77">数据质量报告（某城市OSM数据的问题统计和质量评分）</li>
+<li data-source-line="78">可视化界面截图或演示</li>
+</ul>
+<p data-source-line="80"><strong data-source-line="80">考核打分</strong>：</p>
+<ul data-source-line="81">
+<li data-source-line="81">拓扑检查算法正确（悬挂边/孤立节点/重复节点）（30%）</li>
+<li data-source-line="82">属性补全逻辑合理（20%）</li>
+<li data-source-line="83">数据质量评分模型可解释（15%）</li>
+<li data-source-line="84">可视化仪表盘直观展示问题点和评分（20%）</li>
+<li data-source-line="85">与第1次作业集成，形成完整流程（15%）</li>
+</ul>
+<h3 data-source-line="87" id="第3次作业第10周后坐标转换与标准化导出">第3次作业（第10周后）：坐标转换与标准化导出</h3>
+<p data-source-line="89"><strong data-source-line="89">任务内容</strong>：</p>
+<ul data-source-line="90">
+<li data-source-line="90">实现坐标系统转换：WGS84↔GCJ02（火星坐标）↔BD09（百度坐标）</li>
+<li data-source-line="91">实现投影转换：经纬度↔Web墨卡托（EPSG:3857）</li>
+<li data-source-line="92">设计标准化导航数据格式（包含路网/POI/索引的统一格式）</li>
+<li data-source-line="93">支持多种格式导出：自定义格式/GeoJSON/SQLite</li>
+<li data-source-line="94">GUI增加坐标转换工具和导出配置界面</li>
+</ul>
+<p data-source-line="96"><strong data-source-line="96">产出物</strong>：</p>
+<ul data-source-line="97">
+<li data-source-line="97">坐标转换与导出模块源代码</li>
+<li data-source-line="98">完整可运行程序（解析→清洗→质检→坐标转换→导出）</li>
+<li data-source-line="99">坐标转换精度验证报告（与在线工具对比，误差&lt;1米）</li>
+<li data-source-line="100">标准化数据格式规范文档</li>
+</ul>
+<p data-source-line="102"><strong data-source-line="102">考核打分</strong>：</p>
+<ul data-source-line="103">
+<li data-source-line="103">坐标转换算法正确，精度达标（30%）</li>
+<li data-source-line="104">标准化数据格式设计合理（20%）</li>
+<li data-source-line="105">支持多种格式导出（15%）</li>
+<li data-source-line="106">GUI完整，流程顺畅（20%）</li>
+<li data-source-line="107">文档和验证报告（15%）</li>
+</ul>
+<h3 data-source-line="109" id="第4次作业第12周后完整数据处理工具">第4次作业（第12周后）：完整数据处理工具</h3>
+<p data-source-line="111"><strong data-source-line="111">任务内容</strong>：</p>
+<ul data-source-line="112">
+<li data-source-line="112">集成前3次作业所有模块，形成完整的数据处理工具</li>
+<li data-source-line="113">增加批量处理功能：支持多文件批量处理、处理进度显示</li>
+<li data-source-line="114">增加数据对比功能：两个版本数据的差异对比可视化</li>
+<li data-source-line="115">优化性能：大文件处理（&gt;100MB）不卡顿</li>
+<li data-source-line="116">完善用户体验：操作引导、错误提示、快捷键、主题切换</li>
+<li data-source-line="117">准备答辩演示和完整文档</li>
+</ul>
+<p data-source-line="119"><strong data-source-line="119">产出物</strong>：</p>
+<ul data-source-line="120">
+<li data-source-line="120">完整可运行的数据处理工具（安装包或绿色版）</li>
+<li data-source-line="121">全部源代码（GitHub仓库或压缩包）</li>
+<li data-source-line="122">用户手册、设计文档、API文档</li>
+<li data-source-line="123">演示视频（3-5分钟）</li>
+<li data-source-line="124">AI使用完整日志</li>
+</ul>
+<p data-source-line="126"><strong data-source-line="126">考核打分</strong>：</p>
+<ul data-source-line="127">
+<li data-source-line="127">功能完整，所有模块正常工作（25%）</li>
+<li data-source-line="128">程序稳定，大文件处理不崩溃（15%）</li>
+<li data-source-line="129">可视化界面专业、交互友好（15%）</li>
+<li data-source-line="130">代码质量高，模块化好（15%）</li>
+<li data-source-line="131">文档完整，可独立使用（10%）</li>
+<li data-source-line="132">答辩演示流畅，能解释核心函数（20%）</li>
+</ul>
+<hr data-source-line="134">
+<h2 data-source-line="136" id="g2-路网模型组">G2 路网模型组</h2>
+<p data-source-line="138"><strong data-source-line="138">组名</strong>：路网建模与拓扑构建系统组</p>
+<p data-source-line="140"><strong data-source-line="140">总任务</strong>：开发一个完整的路网建模与拓扑构建系统，支持有向图构建、转向限制、多模态路网、路网压缩、权重管理，提供路网可视化编辑器和拓扑验证工具。最终交付一个可独立运行的路网建模系统。</p>
+<h3 data-source-line="142" id="第1次作业第4周后路网拓扑构建基础">第1次作业（第4周后）：路网拓扑构建基础</h3>
+<p data-source-line="144"><strong data-source-line="144">任务内容</strong>：</p>
+<ul data-source-line="145">
+<li data-source-line="145">实现节点-边有向图数据结构</li>
+<li data-source-line="146">从G1组的标准化数据构建路网拓扑（或使用教师提供的备份数据）</li>
+<li data-source-line="147">处理单行道、双向道、道路等级</li>
+<li data-source-line="148">实现基本图算法：连通性检查、度分布统计、最短路径（Dijkstra，用于验证）</li>
+<li data-source-line="149">开发路网可视化界面：缩放/平移/点击查看道路属性/按等级着色</li>
+</ul>
+<p data-source-line="151"><strong data-source-line="151">产出物</strong>：</p>
+<ul data-source-line="152">
+<li data-source-line="152">路网拓扑构建模块源代码</li>
+<li data-source-line="153">可运行程序（导入数据→构建拓扑→可视化）</li>
+<li data-source-line="154">拓扑验证报告（连通分量数/悬挂节点数/平均度）</li>
+<li data-source-line="155">可视化界面演示</li>
+</ul>
+<p data-source-line="157"><strong data-source-line="157">考核打分</strong>：</p>
+<ul data-source-line="158">
+<li data-source-line="158">有向图数据结构正确，支持单行道（30%）</li>
+<li data-source-line="159">能从数据正确构建拓扑（20%）</li>
+<li data-source-line="160">基本图算法实现正确（15%）</li>
+<li data-source-line="161">路网可视化交互流畅（20%）</li>
+<li data-source-line="162">文档和验证报告（15%）</li>
+</ul>
+<h3 data-source-line="164" id="第2次作业第7周后转向限制与多模态路网">第2次作业（第7周后）：转向限制与多模态路网</h3>
+<p data-source-line="166"><strong data-source-line="166">任务内容</strong>：</p>
+<ul data-source-line="167">
+<li data-source-line="167">实现转向限制模型：路口禁止左转/禁止掉头/专用车道</li>
+<li data-source-line="168">实现多模态路网：汽车网/步行网/自行车网/公交网的分离与关联</li>
+<li data-source-line="169">实现模态转换点：地铁站/公交站/停车场（汽车→步行/公交的转换点）</li>
+<li data-source-line="170">开发转向限制可视化编辑器：点击路口设置允许/禁止转向</li>
+<li data-source-line="171">多模态路网切换显示：一键切换查看不同交通方式的路网</li>
+</ul>
+<p data-source-line="173"><strong data-source-line="173">产出物</strong>：</p>
+<ul data-source-line="174">
+<li data-source-line="174">转向限制与多模态路网模块源代码</li>
+<li data-source-line="175">更新后的可运行程序（拓扑构建→转向限制→多模态→可视化编辑）</li>
+<li data-source-line="176">多模态路网设计文档</li>
+<li data-source-line="177">转向限制编辑器演示</li>
+</ul>
+<p data-source-line="179"><strong data-source-line="179">考核打分</strong>：</p>
+<ul data-source-line="180">
+<li data-source-line="180">转向限制模型正确，能正确影响路径（25%）</li>
+<li data-source-line="181">多模态路网设计合理，模态转换正确（25%）</li>
+<li data-source-line="182">可视化编辑器操作直观（20%）</li>
+<li data-source-line="183">与第1次作业集成（15%）</li>
+<li data-source-line="184">文档和演示（10%）</li>
+</ul>
+<h3 data-source-line="186" id="第3次作业第10周后路网压缩与权重管理">第3次作业（第10周后）：路网压缩与权重管理</h3>
+<p data-source-line="188"><strong data-source-line="188">任务内容</strong>：</p>
+<ul data-source-line="189">
+<li data-source-line="189">实现路网压缩算法：度-2节点压缩（连续直行路段合并）、CH收缩层次预处理（可选）</li>
+<li data-source-line="190">实现动态权重管理：道路等级权重/限速/实时交通模拟/事件影响</li>
+<li data-source-line="191">实现权重可视化：按拥堵程度着色、按车速着色、权重时间变化动画</li>
+<li data-source-line="192">实现路网统计分析：里程统计/等级分布/连通性分析/可达性分析</li>
+<li data-source-line="193">开发权重配置界面：可视化调整道路权重，实时影响路径计算</li>
+</ul>
+<p data-source-line="195"><strong data-source-line="195">产出物</strong>：</p>
+<ul data-source-line="196">
+<li data-source-line="196">路网压缩与权重管理模块源代码</li>
+<li data-source-line="197">完整可运行程序（拓扑→转向→多模态→压缩→权重→可视化）</li>
+<li data-source-line="198">压缩效果对比报告（压缩前后节点数/边数/路径查询时间）</li>
+<li data-source-line="199">权重可视化演示</li>
+</ul>
+<p data-source-line="201"><strong data-source-line="201">考核打分</strong>：</p>
+<ul data-source-line="202">
+<li data-source-line="202">路网压缩算法正确，压缩效果明显（25%）</li>
+<li data-source-line="203">动态权重管理合理，能影响路径（25%）</li>
+<li data-source-line="204">权重可视化直观（20%）</li>
+<li data-source-line="205">统计分析功能完整（15%）</li>
+<li data-source-line="206">文档和对比报告（15%）</li>
+</ul>
+<h3 data-source-line="208" id="第4次作业第12周后完整路网建模系统">第4次作业（第12周后）：完整路网建模系统</h3>
+<p data-source-line="210"><strong data-source-line="210">任务内容</strong>：</p>
+<ul data-source-line="211">
+<li data-source-line="211">集成所有模块，形成完整的路网建模与可视化系统</li>
+<li data-source-line="212">增加路网编辑功能：添加/删除/修改道路和节点，实时更新拓扑</li>
+<li data-source-line="213">增加数据导入导出：支持OSM/GeoJSON/自定义格式</li>
+<li data-source-line="214">增加路径规划演示：在路网上可视化A*路径搜索过程</li>
+<li data-source-line="215">优化大规模路网渲染（&gt;10万条道路不卡顿）</li>
+<li data-source-line="216">准备答辩演示和完整文档</li>
+</ul>
+<p data-source-line="218"><strong data-source-line="218">产出物</strong>：</p>
+<ul data-source-line="219">
+<li data-source-line="219">完整可运行的路网建模系统</li>
+<li data-source-line="220">全部源代码</li>
+<li data-source-line="221">用户手册、设计文档、API文档</li>
+<li data-source-line="222">演示视频（3-5分钟）</li>
+<li data-source-line="223">AI使用完整日志</li>
+</ul>
+<p data-source-line="225"><strong data-source-line="225">考核打分</strong>：</p>
+<ul data-source-line="226">
+<li data-source-line="226">功能完整，所有模块正常（25%）</li>
+<li data-source-line="227">路网编辑器操作流畅（15%）</li>
+<li data-source-line="228">大规模路网渲染性能好（15%）</li>
+<li data-source-line="229">路径规划可视化演示直观（15%）</li>
+<li data-source-line="230">代码质量和文档（15%）</li>
+<li data-source-line="231">答辩演示和核心函数解释（15%）</li>
+</ul>
+<hr data-source-line="233">
+<h2 data-source-line="235" id="g3-空间索引组">G3 空间索引组</h2>
+<p data-source-line="237"><strong data-source-line="237">组名</strong>：空间索引引擎组</p>
+<p data-source-line="239"><strong data-source-line="239">总任务</strong>：开发一个完整的空间索引引擎，支持R树/四叉树/网格索引三种索引，实现范围查询/最近邻/空间连接，提供索引构建过程可视化和查询性能对比工具。最终交付一个可独立运行的空间索引引擎与可视化分析工具。</p>
+<h3 data-source-line="241" id="第1次作业第4周后r树实现">第1次作业（第4周后）：R树实现</h3>
+<p data-source-line="243"><strong data-source-line="243">任务内容</strong>：</p>
+<ul data-source-line="244">
+<li data-source-line="244">实现R树数据结构：节点（MBR最小外接矩形）/叶子节点/内部节点</li>
+<li data-source-line="245">实现插入算法（含节点分裂，用二次分裂或R*树优化）</li>
+<li data-source-line="246">实现删除算法</li>
+<li data-source-line="247">实现范围查询（窗口查询）和最近邻查询</li>
+<li data-source-line="248">开发R树可视化界面：树结构展示/节点MBR绘制/插入过程动画/查询过程高亮</li>
+</ul>
+<p data-source-line="250"><strong data-source-line="250">产出物</strong>：</p>
+<ul data-source-line="251">
+<li data-source-line="251">R树实现源代码</li>
+<li data-source-line="252">可运行程序（构建R树→插入/删除→查询→可视化）</li>
+<li data-source-line="253">R树性能测试报告（不同数据量下的插入/查询时间）</li>
+<li data-source-line="254">可视化界面演示</li>
+</ul>
+<p data-source-line="256"><strong data-source-line="256">考核打分</strong>：</p>
+<ul data-source-line="257">
+<li data-source-line="257">R树数据结构和插入算法正确（30%）</li>
+<li data-source-line="258">范围查询和最近邻查询正确（25%）</li>
+<li data-source-line="259">可视化能展示树结构和节点MBR（20%）</li>
+<li data-source-line="260">性能测试合理（10%）</li>
+<li data-source-line="261">文档和代码质量（15%）</li>
+</ul>
+<h3 data-source-line="263" id="第2次作业第7周后四叉树与网格索引三种索引对比">第2次作业（第7周后）：四叉树与网格索引，三种索引对比</h3>
+<p data-source-line="265"><strong data-source-line="265">任务内容</strong>：</p>
+<ul data-source-line="266">
+<li data-source-line="266">实现四叉树索引：规则四叉树/点四叉树，支持范围查询和最近邻</li>
+<li data-source-line="267">实现网格索引：固定网格/哈希网格，支持范围查询和点查询</li>
+<li data-source-line="268">实现统一索引接口：三种索引实现相同的查询接口，可无缝切换</li>
+<li data-source-line="269">开发性能对比工具：相同数据集下，三种索引的构建时间/查询时间/内存占用对比图表</li>
+<li data-source-line="270">可视化对比：同一查询在三种索引下的访问节点数对比（高亮显示访问的节点/网格）</li>
+</ul>
+<p data-source-line="272"><strong data-source-line="272">产出物</strong>：</p>
+<ul data-source-line="273">
+<li data-source-line="273">四叉树和网格索引源代码</li>
+<li data-source-line="274">更新后的可运行程序（三种索引切换→查询→性能对比可视化）</li>
+<li data-source-line="275">三种索引性能对比报告（含图表）</li>
+<li data-source-line="276">可视化对比演示</li>
+</ul>
+<p data-source-line="278"><strong data-source-line="278">考核打分</strong>：</p>
+<ul data-source-line="279">
+<li data-source-line="279">四叉树和网格索引实现正确（25%）</li>
+<li data-source-line="280">统一接口设计合理，切换顺畅（20%）</li>
+<li data-source-line="281">性能对比工具直观，数据可信（25%）</li>
+<li data-source-line="282">可视化对比能展示访问节点差异（15%）</li>
+<li data-source-line="283">文档和分析报告（15%）</li>
+</ul>
+<h3 data-source-line="285" id="第3次作业第10周后索引持久化与性能优化">第3次作业（第10周后）：索引持久化与性能优化</h3>
+<p data-source-line="287"><strong data-source-line="287">任务内容</strong>：</p>
+<ul data-source-line="288">
+<li data-source-line="288">实现索引序列化与反序列化：R树/四叉树/网格索引保存到文件，从文件加载</li>
+<li data-source-line="289">实现批量加载优化：大量数据一次性构建索引比逐条插入快</li>
+<li data-source-line="290">实现增量更新：插入/删除后索引局部更新，不需要全量重建</li>
+<li data-source-line="291">实现内存映射（MMAP）：大索引文件不全部加载到内存</li>
+<li data-source-line="292">开发索引管理工具：查看索引信息/验证索引完整性/重建索引/索引压缩</li>
+</ul>
+<p data-source-line="294"><strong data-source-line="294">产出物</strong>：</p>
+<ul data-source-line="295">
+<li data-source-line="295">索引持久化与优化模块源代码</li>
+<li data-source-line="296">完整可运行程序（构建→查询→持久化→优化→管理工具）</li>
+<li data-source-line="297">性能优化对比报告（逐条插入vs批量加载/序列化vs内存映射）</li>
+<li data-source-line="298">索引管理工具演示</li>
+</ul>
+<p data-source-line="300"><strong data-source-line="300">考核打分</strong>：</p>
+<ul data-source-line="301">
+<li data-source-line="301">序列化/反序列化正确，文件格式合理（25%）</li>
+<li data-source-line="302">批量加载和增量更新效果明显（25%）</li>
+<li data-source-line="303">内存映射实现正确（15%）</li>
+<li data-source-line="304">索引管理工具功能完整（20%）</li>
+<li data-source-line="305">文档和优化报告（15%）</li>
+</ul>
+<h3 data-source-line="307" id="第4次作业第12周后完整空间索引引擎">第4次作业（第12周后）：完整空间索引引擎</h3>
+<p data-source-line="309"><strong data-source-line="309">任务内容</strong>：</p>
+<ul data-source-line="310">
+<li data-source-line="310">集成所有模块，形成完整的空间索引引擎与可视化分析工具</li>
+<li data-source-line="311">增加空间连接查询：两个数据集的空间相交/包含/距离连接</li>
+<li data-source-line="312">增加k近邻查询（k-NN）和距离范围查询</li>
+<li data-source-line="313">增加真实数据集演示：用OSM POI数据/路网数据做空间查询演示</li>
+<li data-source-line="314">增加索引调优工具：自动选择最优索引类型/参数推荐</li>
+<li data-source-line="315">优化大规模数据性能（&gt;100万空间对象）</li>
+<li data-source-line="316">准备答辩演示和完整文档</li>
+</ul>
+<p data-source-line="318"><strong data-source-line="318">产出物</strong>：</p>
+<ul data-source-line="319">
+<li data-source-line="319">完整可运行的空间索引引擎</li>
+<li data-source-line="320">全部源代码</li>
+<li data-source-line="321">用户手册、设计文档、API文档</li>
+<li data-source-line="322">演示视频（3-5分钟）</li>
+<li data-source-line="323">AI使用完整日志</li>
+</ul>
+<p data-source-line="325"><strong data-source-line="325">考核打分</strong>：</p>
+<ul data-source-line="326">
+<li data-source-line="326">功能完整，三种索引+多种查询正常（25%）</li>
+<li data-source-line="327">大规模数据性能好（15%）</li>
+<li data-source-line="328">空间连接和k-NN查询正确（15%）</li>
+<li data-source-line="329">可视化分析工具专业（15%）</li>
+<li data-source-line="330">代码质量和文档（15%）</li>
+<li data-source-line="331">答辩演示和核心函数解释（15%）</li>
+</ul>
+<hr data-source-line="333">
+<h2 data-source-line="335" id="g4-路径规划组">G4 路径规划组</h2>
+<p data-source-line="337"><strong data-source-line="337">组名</strong>：路径规划引擎组</p>
+<p data-source-line="339"><strong data-source-line="339">总任务</strong>：开发一个完整的路径规划引擎，支持Dijkstra/A*/双向A*/CH四种算法，实现多路径规划/偏好设置/实时交通模拟，提供路径搜索过程可视化和算法性能对比工具。最终交付一个可独立运行的路径规划引擎与可视化演示系统。</p>
+<h3 data-source-line="341" id="第1次作业第4周后dijkstra与a实现">第1次作业（第4周后）：Dijkstra与A*实现</h3>
+<p data-source-line="343"><strong data-source-line="343">任务内容</strong>：</p>
+<ul data-source-line="344">
+<li data-source-line="344">实现Dijkstra最短路径算法（优先队列优化）</li>
+<li data-source-line="345">实现A*算法，设计启发函数（欧氏距离/地标距离）</li>
+<li data-source-line="346">实现路径重建和路径信息输出（总距离/总时间/路段序列）</li>
+<li data-source-line="347">开发算法可视化界面：在路网上动画展示搜索过程（已访问节点/边界节点/最终路径）</li>
+<li data-source-line="348">支持起点终点点击选择，实时计算路径</li>
+</ul>
+<p data-source-line="350"><strong data-source-line="350">产出物</strong>：</p>
+<ul data-source-line="351">
+<li data-source-line="351">Dijkstra和A*源代码</li>
+<li data-source-line="352">可运行程序（加载路网→选择起终点→路径规划→可视化动画）</li>
+<li data-source-line="353">算法对比报告（Dijkstra vs A*的搜索节点数/时间/路径质量）</li>
+<li data-source-line="354">可视化界面演示</li>
+</ul>
+<p data-source-line="356"><strong data-source-line="356">考核打分</strong>：</p>
+<ul data-source-line="357">
+<li data-source-line="357">Dijkstra和A*算法正确，路径最优（30%）</li>
+<li data-source-line="358">启发函数设计合理，可采纳性验证（20%）</li>
+<li data-source-line="359">搜索过程可视化动画流畅（25%）</li>
+<li data-source-line="360">交互友好，点击选点实时计算（10%）</li>
+<li data-source-line="361">文档和对比报告（15%）</li>
+</ul>
+<h3 data-source-line="363" id="第2次作业第7周后双向a与ch收缩层次">第2次作业（第7周后）：双向A*与CH收缩层次</h3>
+<p data-source-line="365"><strong data-source-line="365">任务内容</strong>：</p>
+<ul data-source-line="366">
+<li data-source-line="366">实现双向A*算法：从起点和终点同时搜索，相遇后组合路径</li>
+<li data-source-line="367">实现CH（收缩层次）算法：节点重要性排序/节点收缩/捷径边添加/双向查询</li>
+<li data-source-line="368">实现大规模路网测试：用城市级路网（&gt;10万节点）测试四种算法性能</li>
+<li data-source-line="369">开发性能对比仪表盘：四种算法的查询时间/搜索空间/预处理时间对比图表</li>
+<li data-source-line="370">CH预处理过程可视化：节点收缩顺序动画/捷径边添加过程</li>
+</ul>
+<p data-source-line="372"><strong data-source-line="372">产出物</strong>：</p>
+<ul data-source-line="373">
+<li data-source-line="373">双向A*和CH源代码</li>
+<li data-source-line="374">更新后的可运行程序（四种算法切换→大规模路网测试→性能对比可视化）</li>
+<li data-source-line="375">大规模路网性能测试报告（含数据表格和图表）</li>
+<li data-source-line="376">CH预处理可视化演示</li>
+</ul>
+<p data-source-line="378"><strong data-source-line="378">考核打分</strong>：</p>
+<ul data-source-line="379">
+<li data-source-line="379">双向A*正确，路径最优（20%）</li>
+<li data-source-line="380">CH算法正确，预处理和查询均正常（25%）</li>
+<li data-source-line="381">大规模路网测试数据可信（20%）</li>
+<li data-source-line="382">性能对比仪表盘直观（20%）</li>
+<li data-source-line="383">文档和测试报告（15%）</li>
+</ul>
+<h3 data-source-line="385" id="第3次作业第10周后多路径规划与偏好设置">第3次作业（第10周后）：多路径规划与偏好设置</h3>
+<p data-source-line="387"><strong data-source-line="387">任务内容</strong>：</p>
+<ul data-source-line="388">
+<li data-source-line="388">实现多路径规划：同时返回多条候选路径（最快/最短/少红绿灯/风景路线）</li>
+<li data-source-line="389">实现偏好设置系统：用户可设置避开高速/避开拥堵/偏好风景/电动汽车偏好充电桩</li>
+<li data-source-line="390">实现实时交通模拟：动态调整路段权重，模拟拥堵事件对路径的影响</li>
+<li data-source-line="391">实现路径对比可视化：多条候选路径叠加显示，标注差异路段和各自的距离/时间</li>
+<li data-source-line="392">实现路径动画演示：模拟车辆沿路径行驶，实时显示位置和剩余距离</li>
+</ul>
+<p data-source-line="394"><strong data-source-line="394">产出物</strong>：</p>
+<ul data-source-line="395">
+<li data-source-line="395">多路径规划与偏好设置模块源代码</li>
+<li data-source-line="396">完整可运行程序（四种算法→多路径→偏好设置→实时交通→路径动画）</li>
+<li data-source-line="397">多路径质量评估报告（多样性/合理性/用户满意度模拟）</li>
+<li data-source-line="398">路径动画和对比演示</li>
+</ul>
+<p data-source-line="400"><strong data-source-line="400">考核打分</strong>：</p>
+<ul data-source-line="401">
+<li data-source-line="401">多路径算法正确，候选路径有明显差异（25%）</li>
+<li data-source-line="402">偏好设置系统灵活，能正确影响路径（25%）</li>
+<li data-source-line="403">实时交通模拟合理（15%）</li>
+<li data-source-line="404">路径对比和动画演示直观（20%）</li>
+<li data-source-line="405">文档和评估报告（15%）</li>
+</ul>
+<h3 data-source-line="407" id="第4次作业第12周后完整路径规划引擎">第4次作业（第12周后）：完整路径规划引擎</h3>
+<p data-source-line="409"><strong data-source-line="409">任务内容</strong>：</p>
+<ul data-source-line="410">
+<li data-source-line="410">集成所有模块，形成完整的路径规划引擎与可视化演示系统</li>
+<li data-source-line="411">增加途经点规划：支持多途经点的路径优化（旅行商问题近似）</li>
+<li data-source-line="412">增加海拔/坡度规划：考虑地形坡度对能耗的影响（电动车路线）</li>
+<li data-source-line="413">增加路径分享与导出：路径导出为GPX/GeoJSON，生成分享链接</li>
+<li data-source-line="414">增加真实导航场景演示：模拟从学校到火车站的完整导航过程</li>
+<li data-source-line="415">优化查询性能（百万级节点路网查询&lt;100ms）</li>
+<li data-source-line="416">准备答辩演示和完整文档</li>
+</ul>
+<p data-source-line="418"><strong data-source-line="418">产出物</strong>：</p>
+<ul data-source-line="419">
+<li data-source-line="419">完整可运行的路径规划引擎</li>
+<li data-source-line="420">全部源代码</li>
+<li data-source-line="421">用户手册、设计文档、API文档</li>
+<li data-source-line="422">演示视频（3-5分钟）</li>
+<li data-source-line="423">AI使用完整日志</li>
+</ul>
+<p data-source-line="425"><strong data-source-line="425">考核打分</strong>：</p>
+<ul data-source-line="426">
+<li data-source-line="426">功能完整，四种算法+多路径+偏好正常（25%）</li>
+<li data-source-line="427">大规模路网查询性能达标（15%）</li>
+<li data-source-line="428">途经点和海拔规划有亮点（15%）</li>
+<li data-source-line="429">真实导航场景演示流畅（15%）</li>
+<li data-source-line="430">代码质量和文档（15%）</li>
+<li data-source-line="431">答辩演示和核心函数解释（15%）</li>
+</ul>
+<hr data-source-line="433">
+<h2 data-source-line="435" id="g5-地图匹配组">G5 地图匹配组</h2>
+<p data-source-line="437"><strong data-source-line="437">组名</strong>：地图匹配与定位融合组</p>
+<p data-source-line="439"><strong data-source-line="439">总任务</strong>：开发一个完整的地图匹配系统，支持最近邻/HMM/ST-Matching三种算法，实现多传感器融合定位（GNSS+IMU+航位推算），提供匹配过程可视化和算法精度对比工具。最终交付一个可独立运行的地图匹配与定位融合系统。</p>
+<h3 data-source-line="441" id="第1次作业第4周后最近邻地图匹配">第1次作业（第4周后）：最近邻地图匹配</h3>
+<p data-source-line="443"><strong data-source-line="443">任务内容</strong>：</p>
+<ul data-source-line="444">
+<li data-source-line="444">实现GPS轨迹数据读取与预处理（去噪/抽稀/格式统一）</li>
+<li data-source-line="445">实现最近邻匹配算法：每个GPS点吸附到最近的道路段</li>
+<li data-source-line="446">实现匹配结果基本评估：匹配准确率（与人工标注对比）/平均距离误差</li>
+<li data-source-line="447">开发匹配可视化界面：原始轨迹（红色）+匹配后轨迹（蓝色）叠加在地图上，点击查看每个点的匹配详情</li>
+<li data-source-line="448">支持滑动条回放轨迹匹配过程</li>
+</ul>
+<p data-source-line="450"><strong data-source-line="450">产出物</strong>：</p>
+<ul data-source-line="451">
+<li data-source-line="451">最近邻匹配源代码</li>
+<li data-source-line="452">可运行程序（加载轨迹+路网→匹配→可视化回放）</li>
+<li data-source-line="453">匹配精度评估报告（不同场景下的准确率/误差）</li>
+<li data-source-line="454">可视化界面演示</li>
+</ul>
+<p data-source-line="456"><strong data-source-line="456">考核打分</strong>：</p>
+<ul data-source-line="457">
+<li data-source-line="457">最近邻算法正确，匹配结果合理（30%）</li>
+<li data-source-line="458">轨迹预处理有效（去噪/抽稀）（20%）</li>
+<li data-source-line="459">匹配可视化直观，能对比原始和匹配轨迹（25%）</li>
+<li data-source-line="460">精度评估方法合理（10%）</li>
+<li data-source-line="461">文档和评估报告（15%）</li>
+</ul>
+<h3 data-source-line="463" id="第2次作业第7周后hmm地图匹配">第2次作业（第7周后）：HMM地图匹配</h3>
+<p data-source-line="465"><strong data-source-line="465">任务内容</strong>：</p>
+<ul data-source-line="466">
+<li data-source-line="466">实现HMM（隐马尔可夫模型）地图匹配：
+<ul data-source-line="467">
+<li data-source-line="467">观测概率：GPS点到候选道路的距离（高斯分布）</li>
+<li data-source-line="468">转移概率：道路间转换的合理性（路径距离与采样距离匹配度）</li>
+<li data-source-line="469">维特比算法：求最可能的道路序列</li>
+</ul>
+</li>
+<li data-source-line="470">实现候选道路生成：基于空间索引快速获取GPS点附近的候选道路（可调用G3组索引或自己实现简单网格）</li>
+<li data-source-line="471">与最近邻算法做精度对比：在复杂路网（平行道路/高架/立交）下对比准确率</li>
+<li data-source-line="472">开发HMM匹配过程可视化：显示每个点的候选道路/观测概率/转移概率/维特比路径</li>
+</ul>
+<p data-source-line="474"><strong data-source-line="474">产出物</strong>：</p>
+<ul data-source-line="475">
+<li data-source-line="475">HMM地图匹配源代码</li>
+<li data-source-line="476">更新后的可运行程序（最近邻/HMM切换→匹配→精度对比→过程可视化）</li>
+<li data-source-line="477">HMM与最近邻精度对比报告（含复杂场景案例分析）</li>
+<li data-source-line="478">HMM过程可视化演示</li>
+</ul>
+<p data-source-line="480"><strong data-source-line="480">考核打分</strong>：</p>
+<ul data-source-line="481">
+<li data-source-line="481">HMM三要素（观测/转移/维特比）实现正确（30%）</li>
+<li data-source-line="482">候选道路生成高效（15%）</li>
+<li data-source-line="483">精度对比数据可信，复杂场景分析深入（20%）</li>
+<li data-source-line="484">HMM过程可视化能展示概率和路径（25%）</li>
+<li data-source-line="485">文档和对比报告（10%）</li>
+</ul>
+<h3 data-source-line="487" id="第3次作业第10周后多传感器融合定位">第3次作业（第10周后）：多传感器融合定位</h3>
+<p data-source-line="489"><strong data-source-line="489">任务内容</strong>：</p>
+<ul data-source-line="490">
+<li data-source-line="490">实现IMU数据读取与处理：加速度计/陀螺仪/磁力计数据解析</li>
+<li data-source-line="491">实现航位推算（DR）：基于IMU和轮速计推算位置变化</li>
+<li data-source-line="492">实现EKF（扩展卡尔曼滤波）融合GNSS+IMU：预测步（IMU推算）+更新步（GNSS校正）</li>
+<li data-source-line="493">实现GPS拒止环境定位：GNSS信号丢失时用IMU+DR继续定位，评估漂移</li>
+<li data-source-line="494">开发融合定位可视化：GNSS轨迹（红）+融合轨迹（蓝）+IMU推算轨迹（绿）叠加显示，显示各传感器数据实时图表</li>
+</ul>
+<p data-source-line="496"><strong data-source-line="496">产出物</strong>：</p>
+<ul data-source-line="497">
+<li data-source-line="497">多传感器融合定位源代码</li>
+<li data-source-line="498">完整可运行程序（轨迹匹配→IMU处理→EKF融合→GPS拒止模拟→可视化）</li>
+<li data-source-line="499">融合定位精度评估报告（有GNSS/无GNSS场景下的误差对比）</li>
+<li data-source-line="500">融合定位可视化演示</li>
+</ul>
+<p data-source-line="502"><strong data-source-line="502">考核打分</strong>：</p>
+<ul data-source-line="503">
+<li data-source-line="503">EKF融合算法正确，预测和更新步骤完整（25%）</li>
+<li data-source-line="504">航位推算实现合理（20%）</li>
+<li data-source-line="505">GPS拒止环境模拟和漂移评估（20%）</li>
+<li data-source-line="506">多传感器数据可视化直观（20%）</li>
+<li data-source-line="507">文档和评估报告（15%）</li>
+</ul>
+<h3 data-source-line="509" id="第4次作业第12周后完整地图匹配系统">第4次作业（第12周后）：完整地图匹配系统</h3>
+<p data-source-line="511"><strong data-source-line="511">任务内容</strong>：</p>
+<ul data-source-line="512">
+<li data-source-line="512">集成所有模块，形成完整的地图匹配与定位融合系统</li>
+<li data-source-line="513">增加ST-Matching算法（时空匹配）作为第三种匹配算法</li>
+<li data-source-line="514">增加实时流式匹配：模拟GPS点实时到达，低延迟在线匹配</li>
+<li data-source-line="515">增加特殊场景处理：隧道/高架/平行道路/复杂立交的匹配优化</li>
+<li data-source-line="516">增加匹配质量评估工具：自动标注可疑匹配点/匹配置信度输出</li>
+<li data-source-line="517">增加真实场景演示：用真实GPS轨迹数据（开车/步行/骑行）做完整匹配演示</li>
+<li data-source-line="518">准备答辩演示和完整文档</li>
+</ul>
+<p data-source-line="520"><strong data-source-line="520">产出物</strong>：</p>
+<ul data-source-line="521">
+<li data-source-line="521">完整可运行的地图匹配系统</li>
+<li data-source-line="522">全部源代码</li>
+<li data-source-line="523">用户手册、设计文档、API文档</li>
+<li data-source-line="524">演示视频（3-5分钟）</li>
+<li data-source-line="525">AI使用完整日志</li>
+</ul>
+<p data-source-line="527"><strong data-source-line="527">考核打分</strong>：</p>
+<ul data-source-line="528">
+<li data-source-line="528">功能完整，三种匹配算法+融合定位正常（25%）</li>
+<li data-source-line="529">实时流式匹配低延迟（15%）</li>
+<li data-source-line="530">特殊场景处理有亮点（15%）</li>
+<li data-source-line="531">真实场景演示流畅（15%）</li>
+<li data-source-line="532">代码质量和文档（15%）</li>
+<li data-source-line="533">答辩演示和核心函数解释（15%）</li>
+</ul>
+<hr data-source-line="535">
+<h2 data-source-line="537" id="g6-导航引擎组">G6 导航引擎组</h2>
+<p data-source-line="539"><strong data-source-line="539">组名</strong>：导航引擎与引导系统组</p>
+<p data-source-line="541"><strong data-source-line="541">总任务</strong>：开发一个完整的导航引擎，支持导航状态机/偏航检测/引导指令生成/多路径导航，提供模拟导航演示和导航场景可视化。最终交付一个可独立运行的导航引擎与模拟导航系统。</p>
+<h3 data-source-line="543" id="第1次作业第4周后导航状态机设计与实现">第1次作业（第4周后）：导航状态机设计与实现</h3>
+<p data-source-line="545"><strong data-source-line="545">任务内容</strong>：</p>
+<ul data-source-line="546">
+<li data-source-line="546">设计导航状态机：idle（空闲）/calculating（规划中）/navigating（导航中）/rerouting（偏航重算）/arrived（到达）/paused（暂停）</li>
+<li data-source-line="547">定义每个状态的进入条件/退出条件/行为/状态转换条件</li>
+<li data-source-line="548">实现状态机核心引擎：状态转换触发/事件处理/异常处理</li>
+<li data-source-line="549">开发状态机可视化界面：状态转换图展示，当前状态高亮，事件日志显示</li>
+<li data-source-line="550">模拟GPS定位事件驱动状态转换</li>
+</ul>
+<p data-source-line="552"><strong data-source-line="552">产出物</strong>：</p>
+<ul data-source-line="553">
+<li data-source-line="553">导航状态机设计文档和源代码</li>
+<li data-source-line="554">可运行程序（状态机引擎+可视化+事件模拟）</li>
+<li data-source-line="555">状态转换测试报告（所有状态转换路径覆盖测试）</li>
+<li data-source-line="556">状态机可视化演示</li>
+</ul>
+<p data-source-line="558"><strong data-source-line="558">考核打分</strong>：</p>
+<ul data-source-line="559">
+<li data-source-line="559">状态机设计完整，所有状态和转换定义清晰（30%）</li>
+<li data-source-line="560">状态机引擎实现正确，事件处理正常（25%）</li>
+<li data-source-line="561">状态转换图可视化直观（20%）</li>
+<li data-source-line="562">测试覆盖全面（10%）</li>
+<li data-source-line="563">文档和代码质量（15%）</li>
+</ul>
+<h3 data-source-line="565" id="第2次作业第7周后偏航检测与重算机制">第2次作业（第7周后）：偏航检测与重算机制</h3>
+<p data-source-line="567"><strong data-source-line="567">任务内容</strong>：</p>
+<ul data-source-line="568">
+<li data-source-line="568">实现偏航检测算法：基于地图匹配结果判断是否偏离规划路径（距离阈值/方向阈值/持续时间）</li>
+<li data-source-line="569">实现偏航重算机制：检测到偏航后自动触发路径重规划，从重算位置到终点</li>
+<li data-source-line="570">实现重算策略：立即重算/延迟重算（等待用户确认）/智能重算（判断是否真的偏航）</li>
+<li data-source-line="571">实现多路径切换：导航中可切换到备选路径</li>
+<li data-source-line="572">开发偏航场景模拟工具：手动控制模拟车辆偏离路径，观察偏航检测和重算过程，可视化显示原路径/新路径/偏航点</li>
+</ul>
+<p data-source-line="574"><strong data-source-line="574">产出物</strong>：</p>
+<ul data-source-line="575">
+<li data-source-line="575">偏航检测与重算模块源代码</li>
+<li data-source-line="576">更新后的可运行程序（状态机→偏航检测→重算→多路径切换→模拟）</li>
+<li data-source-line="577">偏航检测准确率测试报告（不同偏航场景下的检测率/误报率/响应时间）</li>
+<li data-source-line="578">偏航模拟演示</li>
+</ul>
+<p data-source-line="580"><strong data-source-line="580">考核打分</strong>：</p>
+<ul data-source-line="581">
+<li data-source-line="581">偏航检测算法合理，阈值设置有依据（25%）</li>
+<li data-source-line="582">重算机制完整，策略灵活（25%）</li>
+<li data-source-line="583">多路径切换正常（15%）</li>
+<li data-source-line="584">偏航模拟工具直观，能复现各种场景（20%）</li>
+<li data-source-line="585">文档和测试报告（15%）</li>
+</ul>
+<h3 data-source-line="587" id="第3次作业第10周后引导指令生成">第3次作业（第10周后）：引导指令生成</h3>
+<p data-source-line="589"><strong data-source-line="589">任务内容</strong>：</p>
+<ul data-source-line="590">
+<li data-source-line="590">实现转向判断算法：基于路径几何和路网属性判断前方转向类型（左转/右转/直行/掉头/环岛）</li>
+<li data-source-line="591">实现距离提醒机制：在合适距离发出引导指令（如"前方500米右转"），考虑车速动态调整提醒时机</li>
+<li data-source-line="592">实现车道引导：复杂路口/高架/匝道的车道级引导</li>
+<li data-source-line="593">实现途经点和到达判断：途经点提醒/到达目的地判断/到达后处理</li>
+<li data-source-line="594">开发引导指令可视化：在地图上显示转向箭头/距离牌/车道引导，指令文本显示，模拟导航时指令随位置变化</li>
+</ul>
+<p data-source-line="596"><strong data-source-line="596">产出物</strong>：</p>
+<ul data-source-line="597">
+<li data-source-line="597">引导指令生成模块源代码</li>
+<li data-source-line="598">完整可运行程序（状态机→偏航重算→引导生成→模拟导航）</li>
+<li data-source-line="599">引导指令质量评估报告（指令准确性/提醒时机合理性/复杂场景覆盖）</li>
+<li data-source-line="600">引导可视化演示</li>
+</ul>
+<p data-source-line="602"><strong data-source-line="602">考核打分</strong>：</p>
+<ul data-source-line="603">
+<li data-source-line="603">转向判断算法正确，覆盖各种路口类型（25%）</li>
+<li data-source-line="604">距离提醒时机合理，考虑车速（20%）</li>
+<li data-source-line="605">车道引导实现（15%）</li>
+<li data-source-line="606">引导可视化直观，模拟导航流畅（25%）</li>
+<li data-source-line="607">文档和评估报告（15%）</li>
+</ul>
+<h3 data-source-line="609" id="第4次作业第12周后完整导航引擎">第4次作业（第12周后）：完整导航引擎</h3>
+<p data-source-line="611"><strong data-source-line="611">任务内容</strong>：</p>
+<ul data-source-line="612">
+<li data-source-line="612">集成所有模块，形成完整的导航引擎与模拟导航系统</li>
+<li data-source-line="613">增加模拟导航控制器：可设置车速/自动行驶/手动控制，模拟真实导航过程</li>
+<li data-source-line="614">增加导航仪表盘：当前速度/剩余距离/剩余时间/当前道路/下一个转向/到达时间</li>
+<li data-source-line="615">增加异常处理：GPS信号丢失/网络中断/路径计算失败/用户操作中断的处理</li>
+<li data-source-line="616">增加导航记录与回放：保存导航过程，可回放查看</li>
+<li data-source-line="617">增加真实路线演示：模拟从学校到火车站/机场的完整导航过程</li>
+<li data-source-line="618">准备答辩演示和完整文档</li>
+</ul>
+<p data-source-line="620"><strong data-source-line="620">产出物</strong>：</p>
+<ul data-source-line="621">
+<li data-source-line="621">完整可运行的导航引擎与模拟导航系统</li>
+<li data-source-line="622">全部源代码</li>
+<li data-source-line="623">用户手册、设计文档、API文档</li>
+<li data-source-line="624">演示视频（3-5分钟）</li>
+<li data-source-line="625">AI使用完整日志</li>
+</ul>
+<p data-source-line="627"><strong data-source-line="627">考核打分</strong>：</p>
+<ul data-source-line="628">
+<li data-source-line="628">功能完整，状态机+偏航+引导+模拟导航正常（25%）</li>
+<li data-source-line="629">模拟导航控制器操作流畅（15%）</li>
+<li data-source-line="630">导航仪表盘信息丰富准确（15%）</li>
+<li data-source-line="631">异常处理完善（10%）</li>
+<li data-source-line="632">代码质量和文档（15%）</li>
+<li data-source-line="633">答辩演示和核心函数解释（20%）</li>
+</ul>
+<hr data-source-line="635">
+<h2 data-source-line="637" id="g7-数据存储组">G7 数据存储组</h2>
+<p data-source-line="639"><strong data-source-line="639">组名</strong>：移动端数据存储与离线包管理组</p>
+<p data-source-line="641"><strong data-source-line="641">总任务</strong>：开发一个完整的移动端数据存储系统，支持SQLite空间数据库/离线地图包/增量更新/数据加密，提供存储管理可视化界面和性能监控工具。最终交付一个可独立运行的数据存储与离线包管理系统。</p>
+<h3 data-source-line="643" id="第1次作业第4周后sqlite数据库设计与基础crud">第1次作业（第4周后）：SQLite数据库设计与基础CRUD</h3>
+<p data-source-line="645"><strong data-source-line="645">任务内容</strong>：</p>
+<ul data-source-line="646">
+<li data-source-line="646">设计移动端导航数据库schema：路网表/节点表/边表/POI表/瓦片表/用户数据表/索引表</li>
+<li data-source-line="647">实现SQLite数据库创建/连接/关闭管理</li>
+<li data-source-line="648">实现基础CRUD操作：各表的增删改查，批量插入，事务管理</li>
+<li data-source-line="649">实现SQLite RTREE空间索引扩展（或自定义空间索引表）</li>
+<li data-source-line="650">开发数据库管理可视化界面：表结构浏览/数据查询/SQL编辑器/查询结果展示/执行计划分析</li>
+</ul>
+<p data-source-line="652"><strong data-source-line="652">产出物</strong>：</p>
+<ul data-source-line="653">
+<li data-source-line="653">SQLite数据库设计文档和源代码</li>
+<li data-source-line="654">可运行程序（数据库管理工具+CRUD+SQL编辑器）</li>
+<li data-source-line="655">数据库性能测试报告（批量插入/查询/事务性能）</li>
+<li data-source-line="656">数据库管理界面演示</li>
+</ul>
+<p data-source-line="658"><strong data-source-line="658">考核打分</strong>：</p>
+<ul data-source-line="659">
+<li data-source-line="659">数据库schema设计合理，覆盖导航数据需求（25%）</li>
+<li data-source-line="660">CRUD和事务实现正确（25%）</li>
+<li data-source-line="661">空间索引扩展实现（15%）</li>
+<li data-source-line="662">数据库管理工具功能完整（20%）</li>
+<li data-source-line="663">文档和性能测试（15%）</li>
+</ul>
+<h3 data-source-line="665" id="第2次作业第7周后离线地图包管理">第2次作业（第7周后）：离线地图包管理</h3>
+<p data-source-line="667"><strong data-source-line="667">任务内容</strong>：</p>
+<ul data-source-line="668">
+<li data-source-line="668">实现MBTiles瓦片存储格式：瓦片金字塔/元数据表/瓦片表（PNG/PBF）</li>
+<li data-source-line="669">实现离线包下载管理：按城市/区域下载，下载进度显示，断点续传</li>
+<li data-source-line="670">实现离线包存储管理：已下载包列表/存储空间占用/删除/更新检查</li>
+<li data-source-line="671">实现瓦片缓存策略：内存缓存+磁盘缓存，LRU淘汰，预加载</li>
+<li data-source-line="672">开发离线包管理可视化界面：地图上选择下载区域/下载进度条/已下载包管理/存储空间仪表盘</li>
+</ul>
+<p data-source-line="674"><strong data-source-line="674">产出物</strong>：</p>
+<ul data-source-line="675">
+<li data-source-line="675">离线地图包管理模块源代码</li>
+<li data-source-line="676">更新后的可运行程序（SQLite管理→MBTiles→下载管理→缓存→可视化）</li>
+<li data-source-line="677">离线包性能测试报告（下载速度/缓存命中率/加载时间）</li>
+<li data-source-line="678">离线包管理界面演示</li>
+</ul>
+<p data-source-line="680"><strong data-source-line="680">考核打分</strong>：</p>
+<ul data-source-line="681">
+<li data-source-line="681">MBTiles格式实现正确（20%）</li>
+<li data-source-line="682">下载管理完整，支持断点续传（25%）</li>
+<li data-source-line="683">缓存策略合理，LRU实现正确（20%）</li>
+<li data-source-line="684">离线包管理界面直观（25%）</li>
+<li data-source-line="685">文档和测试报告（10%）</li>
+</ul>
+<h3 data-source-line="687" id="第3次作业第10周后增量更新与数据压缩">第3次作业（第10周后）：增量更新与数据压缩</h3>
+<p data-source-line="689"><strong data-source-line="689">任务内容</strong>：</p>
+<ul data-source-line="690">
+<li data-source-line="690">实现增量更新机制：版本对比/差异计算/增量包下载/应用更新，不需要全量重新下载</li>
+<li data-source-line="691">实现数据压缩：路网数据差分编码/坐标整型化/瓦片压缩（gzip/zstd）</li>
+<li data-source-line="692">实现数据加密：SQLCipher加密数据库/敏感数据加密存储/密钥管理</li>
+<li data-source-line="693">实现数据同步：多设备间数据同步/冲突解决/同步状态管理</li>
+<li data-source-line="694">开发更新管理可视化界面：版本信息/更新检查/增量下载进度/更新日志/存储空间优化前后对比</li>
+</ul>
+<p data-source-line="696"><strong data-source-line="696">产出物</strong>：</p>
+<ul data-source-line="697">
+<li data-source-line="697">增量更新与数据压缩模块源代码</li>
+<li data-source-line="698">完整可运行程序（SQLite→离线包→增量更新→压缩→加密→可视化）</li>
+<li data-source-line="699">增量更新效果评估报告（增量包大小vs全量包/更新时间/压缩率）</li>
+<li data-source-line="700">更新管理界面演示</li>
+</ul>
+<p data-source-line="702"><strong data-source-line="702">考核打分</strong>：</p>
+<ul data-source-line="703">
+<li data-source-line="703">增量更新机制完整，差异计算合理（25%）</li>
+<li data-source-line="704">数据压缩效果明显（20%）</li>
+<li data-source-line="705">数据加密实现正确（15%）</li>
+<li data-source-line="706">更新管理界面直观（25%）</li>
+<li data-source-line="707">文档和评估报告（15%）</li>
+</ul>
+<h3 data-source-line="709" id="第4次作业第12周后完整数据存储系统">第4次作业（第12周后）：完整数据存储系统</h3>
+<p data-source-line="711"><strong data-source-line="711">任务内容</strong>：</p>
+<ul data-source-line="712">
+<li data-source-line="712">集成所有模块，形成完整的移动端数据存储与离线包管理系统</li>
+<li data-source-line="713">增加查询优化器：自动选择最优查询计划/索引推荐/SQL性能分析</li>
+<li data-source-line="714">增加数据迁移工具：不同版本数据库结构升级/数据迁移/兼容性处理</li>
+<li data-source-line="715">增加存储监控仪表盘：实时显示数据库大小/查询性能/缓存命中率/存储空间趋势</li>
+<li data-source-line="716">增加大数据量性能优化（&gt;1GB数据库查询&lt;1秒）</li>
+<li data-source-line="717">增加真实场景演示：模拟一个城市的完整离线导航数据管理</li>
+<li data-source-line="718">准备答辩演示和完整文档</li>
+</ul>
+<p data-source-line="720"><strong data-source-line="720">产出物</strong>：</p>
+<ul data-source-line="721">
+<li data-source-line="721">完整可运行的数据存储系统</li>
+<li data-source-line="722">全部源代码</li>
+<li data-source-line="723">用户手册、设计文档、API文档</li>
+<li data-source-line="724">演示视频（3-5分钟）</li>
+<li data-source-line="725">AI使用完整日志</li>
+</ul>
+<p data-source-line="727"><strong data-source-line="727">考核打分</strong>：</p>
+<ul data-source-line="728">
+<li data-source-line="728">功能完整，SQLite+离线包+增量更新+加密正常（25%）</li>
+<li data-source-line="729">大数据量查询性能达标（15%）</li>
+<li data-source-line="730">查询优化和存储监控有亮点（15%）</li>
+<li data-source-line="731">真实场景演示流畅（15%）</li>
+<li data-source-line="732">代码质量和文档（15%）</li>
+<li data-source-line="733">答辩演示和核心函数解释（15%）</li>
+</ul>
+<hr data-source-line="735">
+<h2 data-source-line="737" id="g8-渲染引擎组">G8 渲染引擎组</h2>
+<p data-source-line="739"><strong data-source-line="739">组名</strong>：地图渲染与可视化引擎组</p>
+<p data-source-line="741"><strong data-source-line="741">总任务</strong>：开发一个完整的地图渲染引擎，支持矢量瓦片渲染/标注布局与避让/路径渲染/导航场景渲染，提供交互式地图和渲染性能监控。最终交付一个可独立运行的地图渲染引擎与交互式地图应用。</p>
+<h3 data-source-line="743" id="第1次作业第4周后基础地图渲染">第1次作业（第4周后）：基础地图渲染</h3>
+<p data-source-line="745"><strong data-source-line="745">任务内容</strong>：</p>
+<ul data-source-line="746">
+<li data-source-line="746">实现矢量数据渲染：点/线/面要素的绘制，支持样式配置（颜色/线宽/填充/透明度）</li>
+<li data-source-line="747">实现瓦片加载与渲染：瓦片金字塔/按缩放级别加载/瓦片缓存</li>
+<li data-source-line="748">实现地图交互：缩放/平移/点击查询/滚轮缩放/双击放大</li>
+<li data-source-line="749">实现样式系统：数据驱动样式（按道路等级着色/按POI类型显示不同图标）</li>
+<li data-source-line="750">开发渲染调试工具：显示瓦片边界/渲染帧率/绘制调用次数/要素数量</li>
+</ul>
+<p data-source-line="752"><strong data-source-line="752">产出物</strong>：</p>
+<ul data-source-line="753">
+<li data-source-line="753">基础地图渲染源代码</li>
+<li data-source-line="754">可运行程序（加载数据→渲染→交互→调试工具）</li>
+<li data-source-line="755">渲染性能测试报告（不同要素数量下的帧率/内存占用）</li>
+<li data-source-line="756">交互式地图演示</li>
+</ul>
+<p data-source-line="758"><strong data-source-line="758">考核打分</strong>：</p>
+<ul data-source-line="759">
+<li data-source-line="759">点线面渲染正确，样式配置灵活（25%）</li>
+<li data-source-line="760">瓦片加载和缓存正常（20%）</li>
+<li data-source-line="761">地图交互流畅（25%）</li>
+<li data-source-line="762">数据驱动样式实现（15%）</li>
+<li data-source-line="763">文档和性能测试（15%）</li>
+</ul>
+<h3 data-source-line="765" id="第2次作业第7周后标注布局与避让算法">第2次作业（第7周后）：标注布局与避让算法</h3>
+<p data-source-line="767"><strong data-source-line="767">任务内容</strong>：</p>
+<ul data-source-line="768">
+<li data-source-line="768">实现文字标注渲染：道路名称/POI名称/区域标注，支持字体/大小/颜色/描边</li>
+<li data-source-line="769">实现标注冲突检测：判断标注之间是否重叠</li>
+<li data-source-line="770">实现标注避让算法：优先级排序/滑动避让/旋转避让/隐藏低优先级标注</li>
+<li data-source-line="771">实现图标标注：POI图标/转向箭头/特殊标记，图标与文字组合布局</li>
+<li data-source-line="772">开发标注调试工具：显示标注边界框/冲突标注高亮/避让过程动画/标注统计</li>
+</ul>
+<p data-source-line="774"><strong data-source-line="774">产出物</strong>：</p>
+<ul data-source-line="775">
+<li data-source-line="775">标注布局与避让源代码</li>
+<li data-source-line="776">更新后的可运行程序（基础渲染→标注→避让→调试工具）</li>
+<li data-source-line="777">标注质量评估报告（标注覆盖率/冲突率/可读性/不同缩放级别效果）</li>
+<li data-source-line="778">标注避让演示</li>
+</ul>
+<p data-source-line="780"><strong data-source-line="780">考核打分</strong>：</p>
+<ul data-source-line="781">
+<li data-source-line="781">文字标注渲染正确，样式丰富（20%）</li>
+<li data-source-line="782">冲突检测算法正确（20%）</li>
+<li data-source-line="783">避让算法有效，标注质量高（25%）</li>
+<li data-source-line="784">图标标注和组合布局（15%）</li>
+<li data-source-line="785">文档和评估报告（20%）</li>
+</ul>
+<h3 data-source-line="787" id="第3次作业第10周后路径渲染与导航场景渲染">第3次作业（第10周后）：路径渲染与导航场景渲染</h3>
+<p data-source-line="789"><strong data-source-line="789">任务内容</strong>：</p>
+<ul data-source-line="790">
+<li data-source-line="790">实现路径渲染：规划路径高亮/备选路径对比/转向箭头/途经点标记/路径动画</li>
+<li data-source-line="791">实现导航场景渲染：当前位置标记（带方向）/下一路口放大图/车速显示/剩余距离/转向提示牌</li>
+<li data-source-line="792">实现三维地形渲染（可选加分）：DEM高程数据/地形起伏/光照阴影</li>
+<li data-source-line="793">实现动画系统：平滑缩放/平移过渡/路径行驶动画/标注淡入淡出</li>
+<li data-source-line="794">开发导航场景演示：模拟导航过程，地图自动跟随车辆位置和方向</li>
+</ul>
+<p data-source-line="796"><strong data-source-line="796">产出物</strong>：</p>
+<ul data-source-line="797">
+<li data-source-line="797">路径与导航场景渲染源代码</li>
+<li data-source-line="798">完整可运行程序（基础渲染→标注→路径渲染→导航场景→动画）</li>
+<li data-source-line="799">导航场景渲染效果评估（视觉质量/帧率/信息可读性）</li>
+<li data-source-line="800">导航场景演示</li>
+</ul>
+<p data-source-line="802"><strong data-source-line="802">考核打分</strong>：</p>
+<ul data-source-line="803">
+<li data-source-line="803">路径渲染效果好，动画流畅（25%）</li>
+<li data-source-line="804">导航场景信息丰富，布局合理（25%）</li>
+<li data-source-line="805">动画系统平滑（15%）</li>
+<li data-source-line="806">三维地形（可选，有加分）（10%）</li>
+<li data-source-line="807">文档和评估（25%）</li>
+</ul>
+<h3 data-source-line="809" id="第4次作业第12周后完整地图渲染引擎">第4次作业（第12周后）：完整地图渲染引擎</h3>
+<p data-source-line="811"><strong data-source-line="811">任务内容</strong>：</p>
+<ul data-source-line="812">
+<li data-source-line="812">集成所有模块，形成完整的地图渲染引擎与交互式地图应用</li>
+<li data-source-line="813">增加渲染性能优化：LOD细节层次/视锥剔除/实例化渲染/Draw Call合批/纹理图集</li>
+<li data-source-line="814">增加样式编辑器：可视化编辑地图样式（颜色/字体/图标/图层顺序），实时预览</li>
+<li data-source-line="815">增加图层管理：多图层叠加/图层显隐/图层顺序调整/透明度调节</li>
+<li data-source-line="816">增加矢量瓦片支持：MVT格式解析/矢量瓦片渲染/样式表达式</li>
+<li data-source-line="817">增加真实地图演示：用真实城市数据渲染完整导航地图</li>
+<li data-source-line="818">优化渲染性能（复杂场景稳定60fps）</li>
+<li data-source-line="819">准备答辩演示和完整文档</li>
+</ul>
+<p data-source-line="821"><strong data-source-line="821">产出物</strong>：</p>
+<ul data-source-line="822">
+<li data-source-line="822">完整可运行的地图渲染引擎</li>
+<li data-source-line="823">全部源代码</li>
+<li data-source-line="824">用户手册、设计文档、API文档</li>
+<li data-source-line="825">演示视频（3-5分钟）</li>
+<li data-source-line="826">AI使用完整日志</li>
+</ul>
+<p data-source-line="828"><strong data-source-line="828">考核打分</strong>：</p>
+<ul data-source-line="829">
+<li data-source-line="829">功能完整，渲染+标注+路径+导航场景正常（25%）</li>
+<li data-source-line="830">渲染性能优化效果明显，60fps（15%）</li>
+<li data-source-line="831">样式编辑器和图层管理实用（15%）</li>
+<li data-source-line="832">矢量瓦片支持（15%）</li>
+<li data-source-line="833">代码质量和文档（15%）</li>
+<li data-source-line="834">答辩演示和核心函数解释（15%）</li>
+</ul>
+<hr data-source-line="836">
+<h2 data-source-line="838" id="p1-鸿蒙组">P1 鸿蒙组</h2>
+<p data-source-line="840"><strong data-source-line="840">组名</strong>：鸿蒙端导航应用开发组</p>
+<p data-source-line="842"><strong data-source-line="842">总任务</strong>：开发一个完整的鸿蒙端（HarmonyOS）导航App，集成核心算法库（路径规划/地图匹配），使用ArkTS/ArkUI构建界面，利用鸿蒙分布式能力，最终交付一个可在鸿蒙设备上运行的完整导航App。</p>
+<h3 data-source-line="844" id="第1次作业第4周后鸿蒙端基础框架与数据导入">第1次作业（第4周后）：鸿蒙端基础框架与数据导入</h3>
+<p data-source-line="846"><strong data-source-line="846">任务内容</strong>：</p>
+<ul data-source-line="847">
+<li data-source-line="847">搭建鸿蒙开发环境（DevEco Studio），创建ArkTS项目</li>
+<li data-source-line="848">实现应用基础框架：页面路由/导航栏/底部Tab/主题切换</li>
+<li data-source-line="849">实现鸿蒙端数据导入：文件选择器/沙箱文件管理/数据解析（调用G1组数据格式或自己实现简单解析）</li>
+<li data-source-line="850">实现基础UI组件：列表/卡片/对话框/表单/进度条</li>
+<li data-source-line="851">开发数据导入可视化界面：选择文件→解析进度→数据统计→列表展示</li>
+</ul>
+<p data-source-line="853"><strong data-source-line="853">产出物</strong>：</p>
+<ul data-source-line="854">
+<li data-source-line="854">鸿蒙App源代码（ArkTS）</li>
+<li data-source-line="855">可在模拟器或真机运行的HAP安装包</li>
+<li data-source-line="856">基础框架设计文档</li>
+<li data-source-line="857">数据导入界面演示</li>
+</ul>
+<p data-source-line="859"><strong data-source-line="859">考核打分</strong>：</p>
+<ul data-source-line="860">
+<li data-source-line="860">鸿蒙开发环境搭建成功，项目能运行（20%）</li>
+<li data-source-line="861">ArkTS/ArkUI基础框架完整（25%）</li>
+<li data-source-line="862">数据导入功能正常（25%）</li>
+<li data-source-line="863">UI界面美观，符合鸿蒙设计规范（20%）</li>
+<li data-source-line="864">文档和演示（10%）</li>
+</ul>
+<h3 data-source-line="866" id="第2次作业第7周后核心算法库napi封装">第2次作业（第7周后）：核心算法库NAPI封装</h3>
+<p data-source-line="868"><strong data-source-line="868">任务内容</strong>：</p>
+<ul data-source-line="869">
+<li data-source-line="869">实现C++核心算法库的NAPI封装：将路径规划（A*）和地图匹配（HMM）的C++代码封装为ArkTS可调用的Native模块</li>
+<li data-source-line="870">实现数据类型转换：ArkTS对象↔C++对象（路网/轨迹/路径数据结构转换）</li>
+<li data-source-line="871">实现异步调用：Native算法在后台线程执行，不阻塞UI线程</li>
+<li data-source-line="872">实现算法调用界面：输入起终点→调用路径规划→显示结果；加载轨迹→调用地图匹配→显示结果</li>
+<li data-source-line="873">开发性能监控：Native算法调用耗时/内存占用/线程状态</li>
+</ul>
+<p data-source-line="875"><strong data-source-line="875">产出物</strong>：</p>
+<ul data-source-line="876">
+<li data-source-line="876">NAPI封装模块源代码（C+++ArkTS）</li>
+<li data-source-line="877">更新后的鸿蒙App（基础框架→NAPI算法→调用界面→性能监控）</li>
+<li data-source-line="878">NAPI封装技术文档（数据转换/异步调用/内存管理）</li>
+<li data-source-line="879">算法调用演示</li>
+</ul>
+<p data-source-line="881"><strong data-source-line="881">考核打分</strong>：</p>
+<ul data-source-line="882">
+<li data-source-line="882">NAPI封装正确，C++算法能被ArkTS调用（30%）</li>
+<li data-source-line="883">数据类型转换完整（20%）</li>
+<li data-source-line="884">异步调用不阻塞UI（20%）</li>
+<li data-source-line="885">算法调用界面友好（20%）</li>
+<li data-source-line="886">文档和演示（10%）</li>
+</ul>
+<h3 data-source-line="888" id="第3次作业第10周后导航引擎集成与ui">第3次作业（第10周后）：导航引擎集成与UI</h3>
+<p data-source-line="890"><strong data-source-line="890">任务内容</strong>：</p>
+<ul data-source-line="891">
+<li data-source-line="891">集成导航状态机（调用G6组设计或自己实现）：idle/规划中/导航中/偏航/到达状态管理</li>
+<li data-source-line="892">集成定位服务：鸿蒙位置服务API/权限申请/实时位置回调/模拟定位</li>
+<li data-source-line="893">实现导航UI：地图视图（调用G8渲染或用ArkUI Canvas简单渲染）/导航仪表盘（速度/剩余距离/转向提示）/引导指令显示</li>
+<li data-source-line="894">实现偏航检测与重算：基于定位和地图匹配结果检测偏航，自动重算路径</li>
+<li data-source-line="895">开发模拟导航功能：模拟GPS轨迹驱动导航过程，可暂停/加速/回放</li>
+</ul>
+<p data-source-line="897"><strong data-source-line="897">产出物</strong>：</p>
+<ul data-source-line="898">
+<li data-source-line="898">导航引擎集成源代码</li>
+<li data-source-line="899">更新后的鸿蒙App（NAPI算法→导航状态机→定位→导航UI→模拟导航）</li>
+<li data-source-line="900">鸿蒙导航App设计文档</li>
+<li data-source-line="901">模拟导航演示</li>
+</ul>
+<p data-source-line="903"><strong data-source-line="903">考核打分</strong>：</p>
+<ul data-source-line="904">
+<li data-source-line="904">导航状态机集成正确（20%）</li>
+<li data-source-line="905">定位服务集成正常（20%）</li>
+<li data-source-line="906">导航UI信息丰富，交互流畅（25%）</li>
+<li data-source-line="907">偏航检测与重算正常（20%）</li>
+<li data-source-line="908">文档和演示（15%）</li>
+</ul>
+<h3 data-source-line="910" id="第4次作业第12周后完整鸿蒙导航app">第4次作业（第12周后）：完整鸿蒙导航App</h3>
+<p data-source-line="912"><strong data-source-line="912">任务内容</strong>：</p>
+<ul data-source-line="913">
+<li data-source-line="913">集成所有模块，形成完整的鸿蒙端导航App</li>
+<li data-source-line="914">利用鸿蒙分布式能力：多设备协同（手机导航→车机接续/平板查看）/分布式数据同步</li>
+<li data-source-line="915">增加离线地图包管理（调用G7组方案）：下载/存储/更新</li>
+<li data-source-line="916">增加语音引导（调用G10组方案或鸿蒙TTS）：转向语音播报/语音控制</li>
+<li data-source-line="917">增加用户系统：收藏地点/历史记录/偏好设置/账号同步</li>
+<li data-source-line="918">优化应用性能：启动时间&lt;2秒/导航时帧率稳定/内存占用合理</li>
+<li data-source-line="919">准备答辩演示和完整文档</li>
+</ul>
+<p data-source-line="921"><strong data-source-line="921">产出物</strong>：</p>
+<ul data-source-line="922">
+<li data-source-line="922">完整可运行的鸿蒙导航App（HAP安装包）</li>
+<li data-source-line="923">全部源代码</li>
+<li data-source-line="924">用户手册、设计文档、API文档</li>
+<li data-source-line="925">演示视频（3-5分钟）</li>
+<li data-source-line="926">AI使用完整日志</li>
+</ul>
+<p data-source-line="928"><strong data-source-line="928">考核打分</strong>：</p>
+<ul data-source-line="929">
+<li data-source-line="929">功能完整，导航全流程正常（25%）</li>
+<li data-source-line="930">鸿蒙分布式能力有亮点（15%）</li>
+<li data-source-line="931">离线地图和语音引导集成（15%）</li>
+<li data-source-line="932">应用性能达标（10%）</li>
+<li data-source-line="933">代码质量和文档（15%）</li>
+<li data-source-line="934">答辩演示和核心函数解释（20%）</li>
+</ul>
+<hr data-source-line="936">
+<h2 data-source-line="938" id="p2-安卓组">P2 安卓组</h2>
+<p data-source-line="940"><strong data-source-line="940">组名</strong>：安卓端导航应用开发组</p>
+<p data-source-line="942"><strong data-source-line="942">总任务</strong>：开发一个完整的安卓端（Android）导航App，集成核心算法库（路径规划/地图匹配），使用Kotlin/Java和Material Design构建界面，利用Android平台特性，最终交付一个可在安卓设备上运行的完整导航App。</p>
+<h3 data-source-line="944" id="第1次作业第4周后安卓端基础框架与数据导入">第1次作业（第4周后）：安卓端基础框架与数据导入</h3>
+<p data-source-line="946"><strong data-source-line="946">任务内容</strong>：</p>
+<ul data-source-line="947">
+<li data-source-line="947">搭建安卓开发环境（Android Studio），创建Kotlin项目</li>
+<li data-source-line="948">实现应用基础框架：Activity/Fragment导航/Navigation组件/底部NavigationBar/主题切换（Material Design 3）</li>
+<li data-source-line="949">实现安卓端数据导入：SAF存储访问框架/文件权限/MediaStore/数据解析</li>
+<li data-source-line="950">实现基础UI组件：RecyclerView/CardView/Dialog/表单/进度条/Snackbar</li>
+<li data-source-line="951">开发数据导入可视化界面：选择文件→解析进度→数据统计→列表展示</li>
+</ul>
+<p data-source-line="953"><strong data-source-line="953">产出物</strong>：</p>
+<ul data-source-line="954">
+<li data-source-line="954">安卓App源代码（Kotlin）</li>
+<li data-source-line="955">可在模拟器或真机运行的APK安装包</li>
+<li data-source-line="956">基础框架设计文档</li>
+<li data-source-line="957">数据导入界面演示</li>
+</ul>
+<p data-source-line="959"><strong data-source-line="959">考核打分</strong>：</p>
+<ul data-source-line="960">
+<li data-source-line="960">安卓开发环境搭建成功，项目能运行（20%）</li>
+<li data-source-line="961">Kotlin/Material Design基础框架完整（25%）</li>
+<li data-source-line="962">数据导入功能正常（25%）</li>
+<li data-source-line="963">UI界面美观，符合Material Design（20%）</li>
+<li data-source-line="964">文档和演示（10%）</li>
+</ul>
+<h3 data-source-line="966" id="第2次作业第7周后核心算法库jni封装">第2次作业（第7周后）：核心算法库JNI封装</h3>
+<p data-source-line="968"><strong data-source-line="968">任务内容</strong>：</p>
+<ul data-source-line="969">
+<li data-source-line="969">实现C++核心算法库的JNI封装：将路径规划（A*）和地图匹配（HMM）的C++代码封装为Kotlin/Java可调用的Native模块</li>
+<li data-source-line="970">实现数据类型转换：Kotlin对象↔C++对象（路网/轨迹/路径数据结构转换）</li>
+<li data-source-line="971">实现异步调用：Native算法在后台线程执行（Coroutine/Executor），不阻塞UI线程</li>
+<li data-source-line="972">实现算法调用界面：输入起终点→调用路径规划→显示结果；加载轨迹→调用地图匹配→显示结果</li>
+<li data-source-line="973">开发性能监控：Native算法调用耗时/内存占用/线程状态</li>
+</ul>
+<p data-source-line="975"><strong data-source-line="975">产出物</strong>：</p>
+<ul data-source-line="976">
+<li data-source-line="976">JNI封装模块源代码（C+++Kotlin）</li>
+<li data-source-line="977">更新后的安卓App（基础框架→JNI算法→调用界面→性能监控）</li>
+<li data-source-line="978">JNI封装技术文档（数据转换/异步调用/内存管理）</li>
+<li data-source-line="979">算法调用演示</li>
+</ul>
+<p data-source-line="981"><strong data-source-line="981">考核打分</strong>：</p>
+<ul data-source-line="982">
+<li data-source-line="982">JNI封装正确，C++算法能被Kotlin调用（30%）</li>
+<li data-source-line="983">数据类型转换完整（20%）</li>
+<li data-source-line="984">异步调用不阻塞UI（20%）</li>
+<li data-source-line="985">算法调用界面友好（20%）</li>
+<li data-source-line="986">文档和演示（10%）</li>
+</ul>
+<h3 data-source-line="988" id="第3次作业第10周后导航引擎集成与ui-2">第3次作业（第10周后）：导航引擎集成与UI</h3>
+<p data-source-line="990"><strong data-source-line="990">任务内容</strong>：</p>
+<ul data-source-line="991">
+<li data-source-line="991">集成导航状态机：idle/规划中/导航中/偏航/到达状态管理</li>
+<li data-source-line="992">集成定位服务：Fused Location Provider/GNSS/权限申请/后台定位/模拟定位</li>
+<li data-source-line="993">实现导航UI：地图视图/导航仪表盘（速度/剩余距离/转向提示）/引导指令显示/通知栏导航信息</li>
+<li data-source-line="994">实现偏航检测与重算：基于定位和地图匹配结果检测偏航，自动重算路径</li>
+<li data-source-line="995">实现前台服务：导航在后台持续运行，通知栏显示导航信息</li>
+<li data-source-line="996">开发模拟导航功能：模拟GPS轨迹驱动导航过程，可暂停/加速/回放</li>
+</ul>
+<p data-source-line="998"><strong data-source-line="998">产出物</strong>：</p>
+<ul data-source-line="999">
+<li data-source-line="999">导航引擎集成源代码</li>
+<li data-source-line="1000">更新后的安卓App（JNI算法→导航状态机→定位→导航UI→前台服务→模拟导航）</li>
+<li data-source-line="1001">安卓导航App设计文档</li>
+<li data-source-line="1002">模拟导航演示</li>
+</ul>
+<p data-source-line="1004"><strong data-source-line="1004">考核打分</strong>：</p>
+<ul data-source-line="1005">
+<li data-source-line="1005">导航状态机集成正确（15%）</li>
+<li data-source-line="1006">定位服务和前台服务集成正常（25%）</li>
+<li data-source-line="1007">导航UI信息丰富，交互流畅（25%）</li>
+<li data-source-line="1008">偏航检测与重算正常（20%）</li>
+<li data-source-line="1009">文档和演示（15%）</li>
+</ul>
+<h3 data-source-line="1011" id="第4次作业第12周后完整安卓导航app">第4次作业（第12周后）：完整安卓导航App</h3>
+<p data-source-line="1013"><strong data-source-line="1013">任务内容</strong>：</p>
+<ul data-source-line="1014">
+<li data-source-line="1014">集成所有模块，形成完整的安卓端导航App</li>
+<li data-source-line="1015">利用安卓平台特性：Android Auto车机适配/Widget桌面小组件/快捷开关/分享功能</li>
+<li data-source-line="1016">增加离线地图包管理：下载/存储/更新</li>
+<li data-source-line="1017">增加语音引导：TextToSpeech/语音识别/语音控制</li>
+<li data-source-line="1018">增加用户系统：收藏地点/历史记录/偏好设置/账号同步</li>
+<li data-source-line="1019">优化应用性能：启动时间&lt;2秒/导航时帧率稳定/内存占用合理/电量优化</li>
+<li data-source-line="1020">准备答辩演示和完整文档</li>
+</ul>
+<p data-source-line="1022"><strong data-source-line="1022">产出物</strong>：</p>
+<ul data-source-line="1023">
+<li data-source-line="1023">完整可运行的安卓导航App（APK安装包）</li>
+<li data-source-line="1024">全部源代码</li>
+<li data-source-line="1025">用户手册、设计文档、API文档</li>
+<li data-source-line="1026">演示视频（3-5分钟）</li>
+<li data-source-line="1027">AI使用完整日志</li>
+</ul>
+<p data-source-line="1029"><strong data-source-line="1029">考核打分</strong>：</p>
+<ul data-source-line="1030">
+<li data-source-line="1030">功能完整，导航全流程正常（25%）</li>
+<li data-source-line="1031">Android Auto/Widget等平台特性有亮点（15%）</li>
+<li data-source-line="1032">离线地图和语音引导集成（15%）</li>
+<li data-source-line="1033">应用性能和电量优化达标（10%）</li>
+<li data-source-line="1034">代码质量和文档（15%）</li>
+<li data-source-line="1035">答辩演示和核心函数解释（20%）</li>
+</ul>
+<hr data-source-line="1037">
+<h2 data-source-line="1039" id="p3-windows组">P3 Windows组</h2>
+<p data-source-line="1041"><strong data-source-line="1041">组名</strong>：Windows端导航应用开发组</p>
+<p data-source-line="1043"><strong data-source-line="1043">总任务</strong>：开发一个完整的Windows端导航应用，使用C# WPF构建界面，集成核心算法库，利用DirectX高性能渲染，提供桌面级导航体验，最终交付一个可在Windows上运行的完整导航应用。</p>
+<h3 data-source-line="1045" id="第1次作业第4周后windows端基础框架与数据导入">第1次作业（第4周后）：Windows端基础框架与数据导入</h3>
+<p data-source-line="1047"><strong data-source-line="1047">任务内容</strong>：</p>
+<ul data-source-line="1048">
+<li data-source-line="1048">搭建WPF开发环境（Visual Studio），创建C# WPF项目（.NET 8）</li>
+<li data-source-line="1049">实现应用基础框架：MVVM架构/页面导航/Ribbon菜单/主题切换（深色/浅色）</li>
+<li data-source-line="1050">实现Windows端数据导入：文件对话框/大文件读取/异步加载/数据解析</li>
+<li data-source-line="1051">实现基础UI组件：DataGrid/TreeView/ListView/对话框/进度条/状态栏</li>
+<li data-source-line="1052">开发数据导入可视化界面：选择文件→解析进度→数据统计→树形结构展示</li>
+</ul>
+<p data-source-line="1054"><strong data-source-line="1054">产出物</strong>：</p>
+<ul data-source-line="1055">
+<li data-source-line="1055">Windows应用源代码（C# WPF）</li>
+<li data-source-line="1056">可运行的EXE安装包或绿色版</li>
+<li data-source-line="1057">基础框架设计文档</li>
+<li data-source-line="1058">数据导入界面演示</li>
+</ul>
+<p data-source-line="1060"><strong data-source-line="1060">考核打分</strong>：</p>
+<ul data-source-line="1061">
+<li data-source-line="1061">WPF开发环境搭建成功，项目能运行（20%）</li>
+<li data-source-line="1062">MVVM架构和基础框架完整（25%）</li>
+<li data-source-line="1063">数据导入功能正常，支持大文件（25%）</li>
+<li data-source-line="1064">UI界面专业，符合桌面应用规范（20%）</li>
+<li data-source-line="1065">文档和演示（10%）</li>
+</ul>
+<h3 data-source-line="1067" id="第2次作业第7周后核心算法库pinvoke封装">第2次作业（第7周后）：核心算法库PInvoke封装</h3>
+<p data-source-line="1069"><strong data-source-line="1069">任务内容</strong>：</p>
+<ul data-source-line="1070">
+<li data-source-line="1070">实现C++核心算法库的PInvoke封装：将路径规划（A*）和地图匹配（HMM）的C++代码封装为C#可调用的Native DLL</li>
+<li data-source-line="1071">或实现C++/CLI混合封装（更安全的数据转换）</li>
+<li data-source-line="1072">实现数据类型转换：C#对象↔C++对象（路网/轨迹/路径数据结构转换，注意内存管理）</li>
+<li data-source-line="1073">实现异步调用：Native算法在后台线程执行（async/await/Task），不阻塞UI线程</li>
+<li data-source-line="1074">实现算法调用界面：输入起终点→调用路径规划→显示结果；加载轨迹→调用地图匹配→显示结果</li>
+<li data-source-line="1075">开发性能监控：Native算法调用耗时/内存占用/CPU使用率</li>
+</ul>
+<p data-source-line="1077"><strong data-source-line="1077">产出物</strong>：</p>
+<ul data-source-line="1078">
+<li data-source-line="1078">PInvoke封装模块源代码（C++ DLL+C# WPF）</li>
+<li data-source-line="1079">更新后的Windows应用（基础框架→PInvoke算法→调用界面→性能监控）</li>
+<li data-source-line="1080">PInvoke封装技术文档（数据转换/异步调用/内存管理/调试技巧）</li>
+<li data-source-line="1081">算法调用演示</li>
+</ul>
+<p data-source-line="1083"><strong data-source-line="1083">考核打分</strong>：</p>
+<ul data-source-line="1084">
+<li data-source-line="1084">PInvoke封装正确，C++算法能被C#调用（30%）</li>
+<li data-source-line="1085">数据类型转换完整，内存管理正确（20%）</li>
+<li data-source-line="1086">异步调用不阻塞UI（20%）</li>
+<li data-source-line="1087">算法调用界面友好（20%）</li>
+<li data-source-line="1088">文档和演示（10%）</li>
+</ul>
+<h3 data-source-line="1090" id="第3次作业第10周后导航引擎集成与wpf-ui">第3次作业（第10周后）：导航引擎集成与WPF UI</h3>
+<p data-source-line="1092"><strong data-source-line="1092">任务内容</strong>：</p>
+<ul data-source-line="1093">
+<li data-source-line="1093">集成导航状态机：idle/规划中/导航中/偏航/到达状态管理</li>
+<li data-source-line="1094">集成定位服务：Windows.Devices.Geolocation/串口GPS/NMEA解析/模拟定位</li>
+<li data-source-line="1095">实现导航UI：WPF地图画布（Canvas/InkCanvas）/导航仪表盘（速度/剩余距离/转向提示）/引导指令面板/多窗口支持</li>
+<li data-source-line="1096">实现偏航检测与重算：基于定位和地图匹配结果检测偏航，自动重算路径</li>
+<li data-source-line="1097">实现高性能渲染：WPF渲染优化（虚拟化/缓存/复合模式）或DirectX渲染（可选）</li>
+<li data-source-line="1098">开发模拟导航功能：模拟GPS轨迹驱动导航过程，可暂停/加速/回放/多窗口对比</li>
+</ul>
+<p data-source-line="1100"><strong data-source-line="1100">产出物</strong>：</p>
+<ul data-source-line="1101">
+<li data-source-line="1101">导航引擎集成源代码</li>
+<li data-source-line="1102">更新后的Windows应用（PInvoke算法→导航状态机→定位→导航UI→模拟导航）</li>
+<li data-source-line="1103">Windows导航应用设计文档</li>
+<li data-source-line="1104">模拟导航演示</li>
+</ul>
+<p data-source-line="1106"><strong data-source-line="1106">考核打分</strong>：</p>
+<ul data-source-line="1107">
+<li data-source-line="1107">导航状态机集成正确（15%）</li>
+<li data-source-line="1108">定位服务集成正常（20%）</li>
+<li data-source-line="1109">导航UI信息丰富，WPF渲染流畅（25%）</li>
+<li data-source-line="1110">偏航检测与重算正常（20%）</li>
+<li data-source-line="1111">文档和演示（20%）</li>
+</ul>
+<h3 data-source-line="1113" id="第4次作业第12周后完整windows导航应用">第4次作业（第12周后）：完整Windows导航应用</h3>
+<p data-source-line="1115"><strong data-source-line="1115">任务内容</strong>：</p>
+<ul data-source-line="1116">
+<li data-source-line="1116">集成所有模块，形成完整的Windows端导航应用</li>
+<li data-source-line="1117">利用Windows平台特性：多窗口/多显示器/系统托盘/通知中心/文件关联/命令行参数/高DPI适配</li>
+<li data-source-line="1118">增加离线地图包管理：下载/存储/更新</li>
+<li data-source-line="1119">增加语音引导：System.Speech/Windows Media/语音控制</li>
+<li data-source-line="1120">增加用户系统：收藏地点/历史记录/偏好设置/配置文件</li>
+<li data-source-line="1121">增加高性能渲染：DirectX/SharpDX地图渲染（可选，有加分）</li>
+<li data-source-line="1122">优化应用性能：启动时间&lt;3秒/大地图渲染流畅/内存占用合理</li>
+<li data-source-line="1123">准备答辩演示和完整文档</li>
+</ul>
+<p data-source-line="1125"><strong data-source-line="1125">产出物</strong>：</p>
+<ul data-source-line="1126">
+<li data-source-line="1126">完整可运行的Windows导航应用（EXE安装包）</li>
+<li data-source-line="1127">全部源代码</li>
+<li data-source-line="1128">用户手册、设计文档、API文档</li>
+<li data-source-line="1129">演示视频（3-5分钟）</li>
+<li data-source-line="1130">AI使用完整日志</li>
+</ul>
+<p data-source-line="1132"><strong data-source-line="1132">考核打分</strong>：</p>
+<ul data-source-line="1133">
+<li data-source-line="1133">功能完整，导航全流程正常（25%）</li>
+<li data-source-line="1134">Windows平台特性利用充分（15%）</li>
+<li data-source-line="1135">离线地图和语音引导集成（15%）</li>
+<li data-source-line="1136">高性能渲染有亮点（10%）</li>
+<li data-source-line="1137">代码质量和文档（15%）</li>
+<li data-source-line="1138">答辩演示和核心函数解释（20%）</li>
+</ul>
+<hr data-source-line="1140">
+<h2 data-source-line="1142" id="p4-游戏引擎组">P4 游戏引擎组</h2>
+<p data-source-line="1144"><strong data-source-line="1144">组名</strong>：游戏引擎端导航应用开发组</p>
+<p data-source-line="1146"><strong data-source-line="1146">总任务</strong>：开发一个完整的游戏引擎端导航应用，使用Unity或Godot引擎，实现三维地图渲染/FPV第一视角导航/AR导航，集成核心算法库，最终交付一个可在游戏引擎中运行的完整三维导航应用。</p>
+<h3 data-source-line="1148" id="第1次作业第4周后游戏引擎基础框架与数据导入">第1次作业（第4周后）：游戏引擎基础框架与数据导入</h3>
+<p data-source-line="1150"><strong data-source-line="1150">任务内容</strong>：</p>
+<ul data-source-line="1151">
+<li data-source-line="1151">搭建Unity（C#）或Godot（GDScript）开发环境，创建三维项目</li>
+<li data-source-line="1152">实现应用基础框架：场景管理/UI系统（UGUI或Control）/主菜单/设置面板/主题</li>
+<li data-source-line="1153">实现游戏引擎端数据导入：自定义文件格式/AssetBundle/运行时文件读取/数据解析（OSM/路网/POI）</li>
+<li data-source-line="1154">实现基础三维场景：光照/相机/天空盒/地面/坐标系管理</li>
+<li data-source-line="1155">开发数据导入可视化界面：选择文件→解析进度→数据统计→三维场景中展示路网/POI</li>
+</ul>
+<p data-source-line="1157"><strong data-source-line="1157">产出物</strong>：</p>
+<ul data-source-line="1158">
+<li data-source-line="1158">游戏引擎项目源代码（Unity C#或Godot GDScript）</li>
+<li data-source-line="1159">可运行的游戏引擎应用（EXE或引擎内运行）</li>
+<li data-source-line="1160">基础框架设计文档</li>
+<li data-source-line="1161">三维数据展示演示</li>
+</ul>
+<p data-source-line="1163"><strong data-source-line="1163">考核打分</strong>：</p>
+<ul data-source-line="1164">
+<li data-source-line="1164">游戏引擎环境搭建成功，项目能运行（20%）</li>
+<li data-source-line="1165">基础框架和UI系统完整（25%）</li>
+<li data-source-line="1166">数据导入功能正常（25%）</li>
+<li data-source-line="1167">三维场景展示效果好（20%）</li>
+<li data-source-line="1168">文档和演示（10%）</li>
+</ul>
+<h3 data-source-line="1170" id="第2次作业第7周后核心算法库插件封装">第2次作业（第7周后）：核心算法库插件封装</h3>
+<p data-source-line="1172"><strong data-source-line="1172">任务内容</strong>：</p>
+<ul data-source-line="1173">
+<li data-source-line="1173">实现C++核心算法库的游戏引擎插件封装：
+<ul data-source-line="1174">
+<li data-source-line="1174">Unity：C++ DLL通过PInvoke调用，或Unity Native Plugin</li>
+<li data-source-line="1175">Godot：C++ GDExtension插件，或GDScript调用DLL</li>
+</ul>
+</li>
+<li data-source-line="1176">实现数据类型转换：引擎对象↔C++对象（Vector3/坐标转换/路网/轨迹/路径）</li>
+<li data-source-line="1177">实现异步调用：算法在后台线程执行，不阻塞游戏主线程（不卡帧）</li>
+<li data-source-line="1178">实现算法调用界面：在三维场景中点击选择起终点→路径规划→三维路径可视化；加载轨迹→地图匹配→匹配结果可视化</li>
+<li data-source-line="1179">开发性能监控：算法调用耗时/帧率/FPS/内存占用</li>
+</ul>
+<p data-source-line="1181"><strong data-source-line="1181">产出物</strong>：</p>
+<ul data-source-line="1182">
+<li data-source-line="1182">算法库插件源代码（C++ DLL+引擎脚本）</li>
+<li data-source-line="1183">更新后的游戏引擎应用（基础框架→算法插件→三维可视化→性能监控）</li>
+<li data-source-line="1184">插件封装技术文档</li>
+<li data-source-line="1185">算法三维可视化演示</li>
+</ul>
+<p data-source-line="1187"><strong data-source-line="1187">考核打分</strong>：</p>
+<ul data-source-line="1188">
+<li data-source-line="1188">插件封装正确，C++算法能被引擎调用（30%）</li>
+<li data-source-line="1189">数据类型转换和坐标系统一（20%）</li>
+<li data-source-line="1190">异步调用不卡帧（20%）</li>
+<li data-source-line="1191">三维路径可视化效果好（20%）</li>
+<li data-source-line="1192">文档和演示（10%）</li>
+</ul>
+<h3 data-source-line="1194" id="第3次作业第10周后三维导航场景与fpv第一视角">第3次作业（第10周后）：三维导航场景与FPV第一视角</h3>
+<p data-source-line="1196"><strong data-source-line="1196">任务内容</strong>：</p>
+<ul data-source-line="1197">
+<li data-source-line="1197">实现三维路网建模：道路Mesh生成/路面材质/车道线/交通标志/建筑物（简单几何体）</li>
+<li data-source-line="1198">实现FPV第一人称视角：虚拟摄像机/运动控制（键盘/手柄）/航位推算/碰撞检测</li>
+<li data-source-line="1199">实现导航状态机集成：idle/规划中/导航中/偏航/到达</li>
+<li data-source-line="1200">实现三维导航引导：路径高亮（发光材质）/转向箭头（三维箭头）/浮动指示牌/小地图</li>
+<li data-source-line="1201">实现偏航检测与重算：基于FPV位置和方向检测偏航，自动重算</li>
+<li data-source-line="1202">开发模拟导航：自动沿路径行驶/车速调节/视角切换（第一人称/第三人称/俯视）</li>
+</ul>
+<p data-source-line="1204"><strong data-source-line="1204">产出物</strong>：</p>
+<ul data-source-line="1205">
+<li data-source-line="1205">三维导航场景源代码</li>
+<li data-source-line="1206">更新后的游戏引擎应用（算法插件→三维路网→FPV→导航引导→模拟导航）</li>
+<li data-source-line="1207">三维导航设计文档</li>
+<li data-source-line="1208">FPV导航演示</li>
+</ul>
+<p data-source-line="1210"><strong data-source-line="1210">考核打分</strong>：</p>
+<ul data-source-line="1211">
+<li data-source-line="1211">三维路网建模效果好（20%）</li>
+<li data-source-line="1212">FPV第一视角控制流畅（25%）</li>
+<li data-source-line="1213">三维导航引导直观（25%）</li>
+<li data-source-line="1214">偏航检测与重算正常（15%）</li>
+<li data-source-line="1215">文档和演示（15%）</li>
+</ul>
+<h3 data-source-line="1217" id="第4次作业第12周后完整游戏引擎导航应用">第4次作业（第12周后）：完整游戏引擎导航应用</h3>
+<p data-source-line="1219"><strong data-source-line="1219">任务内容</strong>：</p>
+<ul data-source-line="1220">
+<li data-source-line="1220">集成所有模块，形成完整的游戏引擎端三维导航应用</li>
+<li data-source-line="1221">增加AR导航（可选加分）：AR Foundation/Godot AR/摄像头透视/三维箭头叠加在真实场景</li>
+<li data-source-line="1222">增加三维地形渲染：DEM高程数据/地形起伏/纹理贴图/LOD</li>
+<li data-source-line="1223">增加天气和时间系统：雨天/雪天/白天/夜晚/车灯效果</li>
+<li data-source-line="1224">增加用户系统：收藏地点/历史记录/偏好设置/载具选择</li>
+<li data-source-line="1225">增加性能优化：Draw Call合批/实例化渲染/LOD/遮挡剔除</li>
+<li data-source-line="1226">增加真实场景演示：用真实城市OSM数据构建三维导航场景，模拟从学校到火车站的FPV导航</li>
+<li data-source-line="1227">准备答辩演示和完整文档</li>
+</ul>
+<p data-source-line="1229"><strong data-source-line="1229">产出物</strong>：</p>
+<ul data-source-line="1230">
+<li data-source-line="1230">完整可运行的游戏引擎导航应用（EXE）</li>
+<li data-source-line="1231">全部源代码</li>
+<li data-source-line="1232">用户手册、设计文档、API文档</li>
+<li data-source-line="1233">演示视频（3-5分钟）</li>
+<li data-source-line="1234">AI使用完整日志</li>
+</ul>
+<p data-source-line="1236"><strong data-source-line="1236">考核打分</strong>：</p>
+<ul data-source-line="1237">
+<li data-source-line="1237">功能完整，三维导航全流程正常（25%）</li>
+<li data-source-line="1238">AR导航或三维地形有亮点（15%）</li>
+<li data-source-line="1239">FPV导航体验流畅（15%）</li>
+<li data-source-line="1240">真实场景演示效果好（15%）</li>
+<li data-source-line="1241">性能优化达标（10%）</li>
+<li data-source-line="1242">代码质量和文档（10%）</li>
+<li data-source-line="1243">答辩演示和核心函数解释（10%）</li>
+</ul>
+<hr data-source-line="1245">
+<h2 data-source-line="1247" id="4次作业提交时间节点">4次作业提交时间节点</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table data-source-line="1249"><thead><tr data-source-line="1249"><th data-source-line="1249">作业</th><th data-source-line="1249">提交时间</th><th data-source-line="1249">对应实习</th><th data-source-line="1249">重点检查组</th></tr></thead><tbody><tr data-source-line="1251"><td data-source-line="1251">第1次作业</td><td data-source-line="1251">第4周后</td><td data-source-line="1251">实习1</td><td data-source-line="1251">G1/G2/G3（数据与基础模块）</td></tr><tr data-source-line="1252"><td data-source-line="1252">第2次作业</td><td data-source-line="1252">第7周后</td><td data-source-line="1252">实习2</td><td data-source-line="1252">G4/G5/G6（核心算法模块）</td></tr><tr data-source-line="1253"><td data-source-line="1253">第3次作业</td><td data-source-line="1253">第10周后</td><td data-source-line="1253">实习3</td><td data-source-line="1253">G7/G8/P1-P4（系统集成模块）</td></tr><tr data-source-line="1254"><td data-source-line="1254">第4次作业</td><td data-source-line="1254">第12周后</td><td data-source-line="1254">实习4</td><td data-source-line="1254">所有组（完整程序+答辩）</td></tr></tbody></table>
+<h3 data-source-line="1256" id="每次作业提交要求">每次作业提交要求</h3>
+<ol data-source-line="1257">
+<li data-source-line="1257">源代码（GitHub仓库链接或压缩包）</li>
+<li data-source-line="1258">可运行程序（安装包或绿色版，评委电脑能直接运行）</li>
+<li data-source-line="1259">设计文档（PDF或Markdown）</li>
+<li data-source-line="1260">AI使用日志（Excel或Markdown，记录每次AI使用情况）</li>
+<li data-source-line="1261">演示截图或短视频（可选，但强烈建议）</li>
+</ol>
+<h3 data-source-line="1263" id="第4次作业额外要求">第4次作业额外要求</h3>
+<ol data-source-line="1264">
+<li data-source-line="1264">完整可运行程序（不是模块拼贴，要形成完整产品）</li>
+<li data-source-line="1265">3-5分钟演示视频</li>
+<li data-source-line="1266">答辩PPT（10-15页）</li>
+<li data-source-line="1267">用户手册（让陌生人能上手使用）</li>
+</ol>
+<hr data-source-line="1269">
+<blockquote data-source-line="1271">
+<p data-source-line="1271">本文档为课程任务书，具体要求以教师最新通知为准。<br>最后更新：2026-09-09</p>
+</blockquote>
+</body>
+</html>
