@@ -23,7 +23,7 @@ export interface TopologyIssue {
 export interface TopologyResult {
   nodes: Map<number, [number, number]>;
   edges: RoadEdge[];
-  /** 原始道路属性（含 bridge/tunnel/layer）；边通过 wayId 引用。 */
+  /** 原始道路属性（含 bridge/tunnel/layer）；边通过 wayId 引用，不保留 nds。 */
   ways: Map<number, WayProperties>;
   issues: TopologyIssue[];
 }
@@ -35,7 +35,9 @@ export interface TopologyResult {
  * @returns 有效边端点、方向正确的边、道路属性和可定位的异常。
  * @remarks bridge/tunnel/layer 不决定单行，也不切断已有共享节点连接。
  * 缺失/非法端点只跳过涉及它的原始段，不跨缺口连线；未支持方向跳过整条道路。
- * 输入顺序相同时边 ID 稳定；复杂度 O(道路数 + 引用节点数)。不做模式准入判断。
+ * 返回节点包含全部有效相邻段的端点，因此也包含原道路序列中的有效中间节点。
+ * 输入顺序相同时边 ID 稳定；排序、过滤或规则变化后不保证跨版本稳定，不能作持久化身份。
+ * 复杂度 O(道路数 + 引用节点数)。不做模式准入判断，输出不代表汽车可通行图。
  */
 export function buildTopology(
   sourceNodes: ReadonlyMap<number, readonly [number, number]>,

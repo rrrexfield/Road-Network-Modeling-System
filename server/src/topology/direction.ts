@@ -5,8 +5,9 @@ export type RoadDirection = 'forward' | 'reverse' | 'both' | 'unsupported';
  * 根据 OSM 道路标签判断基础通行方向，不修改标签或节点顺序。
  * @param tags 道路标签（包括 highway、oneway、junction）。
  * @returns 原序列正向、反向、双向，或尚未支持的方向规则。
- * @remarks 显式方向优先于 motorway/roundabout 默认；条件方向和无明确方向的
- * motorway_link 暂不推断。此函数不判断车辆准入或步行、自行车例外。
+ * @remarks 兼容 true/false 与旧值 1/0，显式方向优先于 motorway/roundabout 默认。
+ * 条件方向、可变方向和无明确方向的 motorway_link 不推断，构边时跳过并在报告中列出。
+ * 此函数不判断车辆准入或步行、自行车例外。
  */
 export function resolveRoadDirection(tags: Readonly<Record<string, string>>): RoadDirection {
   if (tags['oneway:conditional'] !== undefined) return 'unsupported';
@@ -15,11 +16,13 @@ export function resolveRoadDirection(tags: Readonly<Record<string, string>>): Ro
   if (oneway !== undefined) {
     switch (oneway) {
       case 'yes':
+      case 'true':
       case '1':
         return 'forward';
       case '-1':
         return 'reverse';
       case 'no':
+      case 'false':
       case '0':
         return 'both';
       default:

@@ -108,6 +108,22 @@ describe('buildTopology', () => {
         [2, 5],
       ],
     },
+    {
+      oneway: 'true',
+      expected: [
+        [1, 5],
+        [5, 2],
+      ],
+    },
+    {
+      oneway: 'false',
+      expected: [
+        [1, 5],
+        [5, 1],
+        [5, 2],
+        [2, 5],
+      ],
+    },
   ])('生成方向正确的相邻段：$oneway', ({ oneway, expected }) => {
     expect(pairs(buildTopology(nodes, [way(10, [1, 5, 2], { oneway })]))).toEqual(expected);
   });
@@ -119,6 +135,23 @@ describe('buildTopology', () => {
       [4, 3],
     ]);
     expect(result.issues).toEqual([{ code: 'missing-node', wayId: 10, nodeId: 999 }]);
+  });
+
+  it('保留每段端点，因此原序列中间节点也可用于完整路径几何', () => {
+    const result = buildTopology(nodes, [way(10, [1, 5, 2])]);
+    expect([...result.nodes.keys()]).toEqual([1, 5, 2]);
+    expect([1, 5, 2].map((id) => result.nodes.get(id))).toEqual([
+      [30, 114],
+      [30, 114.5],
+      [30, 115],
+    ]);
+  });
+
+  it('边 ID 不保证道路排序改变后的跨版本稳定性', () => {
+    const first = buildTopology(nodes, [way(10, [1, 2]), way(20, [3, 4])]);
+    const reordered = buildTopology(nodes, [way(20, [3, 4]), way(10, [1, 2])]);
+    expect(first.edges.find((e) => e.wayId === 10)?.id).toBe(0);
+    expect(reordered.edges.find((e) => e.wayId === 10)?.id).toBe(2);
   });
 
   it('非法坐标与节点 ID 不进入边', () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveRoadDirection } from './index';
 
 describe('resolveRoadDirection', () => {
-  it.each(['yes', '1'])('oneway=%s 沿原序列单行', (oneway) => {
+  it.each(['yes', 'true', '1'])('oneway=%s 沿原序列单行', (oneway) => {
     expect(resolveRoadDirection({ highway: 'residential', oneway })).toBe('forward');
   });
 
@@ -10,7 +10,7 @@ describe('resolveRoadDirection', () => {
     expect(resolveRoadDirection({ highway: 'residential', oneway: '-1' })).toBe('reverse');
   });
 
-  it.each(['no', '0'])('oneway=%s 允许双向', (oneway) => {
+  it.each(['no', 'false', '0'])('oneway=%s 允许双向', (oneway) => {
     expect(resolveRoadDirection({ highway: 'residential', oneway })).toBe('both');
   });
 
@@ -35,15 +35,13 @@ describe('resolveRoadDirection', () => {
     { highway: 'secondary', junction: 'roundabout' },
   ])('显式双向和反向覆盖隐含正向：%j', (tags) => {
     expect(resolveRoadDirection({ ...tags, oneway: 'no' })).toBe('both');
+    expect(resolveRoadDirection({ ...tags, oneway: 'false' })).toBe('both');
     expect(resolveRoadDirection({ ...tags, oneway: '-1' })).toBe('reverse');
   });
 
-  it.each(['reversible', 'alternating', 'unknown', '', 'true', 'false'])(
-    '未支持值 %s 不猜测方向',
-    (oneway) => {
-      expect(resolveRoadDirection({ highway: 'motorway', oneway })).toBe('unsupported');
-    },
-  );
+  it.each(['reversible', 'alternating', 'unknown', ''])('未支持值 %s 不猜测方向', (oneway) => {
+    expect(resolveRoadDirection({ highway: 'motorway', oneway })).toBe('unsupported');
+  });
 
   it('条件方向即使附带基础方向也需另行处理', () => {
     expect(
