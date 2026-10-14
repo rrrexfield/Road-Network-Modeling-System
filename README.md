@@ -4,6 +4,8 @@
 
 当前进度:**Sprint 0(立项与地基)已完成**——"数据 → 服务端 → 浏览器渲染"最小链路已跑通并验收。
 
+Sprint 1 的 C 拓扑基础模块已实现：`server/src/topology/index.ts` 提供道路方向判定和独立构边入口，按原始节点 ID 连接道路并保留桥隧、层级属性。模块尚未接入当前数据装载流程或 B 的 Graph，网页仍使用 Sprint 0 链路。方向与构边新增 36 项测试；规则、异常策略和武汉全量检查见 `docs/plans/c-sprint1-topology.md`。
+
 ## 技术栈
 
 | 层 | 选型 |
@@ -21,6 +23,7 @@ GISAlgo/
 │   └── src/
 │       ├── api/         # REST + WS 路由
 │       ├── io/          # 派生数据装载(内存 nodes/edges/GeoJSON)
+│       ├── topology/    # [C] 独立道路方向与构边模块(尚未接入 loader/Graph)
 │       └── index.ts     # 组装与启动(端口 3000)
 ├── web/                 # Vite 前端(端口 5173,代理 /api、/ws 到 3000)
 │   └── src/             # main.ts(地图与图层)/ api-client.ts(REST+WS 客户端)

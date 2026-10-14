@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### Added(Sprint 1 · C 数据与拓扑基础)
+
+- 独立 `server/src/topology/` 模块：道路方向判定与按原始节点 ID 生成有向边，公开入口为 `index.ts`。
+- 保留 bridge/tunnel/layer 等道路属性；几何交叉不新增连接，共享节点的匝道连接保持有效。
+- 缺失或非法节点、重复道路 ID、退化段及未支持方向的诊断；缺失节点不跨缺口连线。
+- 20 项方向测试、16 项构边测试，以及 C 任务准备与武汉全量检查记录。
+- 模块尚未接入现有 loader 或 B 的 Graph；motorway_link 未显式标注方向时暂不构边，报告为待处理。
+
 ### Added(Sprint 0 · 立项与地基)
 
 - npm workspaces monorepo:`server/`(Fastify)+ `web/`(Vite)+ `shared/`(跨端契约)+ `scripts/`
