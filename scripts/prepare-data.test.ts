@@ -87,7 +87,7 @@ describe('prepare', () => {
     ]);
     expect(derived.meta.wayCount).toBe(1);
     expect(derived.meta.nodeCount).toBe(4);
-    expect(derived.meta.edgeCount).toBe(3);
+    expect(derived.meta.segmentCount).toBe(3);
     expect(derived.meta.source).toBe('test.osm.pbf');
     expect(derived.meta.bbox).toEqual([114.3, 30.5, 114.33, 30.53]);
   });
