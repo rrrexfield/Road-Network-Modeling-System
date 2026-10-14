@@ -43,7 +43,8 @@ export interface NetworkMeta {
   generatedAt: string;
   nodeCount: number;
   wayCount: number;
-  edgeCount: number;
+  /** 原始相邻节点段数(方向处理前);方向化后的有向边数由服务端装载后的 edges 长度给出 */
+  segmentCount: number;
   bbox: [minLon: number, minLat: number, maxLon: number, maxLat: number];
 }
 

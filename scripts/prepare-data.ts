@@ -126,7 +126,7 @@ export function prepare(raw: RawOsmJson, generatedAt = new Date().toISOString())
     generatedAt,
     nodeCount: nodes.length,
     wayCount: ways.length,
-    edgeCount: edges.length,
+    segmentCount: edges.length,
     bbox: computeBbox(nodes),
   };
   return { meta, nodes, ways };
@@ -152,7 +152,7 @@ async function main(): Promise<void> {
 
   console.log(`ways  = ${derived.meta.wayCount.toLocaleString()}`);
   console.log(`nodes = ${derived.meta.nodeCount.toLocaleString()}`);
-  console.log(`edges = ${derived.meta.edgeCount.toLocaleString()}`);
+  console.log(`segments = ${derived.meta.segmentCount.toLocaleString()}`);
   console.log(`bbox  = ${derived.meta.bbox.map((v) => v.toFixed(4)).join(', ')}`);
   console.log(`输出: ${outFile}`);
 }
