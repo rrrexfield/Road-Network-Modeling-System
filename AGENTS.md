@@ -98,9 +98,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
-**最后更新:2026-10-14(契约:NetworkMeta.edgeCount 更名 segmentCount,口径=原始相邻段数)**
+**最后更新:2026-10-14(segmentCount 契约与 C 拓扑模块同步)**
 
 `shared` 的 `NetworkMeta.edgeCount` 更名为 `segmentCount`,定义为预处理产物中的原始相邻节点段数(方向处理前);API `HealthResponse` 与 WS 的 `edgeCount` 含义不变,仍为服务端当前装载图的有向边数。
+`server/src/topology/index.ts` 公开方向判定、按节点 ID 构边与 `createTopologyReport` 报告入口；兼容 oneway=true/false，未确定方向的道路跳过并在报告列出。本模块不做模态过滤，节点包含有效相邻段的中间节点，边 ID 不保证跨版本稳定。B 的 Graph 可直接接收 nodes/edges，组装由 A 负责；尚未接入 loader/Graph，M1 策略确认草稿位于 docs/plans/c-m1-integration-issue-draft.md（未发布、未定案）。本模块未修改 REST/WS 或 shared 契约。
 
 ### API 格式
 
