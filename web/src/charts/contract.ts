@@ -4,7 +4,7 @@
  * TODO(契约·A): 按 AGENTS.md「跨端契约类型统一定义于 shared/src/index.ts,前后端禁止重复定义」,
  * 下列类型需由 A 评审后提升到 shared;提升完成后本文件整体删除,改从 `@gisalgo/shared` 导入。
  * 在提升之前,前端只依赖此镜像,避免直接耦合 server 包源码。
- * 关联 issue:见 D 提交的契约 issue(与 B 的 issue #4 同批处理)。
+ * 关联 issue: #10(与 B 的 issue #4 同批处理)。
  */
 
 /** 权重配置。 */

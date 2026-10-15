@@ -1,6 +1,6 @@
 # D · Sprint 0/1 权重与统计模块交付说明
 
-日期：2026-10-14。状态：权重/统计模块、ECharts 图表封装、统计与权重面板均已完成；全仓 98 项测试通过（本次新增 49 项），shared/server/web 三包 typecheck、全仓 ESLint 与 Prettier 通过。**模块尚未接入服务端启动流程与主界面**，需要的集成动作已整理为 issue，见 §5。
+日期：2026-10-14。状态：权重/统计模块、ECharts 图表封装、统计与权重面板均已完成；全仓 98 项测试通过（本次新增 49 项），shared/server/web 三包 typecheck、全仓 ESLint 与 Prettier 通过。**模块尚未接入服务端启动流程与主界面**，需要的集成动作已整理为 issue（#9–#13），见 §5。
 
 ## 1. 范围与边界
 
@@ -105,14 +105,14 @@ KPI 区（节点/边/道路/总里程/总通行时间/平均与中位边长）+ 
 
 ## 5. 待团队成员补充（占位与 issue）
 
-| # | 待办 | 负责人 | 说明 |
-|---|---|---|---|
-| 1 | 在 `server/src/index.ts` 注册权重路由插件 | **A** | `await app.register(registerWeightRoutes, { network })`，并补一份 wayId → highway 表（可从 `/api/network` 的 features 或 C 的 `TopologyResult.ways` 导出）。D 不改 A 的目录 |
-| 2 | 将 `WeightProfile` / `NetworkStats` 等提升到 `shared/src/index.ts` | **A** | 与 B 的 issue #4 同批评审；提升后删除 `web/src/charts/contract.ts` 镜像，前后端改从 `@gisalgo/shared` 导入 |
-| 3 | 提供拓扑指标填充 `stats.topology` | **B** | PR #7 的 `computeTopologyStats(graph)` 产物经 A 传入；`degreeDistribution` 为 `Map`，由 `toTopologyMetrics()` 负责序列化 |
-| 4 | 确认 way→highway 的权威来源与口径 | **C** | `buildTopology` 的 `ways` 已带 highway；确认 A 取数路径，避免出现第二份等级表 |
-| 5 | 将统计/权重面板挂载进主界面布局 | **E** | 面板为自包含组件（`createStatsPanel()` / `createWeightPanel()`），E 在 `web/src/map` 的布局中预留挂载点即可；`web/src/main.ts` D 未改动 |
-| 6 | `/api/stats` 在全量数据上的性能预算 | **A** | 当前按请求实时计算；120 万边规模建议预计算或缓存 |
+| # | 待办 | 负责人 | issue | 说明 |
+|---|---|---|---|---|
+| 1 | 在 `server/src/index.ts` 注册权重路由插件 | **A** | [#9](https://github.com/rrrexfield/Road-Network-Modeling-System/issues/9) | `await app.register(registerWeightRoutes, { network })`，并补一份 wayId → highway 表（可从 `/api/network` 的 features 或 C 的 `TopologyResult.ways` 导出）。D 不改 A 的目录 |
+| 2 | 将 `WeightProfile` / `NetworkStats` 等提升到 `shared/src/index.ts` | **A** | [#10](https://github.com/rrrexfield/Road-Network-Modeling-System/issues/10) | 与 B 的 issue #4 同批评审；提升后删除 `web/src/charts/contract.ts` 镜像，前后端改从 `@gisalgo/shared` 导入 |
+| 3 | 提供拓扑指标填充 `stats.topology` | **B** | [#11](https://github.com/rrrexfield/Road-Network-Modeling-System/issues/11) | PR #7 的 `computeTopologyStats(graph)` 产物经 A 传入；`degreeDistribution` 为 `Map`，由 `toTopologyMetrics()` 负责序列化 |
+| 4 | 确认 way→highway 的权威来源与口径 | **C** | [#12](https://github.com/rrrexfield/Road-Network-Modeling-System/issues/12) | `buildTopology` 的 `ways` 已带 highway；确认 A 取数路径，避免出现第二份等级表 |
+| 5 | 将统计/权重面板挂载进主界面布局 | **E** | [#13](https://github.com/rrrexfield/Road-Network-Modeling-System/issues/13) | 面板为自包含组件（`createStatsPanel()` / `createWeightPanel()`），E 在 `web/src/map` 的布局中预留挂载点即可；`web/src/main.ts` D 未改动 |
+| 6 | `/api/stats` 在全量数据上的性能预算 | **A** | 并入 #9 | 当前按请求实时计算；120 万边规模建议预计算或缓存 |
 
 ## 6. 已知限制与 Sprint 3 衔接
 

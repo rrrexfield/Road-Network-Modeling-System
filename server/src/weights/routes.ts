@@ -4,7 +4,7 @@
  * TODO(集成·A): 本插件尚未注册到服务端。请在 `server/src/index.ts` 增加
  * `await app.register(registerWeightRoutes, { network });`(network 为 loadNetwork 的产物,
  * 再补一份 wayId → highway 表;若 C 的 buildTopology 产物已接入,也可直接传其 nodes/edges)。
- * 详情见 D 提交的集成 issue。
+ * 详情见 issue #9。
  */
 import type { FastifyInstance } from 'fastify';
 import { DEFAULT_SPEED_KMH } from './speed.js';

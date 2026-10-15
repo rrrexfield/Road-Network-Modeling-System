@@ -12,7 +12,7 @@ export const UNKNOWN_HIGHWAY = 'unknown';
 /**
  * 边权函数:输入一条有向边,输出非负代价(数值越小越优先)。
  * TODO(契约): 与 B 的 `server/src/graph/dijkstra.ts` 的 `EdgeWeightFn` 结构完全一致;
- * 待 PR #7 合入、该类型冻结到 shared 后,本定义改为引用同一来源(关联 issue 见 D 的契约 issue)。
+ * 待 PR #7 合入、该类型冻结到 shared 后,本定义改为引用同一来源(见 issue #10)。
  */
 export type EdgeWeightFn = (edge: RoadEdge) => number;
 
