@@ -1,21 +1,5 @@
+import type { TopologyStats } from '@gisalgo/shared';
 import { Graph } from './graph.js';
-
-/** 拓扑统计报告。TODO(契约): 待 A 提升到 shared/src/index.ts */
-export interface TopologyStats {
-  nodeCount: number;
-  edgeCount: number;
-  /** 弱连通分量数（边视为无向） */
-  connectedComponentCount: number;
-  largestComponentSize: number;
-  /** 悬挂节点数（入度 + 出度 = 1） */
-  danglingNodeCount: number;
-  /** 孤立节点数（入度 + 出度 = 0） */
-  isolatedNodeCount: number;
-  /** 平均度 = 2·边数 / 节点数 */
-  averageDegree: number;
-  /** 度 → 节点数 */
-  degreeDistribution: Map<number, number>;
-}
 
 /** 弱连通分量（并查集，边视为无向）。 */
 export function connectedComponents(graph: Graph): { count: number; largestSize: number } {

@@ -1,18 +1,11 @@
-import type { RoadEdge } from '@gisalgo/shared';
+import type { PathResult, RoadEdge } from '@gisalgo/shared';
 import { Graph } from './graph.js';
 import { PriorityQueue } from './priority-queue.js';
 
-/** 路径结果。TODO(契约): 待 A 提升到 shared/src/index.ts */
-export interface PathResult {
-  /** 总代价；不可达为 Infinity */
-  distance: number;
-  /** 起点→终点 节点 id 序列 */
-  nodeIds: number[];
-  /** 对应边 id 序列（比 nodeIds 少一项） */
-  edgeIds: number[];
-}
-
-/** 边权函数；Sprint 3 起由 D 的权重模型注入。 */
+/** 边权函数；Sprint 3 起由 D 的权重模型注入。
+ *  前置条件：返回值必须为 ≥ 0 且有限的数（负值破坏 Dijkstra 最优子结构，NaN/Infinity 使边被静默跳过）。
+ *  注意当前签名不向调用方提供边长：Sprint 3 实现行程时间权重（长度/限速）前，
+ *  需 A/D/B 评审扩展本签名或提供边长访问（见 CLAUDE.md 同步区，暂不冻结）。 */
 export type EdgeWeightFn = (edge: RoadEdge) => number;
 
 const EARTH_RADIUS_M = 6371000;

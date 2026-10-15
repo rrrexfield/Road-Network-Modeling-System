@@ -37,6 +37,40 @@ export interface RoadFeatureCollection {
   features: RoadFeature[];
 }
 
+/** 路径结果（server 端 Dijkstra 输出，起点→终点）。 */
+export interface PathResult {
+  /**
+   * 总代价；不可达为 Infinity（此时两个序列为空）。
+   * 注意 Infinity 经 JSON.stringify 会变成 null，经 REST/WS 下发前须由 API 层转换。
+   */
+  distance: number;
+  /** 起点→终点 节点 id 序列 */
+  nodeIds: number[];
+  /** 对应边 id 序列（比 nodeIds 少一项）；边 id 仅在同一次装载的图内有意义，不跨版本 */
+  edgeIds: number[];
+}
+
+/** 拓扑统计报告（graph 模块 computeTopologyStats 输出）。度均为有向度（入度 + 出度）。 */
+export interface TopologyStats {
+  nodeCount: number;
+  /** 图装载后按边 id 去重的有向边数；与 C 的 TopologyReport（原始相邻段数）口径不同 */
+  edgeCount: number;
+  /** 弱连通分量数（边视为无向） */
+  connectedComponentCount: number;
+  largestComponentSize: number;
+  /**
+   * 悬挂节点数（有向度 = 1）。M1 采用有向度口径：双向道路尽头（有向度 = 2）不判悬挂；
+   * 无向物理邻接度口径的取舍见 issue #5 讨论，变更须走契约评审。
+   */
+  danglingNodeCount: number;
+  /** 孤立节点数（有向度 = 0） */
+  isolatedNodeCount: number;
+  /** 平均度 = 2·edgeCount / nodeCount */
+  averageDegree: number;
+  /** 有向度 → 节点数。Map 不可 JSON 序列化，仅进程内使用，下发前须由 API 层转换。 */
+  degreeDistribution: Map<number, number>;
+}
+
 /** 派生数据文件元信息 */
 export interface NetworkMeta {
   source: string;
