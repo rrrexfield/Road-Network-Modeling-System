@@ -6,12 +6,14 @@
 
 Sprint 1 的 B 图引擎与 C 拓扑基础模块已实现：`server/src/graph/index.ts` 提供有向图 Graph（直接消费 C 的 buildTopology 产物）、Dijkstra 最短路径与连通分量/度统计；`server/src/topology/index.ts` 提供方向判定（含 true/false）、独立构边和可序列化构边报告，按原始节点 ID 连接道路并保留桥隧、层级属性。两个模块均未接入当前数据装载流程，网页仍使用 Sprint 0 链路，loader → topology → graph 的组装待后续迭代。topology 不做模态/车辆准入过滤，不能将输出解释为汽车可通行图；无法确定方向的道路跳过并在报告中列明。全仓 69 项测试通过，B 模块规则与验证见 `docs/plans/b-sprint1-graph.md` 与 `docs/plans/b-sprint1-graph-interface.md`，C 模块见 `docs/plans/c-sprint1-topology.md`，M1 集成策略确认草稿见 `docs/plans/c-m1-integration-issue-draft.md`。
 
+Sprint 0/1 的 D 权重与统计模块已实现：`server/src/weights/index.ts` 提供 Haversine 距离、等级限速模型、可注入 B 的 `dijkstra` 的边权函数（距离/时间，由 `WeightProfile.metric` 选择）与网络统计（里程/等级分布/边长分布/通行时间）；`web/src/charts/`、`web/src/panels/stats/`、`web/src/panels/weight/` 提供 ECharts 深色主题封装、统计仪表盘与权重配置面板，独立预览页见 `web/src/panels/stats/demo.html`。统计中的拓扑指标为显式占位（`topology=null` + `topologySource='pending'`），待 B 的图引擎接入。**路由插件尚未注册到服务端启动流程、面板尚未挂载进主界面**，所需集成动作见 `docs/plans/d-sprint01-weights-stats.md` §5。全仓 98 项测试通过。
+
 ## 技术栈
 
 | 层 | 选型 |
 |---|---|
 | 服务端 | Node.js 22 LTS · TypeScript · Fastify 5 · WebSocket(@fastify/websocket) |
-| 前端 | Vite · TypeScript · MapLibre GL JS · deck.gl(PathLayer) |
+| 前端 | Vite · TypeScript · MapLibre GL JS · deck.gl(PathLayer) · ECharts |
 | 契约 | npm workspaces monorepo,跨端类型统一定义于 `shared/src/index.ts` |
 | 质量 | Vitest · ESLint · Prettier |
 
@@ -25,9 +27,16 @@ GISAlgo/
 │       ├── io/          # 派生数据装载(内存 nodes/edges/GeoJSON)
 │       ├── topology/    # [C] 独立道路方向与构边模块(尚未接入 loader)
 │       ├── graph/       # [B] 图引擎:Graph/Dijkstra/拓扑统计(尚未接入 loader/服务组装)
+│       ├── weights/     # [D] 权重与统计:距离/限速/可注入边权/网络统计 + REST 插件(待 A 注册)
 │       └── index.ts     # 组装与启动(端口 3000)
 ├── web/                 # Vite 前端(端口 5173,代理 /api、/ws 到 3000)
-│   └── src/             # main.ts(地图与图层)/ api-client.ts(REST+WS 客户端)
+│   └── src/
+│       ├── main.ts             # 地图与图层
+│       ├── api-client.ts       # REST+WS 客户端
+│       ├── charts/             # [D] ECharts 按需装配、深色主题、图表工厂
+│       └── panels/
+│           ├── stats/          # [D] 统计仪表盘 + 独立预览页 demo.html
+│           └── weight/         # [D] 权重配置面板
 ├── shared/              # 跨端契约:领域模型 / API 出入参 / WS 消息 / 路网配色
 ├── scripts/             # prepare-data.ts 数据预处理 · dev.mjs 启动编排
 ├── data/                # 原始数据(大文件入库由教师渠道分发);data/derived/ 为生成物,不入库
@@ -86,6 +95,8 @@ data/derived/wuhan-roads.json (~30MB, 不入库)
 |---|---|---|
 | GET | `/api/health` | 健康检查:节点 / 边 / way 计数与运行时长 |
 | GET | `/api/network` | 全量路网 GeoJSON(每 way 一条 LineString,属性含 id/name/highway/tags) |
+| GET | `/api/weights/profile` | 权重基线:默认 `WeightProfile` + 各等级默认限速表(**插件待 A 注册,当前不可用**) |
+| GET | `/api/stats` | 网络统计:里程/等级分布/边长分布/通行时间/拓扑指标占位;支持 `metric`、`speedFactor`、`speedKmh=等级:限速,…`(**插件待 A 注册,当前不可用**) |
 | WS | `/ws` | 消息信封 `{ type, payload }`;连接即推 `hello`,支持 `ping`/`pong` |
 
 错误响应统一为 `{ "error": { "message": "..." } }`;契约类型见 `shared/src/index.ts`,前后端禁止重复定义。
