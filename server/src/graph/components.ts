@@ -1,17 +1,22 @@
 import type { TopologyStats } from '@gisalgo/shared';
 import { Graph } from './graph.js';
 
-/** 弱连通分量（并查集，边视为无向）。 */
+/** 弱连通分量（并查集，边视为无向）。内部按稠密下标使用类型化数组。 */
 export function connectedComponents(graph: Graph): { count: number; largestSize: number } {
-  const parent = new Map<number, number>();
-  const size = new Map<number, number>();
+  const n = graph.nodeCount;
+  const parent = new Int32Array(n);
+  const size = new Int32Array(n);
+  for (let i = 0; i < n; i++) {
+    parent[i] = i;
+    size[i] = 1;
+  }
 
   const find = (x: number): number => {
     let root = x;
-    while (parent.get(root)! !== root) root = parent.get(root)!;
-    while (parent.get(x)! !== root) {
-      const next = parent.get(x)!;
-      parent.set(x, root);
+    while (parent[root] !== root) root = parent[root]!;
+    while (parent[x] !== root) {
+      const next = parent[x]!;
+      parent[x] = root;
       x = next;
     }
     return root;
@@ -21,21 +26,19 @@ export function connectedComponents(graph: Graph): { count: number; largestSize:
     let ra = find(a);
     let rb = find(b);
     if (ra === rb) return;
-    if (size.get(ra)! < size.get(rb)!) [ra, rb] = [rb, ra];
-    parent.set(rb, ra);
-    size.set(ra, size.get(ra)! + size.get(rb)!);
+    if (size[ra]! < size[rb]!) [ra, rb] = [rb, ra];
+    parent[rb] = ra;
+    size[ra] = size[ra]! + size[rb]!;
   };
 
-  for (const id of graph.nodes()) {
-    parent.set(id, id);
-    size.set(id, 1);
+  for (const e of graph.edges()) {
+    union(graph.indexOf(e.from)!, graph.indexOf(e.to)!); // addEdge 已校验端点存在
   }
-  for (const e of graph.edges()) union(e.from, e.to);
 
   const roots = new Set<number>();
-  for (const id of graph.nodes()) roots.add(find(id));
+  for (let i = 0; i < n; i++) roots.add(find(i));
   let largestSize = 0;
-  for (const r of roots) largestSize = Math.max(largestSize, size.get(r)!);
+  for (const r of roots) largestSize = Math.max(largestSize, size[r]!);
   return { count: roots.size, largestSize };
 }
 
