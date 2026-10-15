@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RoadEdge } from '@gisalgo/shared';
-import { Graph, computeTopologyStats, danglingNodes } from './index.js';
+import { Graph, computeTopologyStats } from './index.js';
 
 function edge(id: number, from: number, to: number): RoadEdge {
   return { id, from, to, wayId: 1 };
@@ -28,13 +28,16 @@ describe('components', () => {
     expect(stats.degreeDistribution.get(0)).toBe(1);
   });
 
-  it('悬挂节点（度 = 1）', () => {
+  it('悬挂/孤立节点由度分布读出（单向链两端度 = 1）', () => {
     const nodes = new Map<number, [number, number]>([
       [1, [30.0, 114.0]],
       [2, [30.0, 114.1]],
       [3, [30.0, 114.2]],
     ]);
     const g = new Graph(nodes, [edge(0, 1, 2), edge(1, 2, 3)]);
-    expect(danglingNodes(g).sort()).toEqual([1, 3]);
+    const stats = computeTopologyStats(g);
+    expect(stats.danglingNodeCount).toBe(2);
+    expect(stats.isolatedNodeCount).toBe(0);
+    expect(stats.degreeDistribution.get(1)).toBe(2);
   });
 });

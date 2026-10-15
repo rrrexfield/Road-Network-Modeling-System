@@ -10,11 +10,19 @@ describe('B↔C 联调:buildTopology → Graph → dijkstra', () => {
       [3, [30.0, 114.2]],
     ]);
     const ways: TopologyWay[] = [
-      { id: 100, highway: 'residential', tags: { highway: 'residential', oneway: 'yes' }, nds: [1, 2, 3] },
+      {
+        id: 100,
+        highway: 'residential',
+        tags: { highway: 'residential', oneway: 'yes' },
+        nds: [1, 2, 3],
+      },
     ];
     const { nodes: topoNodes, edges } = buildTopology(nodes, ways);
     const graph = new Graph(topoNodes, edges);
 
+    expect(graph.edgeCount).toBe(2);
+    expect(graph.outEdges(1).map((e) => e.to)).toEqual([2]);
+    expect(graph.outEdges(2).map((e) => e.to)).toEqual([3]);
     const fwd = dijkstra(graph, 1, 3);
     expect(fwd.distance).toBeGreaterThan(0);
     expect(fwd.nodeIds).toEqual([1, 2, 3]);
@@ -27,10 +35,18 @@ describe('B↔C 联调:buildTopology → Graph → dijkstra', () => {
       [2, [30.0, 114.1]],
     ]);
     const ways: TopologyWay[] = [
-      { id: 200, highway: 'residential', tags: { highway: 'residential', oneway: '-1' }, nds: [1, 2] },
+      {
+        id: 200,
+        highway: 'residential',
+        tags: { highway: 'residential', oneway: '-1' },
+        nds: [1, 2],
+      },
     ];
     const { nodes: topoNodes, edges } = buildTopology(nodes, ways);
     const graph = new Graph(topoNodes, edges);
+    expect(graph.edgeCount).toBe(1);
+    expect(graph.outEdges(2).map((e) => e.to)).toEqual([1]);
+    expect(graph.outEdges(1).length).toBe(0);
     expect(dijkstra(graph, 2, 1).distance).toBeGreaterThan(0);
     expect(dijkstra(graph, 1, 2).distance).toBe(Infinity);
   });
@@ -41,10 +57,18 @@ describe('B↔C 联调:buildTopology → Graph → dijkstra', () => {
       [2, [30.0, 114.1]],
     ]);
     const ways: TopologyWay[] = [
-      { id: 300, highway: 'residential', tags: { highway: 'residential' }, nds: [1, 2] },
+      {
+        id: 300,
+        highway: 'residential',
+        tags: { highway: 'residential' },
+        nds: [1, 2],
+      },
     ];
     const { nodes: topoNodes, edges } = buildTopology(nodes, ways);
     const graph = new Graph(topoNodes, edges);
+    expect(graph.edgeCount).toBe(2);
+    expect(graph.outEdges(1).map((e) => e.to)).toEqual([2]);
+    expect(graph.outEdges(2).map((e) => e.to)).toEqual([1]);
     expect(dijkstra(graph, 1, 2).distance).toBeGreaterThan(0);
     expect(dijkstra(graph, 2, 1).distance).toBeGreaterThan(0);
   });

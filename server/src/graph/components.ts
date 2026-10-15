@@ -49,33 +49,18 @@ export function degreeDistribution(graph: Graph): Map<number, number> {
   return dist;
 }
 
-/** 悬挂节点：恰有一条关联边（入度 + 出度 = 1）。 */
-export function danglingNodes(graph: Graph): number[] {
-  const out: number[] = [];
-  for (const id of graph.nodes()) {
-    if (graph.inDegree(id) + graph.outDegree(id) === 1) out.push(id);
-  }
-  return out;
-}
-
+/** 聚合拓扑统计：连通分量 + 度分布。悬挂/孤立节点由度分布直接读出
+ *  （有向度 = 1 / 0；自环节点度为 2，不会落入这两档）。 */
 export function computeTopologyStats(graph: Graph): TopologyStats {
   const { count, largestSize } = connectedComponents(graph);
-  let dangling = 0;
-  let isolated = 0;
-  const dist = new Map<number, number>();
-  for (const id of graph.nodes()) {
-    const d = graph.inDegree(id) + graph.outDegree(id);
-    dist.set(d, (dist.get(d) ?? 0) + 1);
-    if (d === 1) dangling += 1;
-    if (d === 0) isolated += 1;
-  }
+  const dist = degreeDistribution(graph);
   return {
     nodeCount: graph.nodeCount,
     edgeCount: graph.edgeCount,
     connectedComponentCount: count,
     largestComponentSize: largestSize,
-    danglingNodeCount: dangling,
-    isolatedNodeCount: isolated,
+    danglingNodeCount: dist.get(1) ?? 0,
+    isolatedNodeCount: dist.get(0) ?? 0,
     averageDegree: graph.nodeCount === 0 ? 0 : (2 * graph.edgeCount) / graph.nodeCount,
     degreeDistribution: dist,
   };

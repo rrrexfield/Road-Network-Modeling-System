@@ -7,14 +7,12 @@ import type { RoadEdge } from '@gisalgo/shared';
 export class Graph {
   /** 节点 id → 内部连续下标（0..n-1） */
   private nodeIndex = new Map<number, number>();
-  private nodeIds: number[] = [];
   private lat = new Float32Array(0);
   private lon = new Float32Array(0);
   /** 出边邻接表：节点 id → 以其为起点的边 */
   private outAdj = new Map<number, RoadEdge[]>();
   private edgesById = new Map<number, RoadEdge>();
   private inDeg = new Map<number, number>();
-  private outDeg = new Map<number, number>();
 
   constructor(
     nodes: ReadonlyMap<number, readonly [number, number]>,
@@ -25,7 +23,7 @@ export class Graph {
   }
 
   get nodeCount(): number {
-    return this.nodeIds.length;
+    return this.nodeIndex.size;
   }
 
   get edgeCount(): number {
@@ -42,31 +40,37 @@ export class Graph {
     return [this.lat[i]!, this.lon[i]!];
   }
 
+  /** 只读视图：返回内部邻接数组，调用方不得修改；遍历中不得变更图结构。 */
   outEdges(id: number): readonly RoadEdge[] {
     return this.outAdj.get(id) ?? [];
   }
 
   outDegree(id: number): number {
-    return this.outDeg.get(id) ?? 0;
+    return this.outAdj.get(id)?.length ?? 0;
   }
 
   inDegree(id: number): number {
     return this.inDeg.get(id) ?? 0;
   }
 
+  /** 只读迭代器：遍历中变更图会产生未定义行为。 */
   nodes(): IterableIterator<number> {
     return this.nodeIndex.keys();
   }
 
+  /** 只读迭代器：遍历中变更图会产生未定义行为。 */
   edges(): IterableIterator<RoadEdge> {
     return this.edgesById.values();
   }
 
+  /** 新增节点；坐标非法（非有限数，NaN 坐标会使关联边在寻路中被静默丢弃）时抛错；已存在的 id 忽略。 */
   addNode(id: number, coord: readonly [number, number]): void {
     if (this.nodeIndex.has(id)) return;
-    const i = this.nodeIds.length;
+    if (!Number.isFinite(coord[0]) || !Number.isFinite(coord[1])) {
+      throw new Error(`addNode 坐标非法: ${id} [${coord[0]}, ${coord[1]}]`);
+    }
+    const i = this.nodeIndex.size;
     this.nodeIndex.set(id, i);
-    this.nodeIds.push(id);
     if (i >= this.lat.length) this.grow(i + 1);
     this.lat[i] = coord[0];
     this.lon[i] = coord[1];
@@ -82,7 +86,6 @@ export class Graph {
     const list = this.outAdj.get(edge.from);
     if (list === undefined) this.outAdj.set(edge.from, [edge]);
     else list.push(edge);
-    this.outDeg.set(edge.from, (this.outDeg.get(edge.from) ?? 0) + 1);
     this.inDeg.set(edge.to, (this.inDeg.get(edge.to) ?? 0) + 1);
   }
 
@@ -95,8 +98,8 @@ export class Graph {
       const idx = list.findIndex((e) => e.id === edgeId);
       if (idx !== -1) list.splice(idx, 1);
     }
-    this.outDeg.set(edge.from, Math.max(0, (this.outDeg.get(edge.from) ?? 1) - 1));
-    this.inDeg.set(edge.to, Math.max(0, (this.inDeg.get(edge.to) ?? 1) - 1));
+    const deg = this.inDeg.get(edge.to);
+    if (deg !== undefined) this.inDeg.set(edge.to, deg - 1);
     return true;
   }
 
