@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### Added(Sprint 1 · B 图引擎)
+
+- 新增 `server/src/graph/` 模块（公开入口 `index.ts`）：有向图 `Graph`（邻接表 + Float32Array 紧凑坐标 + 增删边）、最小堆优先队列 `PriorityQueue`、Dijkstra 最短路径与路径重建、连通分量/度分布/悬挂节点统计。
+- `Graph` 构造入参直接消费 C 的 `buildTopology()` 产物（nodes Map + edges RoadEdge[]），无需适配层；联调测试覆盖 oneway yes/-1/双向。
+- Dijkstra 默认以端点 Haversine 距离为边权，预留权重函数注入（Sprint 3 接 D 的动态权重）。
+- 新增 24 项图引擎单元/联调测试；`PathResult` / `TopologyStats` 暂定于 graph 内，待 A 冻结到 shared（issue #4、#5）。
+
 ### Added(Sprint 1 · C 数据与拓扑基础)
 
 - 独立 `server/src/topology/` 模块：道路方向判定与按原始节点 ID 生成有向边，公开入口为 `index.ts`。
