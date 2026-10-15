@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PriorityQueue } from './index.js';
+import { PriorityQueue } from './priority-queue.js';
 
 describe('PriorityQueue', () => {
   it('按 key 升序弹出', () => {
@@ -13,12 +13,11 @@ describe('PriorityQueue', () => {
     expect(out).toEqual(['a', 'b', 'c', 'e']);
   });
 
-  it('peek 返回最小 key 且不弹出', () => {
+  it('push 拒绝非有限 key', () => {
     const pq = new PriorityQueue<number>();
-    pq.push(3, 30);
-    pq.push(1, 10);
-    expect(pq.peek()).toEqual({ key: 1, value: 10 });
-    expect(pq.size).toBe(2);
+    expect(() => pq.push(NaN, 1)).toThrow();
+    expect(() => pq.push(Infinity, 1)).toThrow();
+    expect(pq.size).toBe(0);
   });
 
   it('重复 key 均可弹出', () => {

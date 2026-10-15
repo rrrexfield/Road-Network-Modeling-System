@@ -55,9 +55,13 @@ describe('dijkstra', () => {
     expect(dijkstra(graph, 1, 999, weight).distance).toBe(Infinity);
   });
 
-  it('默认权重为 Haversine 距离且为正', () => {
+  it('默认权重为预计算 Haversine 边长（米）', () => {
     const r = dijkstra(graph, 1, 4);
-    expect(r.distance).toBeGreaterThan(0);
+    // 每段 0.1° 经度 @ lat30 ≈ 9630 m，3 段 ≈ 28890 m；2→4 直连与经 3 中转在
+    // 数学上等长（Haversine 对同纬小角近似线性），float32 抖动决定平局方向，
+    // 故只断言总代价区间与起终点，不断言具体路径。
+    expect(r.distance).toBeGreaterThan(28800);
+    expect(r.distance).toBeLessThan(29000);
     expect(r.nodeIds[0]).toBe(1);
     expect(r.nodeIds[r.nodeIds.length - 1]).toBe(4);
   });

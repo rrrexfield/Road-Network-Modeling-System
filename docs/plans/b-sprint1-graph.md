@@ -16,15 +16,15 @@
 
 - C 的 `buildTopology()` 返回 `TopologyResult { nodes, edges, ways, issues }`。
 - B 的 `Graph` 构造入参直接消费 `TopologyResult.nodes`（`Map<number, [number, number]>`）与 `TopologyResult.edges`（`RoadEdge[]`，`RoadEdge` 来自 `@gisalgo/shared`），**无需适配层**：`new Graph(topo.nodes, topo.edges)`。
-- 边 id 由 C 以 `edges.length` 递增生成，唯一且顺序稳定；Graph 按 id 去重。
+- 边 id 由 C 以 `edges.length` 递增生成，唯一且顺序稳定；Graph 按 id 去重。边 id 仅在固定输入顺序与规则下稳定，跨版本不保证，不可作持久化身份（与 C 的契约及 CLAUDE.md 同步区一致）。
 
 ## 3. 模块设计
 
 ### 3.1 `Graph`（`graph.ts`）
 
-- 内部：`nodeIndex`（id → 连续下标）、`lat/lon: Float32Array`（紧凑坐标）、`outAdj`（出边邻接表）、`inDeg/outDeg`（出入度）、`edgesById`。
-- 边数为 `edgesById.size`；`addEdge` 要求端点已存在，`removeEdge` 按边 id 删除。
-- 坐标用 Float32 存储：约 7 位有效数字，武汉纬度下误差约 0.15 米，满足渲染与 Haversine 距离计算；内存为 Float64 的一半（10 万+ 节点规模收益明显）。若要更高精度需改为 Float64，届时在契约评审中提出。
+- 内部：`nodeIndex`（id → 连续下标）、`ids`（下标 → id）、`lat/lon: Float32Array`（紧凑坐标）、`outAdj`（出边邻接表）、`inDeg`（入度）、`edgesById`、`edgeLen`（边长缓存）。
+- 边数为 `edgesById.size`；出度由邻接表长度推导；`addEdge` 要求端点已存在，`removeEdge` 按边 id 删除；边长在装载时一次预计算（`edgeLength(id)`）。
+- 坐标用 Float32 存储：约 7 位有效数字，误差为各向异性——武汉纬度下纬向最坏约 0.11 m、经向最坏约 0.37 m/端点（0.15 m 为典型值），一条边两端累计最坏约 0.7 m，短路段（约 10 m）相对误差可达数个百分点，近邻最短路可能因平局翻转；对渲染与一般路径代价可用。若要更高精度需改为 Float64，届时在契约评审中提出。
 
 ### 3.2 `PriorityQueue`（`priority-queue.ts`）
 

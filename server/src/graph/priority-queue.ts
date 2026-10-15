@@ -14,13 +14,11 @@ export class PriorityQueue<T> {
     return this.heap.length;
   }
 
+  /** 入队；key 必须为有限数（NaN/Infinity 会破坏堆序），否则抛错。 */
   push(key: number, value: T): void {
+    if (!Number.isFinite(key)) throw new Error(`push key 非法: ${key}`);
     this.heap.push({ key, value });
     this.siftUp(this.heap.length - 1);
-  }
-
-  peek(): QueueEntry<T> | undefined {
-    return this.heap[0];
   }
 
   /** 弹出并返回 key 最小的条目；空堆返回 undefined。 */
@@ -38,7 +36,9 @@ export class PriorityQueue<T> {
     while (i > 0) {
       const parent = (i - 1) >> 1;
       if (heap[parent]!.key <= heap[i]!.key) break;
-      [heap[parent], heap[i]] = [heap[i]!, heap[parent]!];
+      const t = heap[parent]!;
+      heap[parent] = heap[i]!;
+      heap[i] = t;
       i = parent;
     }
   }
@@ -53,7 +53,9 @@ export class PriorityQueue<T> {
       if (left < n && heap[left]!.key < heap[smallest]!.key) smallest = left;
       if (right < n && heap[right]!.key < heap[smallest]!.key) smallest = right;
       if (smallest === i) break;
-      [heap[smallest], heap[i]] = [heap[i]!, heap[smallest]!];
+      const t = heap[smallest]!;
+      heap[smallest] = heap[i]!;
+      heap[i] = t;
       i = smallest;
     }
   }

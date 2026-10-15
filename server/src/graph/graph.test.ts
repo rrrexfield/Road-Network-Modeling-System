@@ -49,10 +49,18 @@ describe('Graph', () => {
     expect(() => g.addEdge(edge(0, 1, 999))).toThrow();
   });
 
+  it('addNode 坐标非法时抛错且不产生节点', () => {
+    const g = new Graph(nodes, []);
+    expect(() => g.addNode(9, [NaN, 114.0])).toThrow();
+    expect(() => g.addNode(9, [30.0, Infinity])).toThrow();
+    expect(g.hasNode(9)).toBe(false);
+    expect(g.nodeCount).toBe(3);
+  });
+
   it('hasNode 与节点迭代', () => {
     const g = new Graph(nodes, []);
     expect(g.hasNode(2)).toBe(true);
     expect(g.hasNode(5)).toBe(false);
-    expect([...g.nodes()].sort()).toEqual([1, 2, 3]);
+    expect([...g.nodes()].sort((a, b) => a - b)).toEqual([1, 2, 3]);
   });
 });

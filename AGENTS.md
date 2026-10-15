@@ -98,10 +98,12 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
-**最后更新:2026-10-14(segmentCount 契约与 C 拓扑模块同步)**
+**最后更新:2026-10-15(graph 模块合入与 PathResult/TopologyStats 契约冻结)**
 
 `shared` 的 `NetworkMeta.edgeCount` 更名为 `segmentCount`,定义为预处理产物中的原始相邻节点段数(方向处理前);API `HealthResponse` 与 WS 的 `edgeCount` 含义不变,仍为服务端当前装载图的有向边数。
-`server/src/topology/index.ts` 公开方向判定、按节点 ID 构边与 `createTopologyReport` 报告入口；兼容 oneway=true/false，未确定方向的道路跳过并在报告列出。本模块不做模态过滤，节点包含有效相邻段的中间节点，边 ID 不保证跨版本稳定。B 的 Graph 可直接接收 nodes/edges，组装由 A 负责；尚未接入 loader/Graph，M1 策略确认草稿位于 docs/plans/c-m1-integration-issue-draft.md（未发布、未定案）。本模块未修改 REST/WS 或 shared 契约。
+`server/src/topology/index.ts` 公开方向判定、按节点 ID 构边与 `createTopologyReport` 报告入口；兼容 oneway=true/false，未确定方向的道路跳过并在报告列出。本模块不做模态过滤，节点包含有效相邻段的中间节点，边 ID 不保证跨版本稳定。组装由 A 负责；M1 策略确认草稿位于 docs/plans/c-m1-integration-issue-draft.md（未发布、未定案）。本模块未修改 REST/WS 或 shared 契约。
+`server/src/graph/`(B)已随 PR #7 合入:公开入口导出 `Graph`、`dijkstra`、`connectedComponents`、`computeTopologyStats`;`new Graph(topo.nodes, topo.edges)` 直接消费 buildTopology 产物;尚未接入 loader/服务组装。
+契约冻结(issue #4):`PathResult`、`TopologyStats` 已进入 `shared/src/index.ts`,graph 模块改为从 `@gisalgo/shared` 导入,禁止再定义本地副本。度均为有向度(入+出)——M1 口径;无向物理邻接度取舍见 issue #5 留档,变更须契约评审。`degreeDistribution` 为进程内 Map,不可直接 JSON 下发;`PathResult.distance` 不可达为 Infinity,JSON 下发前由 API 层转换。`EdgeWeightFn` 暂不冻结:Sprint 3 权重注入前需 A/D/B 评审扩展(当前签名不含边长,无法实现行程时间权重)。
 
 ### API 格式
 
