@@ -1,0 +1,215 @@
+@import '../../charts/ui.css';
+
+/* 权重配置面板:表单控件沿用深色毛玻璃基调,金色只用于当前选中态与合计值。 */
+.gis-weight {
+  gap: 10px;
+}
+
+.gis-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gis-field--muted {
+  opacity: 0.55;
+}
+
+.gis-field__label {
+  min-width: 84px;
+  font-size: 11.5px;
+  color: var(--gis-muted);
+}
+
+.gis-field__value {
+  min-width: 54px;
+  font-size: 12px;
+  color: var(--gis-gold);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.gis-segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--gis-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.gis-segmented__item {
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--gis-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.gis-segmented__item:hover {
+  color: var(--gis-text);
+}
+
+.gis-segmented__item--active {
+  color: #101418;
+  background: var(--gis-gold);
+  font-weight: 600;
+}
+
+.gis-range {
+  flex: 1;
+  height: 4px;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(242, 198, 109, 0.75), rgba(143, 182, 255, 0.6));
+  cursor: pointer;
+}
+
+.gis-range:disabled {
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+
+.gis-range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #f6f8fb;
+  border: 2px solid var(--gis-gold);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.gis-table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--gis-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.gis-table__head,
+.gis-table__row {
+  display: grid;
+  grid-template-columns: minmax(80px, 1.3fr) minmax(64px, 1fr) 56px 62px minmax(70px, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+}
+
+.gis-table__head {
+  font-size: 10.5px;
+  color: var(--gis-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--gis-border);
+}
+
+.gis-table__body {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.gis-table__row + .gis-table__row {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.gis-table__row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.gis-table__row--overridden {
+  background: rgba(242, 198, 109, 0.07);
+}
+
+.gis-table__cell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gis-table__cell--name {
+  color: var(--gis-text);
+}
+
+.gis-table__cell--num {
+  text-align: right;
+  color: var(--gis-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gis-time {
+  color: var(--gis-text);
+}
+
+.gis-input {
+  width: 100%;
+  padding: 3px 6px;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--gis-text);
+  text-align: right;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--gis-border);
+  border-radius: 6px;
+}
+
+.gis-input:focus {
+  outline: none;
+  border-color: var(--gis-gold-edge);
+  box-shadow: 0 0 0 2px rgba(242, 198, 109, 0.14);
+}
+
+.gis-input:disabled {
+  color: var(--gis-muted);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.gis-weight__total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border: 1px solid var(--gis-gold-edge);
+  border-radius: 8px;
+  background: rgba(242, 198, 109, 0.07);
+}
+
+.gis-weight__total-label {
+  font-size: 11.5px;
+  color: var(--gis-muted);
+}
+
+.gis-weight__total-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gis-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.gis-button {
+  align-self: flex-start;
+  padding: 5px 14px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--gis-text);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--gis-border-strong);
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.gis-button:hover {
+  color: var(--gis-gold);
+  border-color: var(--gis-gold-edge);
+}

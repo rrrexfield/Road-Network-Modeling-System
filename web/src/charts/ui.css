@@ -1,0 +1,193 @@
+/**
+ * D 面板共用视觉原语(面板容器 / 卡片 / 徽标 / KPI / 说明块)。
+ * 配色与质感遵循 AGENTS.md「前端样式风格」基线:深色底 + 半透明毛玻璃 + 金色点缀,
+ * 不引入新的主色。D 之外的成员复用本文件时,修改前请与 D 对齐(目录所有权)。
+ */
+
+:where(.gis-panel, .gis-scope) {
+  --gis-surface: rgba(16, 20, 24, 0.82);
+  --gis-surface-solid: rgba(20, 25, 30, 0.92);
+  --gis-border: rgba(255, 255, 255, 0.08);
+  --gis-border-strong: rgba(255, 255, 255, 0.14);
+  --gis-gold: #f2c66d;
+  --gis-gold-edge: rgba(242, 198, 109, 0.35);
+  --gis-text: #d7dde6;
+  --gis-muted: #9aa4b2;
+  --gis-ok: #7fd6a0;
+  --gis-bad: #e88;
+  --gis-wait: #e8c477;
+  --gis-radius: 10px;
+  --gis-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  color: var(--gis-text);
+  font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.gis-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  background: var(--gis-surface);
+  border: 1px solid var(--gis-border);
+  border-radius: var(--gis-radius);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--gis-shadow);
+}
+
+.gis-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gis-panel__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--gis-gold);
+}
+
+.gis-panel__subtitle {
+  margin: 0;
+  color: var(--gis-muted);
+}
+
+.gis-badge {
+  padding: 3px 9px;
+  font-size: 11px;
+  border-radius: 999px;
+  border: 1px solid var(--gis-border-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--gis-muted);
+  white-space: nowrap;
+}
+
+.gis-badge--ok {
+  border-color: rgba(127, 214, 160, 0.5);
+  color: var(--gis-ok);
+}
+
+.gis-badge--bad {
+  border-color: rgba(230, 136, 136, 0.5);
+  color: var(--gis-bad);
+}
+
+.gis-badge--wait {
+  border-color: rgba(232, 196, 119, 0.45);
+  color: var(--gis-wait);
+}
+
+.gis-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+}
+
+.gis-kpis--compact {
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+}
+
+.gis-kpi {
+  padding: 8px 10px;
+  border: 1px solid var(--gis-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.gis-kpi__label {
+  font-size: 11px;
+  color: var(--gis-muted);
+}
+
+.gis-kpi__value {
+  margin-top: 2px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--gis-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.gis-kpi__hint {
+  margin-top: 1px;
+  font-size: 10.5px;
+  color: rgba(154, 164, 178, 0.75);
+}
+
+.gis-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.gis-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--gis-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.gis-card__caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gis-card__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gis-text);
+}
+
+.gis-card__hint {
+  font-size: 10.5px;
+  color: var(--gis-muted);
+}
+
+.gis-card__body {
+  position: relative;
+  width: 100%;
+  min-height: 180px;
+}
+
+.gis-note {
+  margin: 0;
+  font-size: 11px;
+  color: var(--gis-muted);
+}
+
+.gis-note--summary {
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.gis-placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px dashed rgba(232, 196, 119, 0.35);
+  border-radius: 8px;
+  background: rgba(232, 196, 119, 0.05);
+}
+
+.gis-placeholder__text {
+  margin: 0;
+  color: var(--gis-muted);
+}
+
+@media (max-width: 720px) {
+  .gis-kpis {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  }
+}
