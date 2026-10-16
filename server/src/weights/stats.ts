@@ -2,8 +2,14 @@
  * 网络统计分析:里程、等级分布、边长分布与通行时间。
  * 输入的边集是 C 的构边产物、坐标表来自派生数据、way→等级表用于取限速——本模块只做聚合,
  * 不负责读文件、不负责建图。
+ *
+ * **边长口径**:当前边长由本模块 `geo.ts` 的 `haversineMeters` 按原始 float64 坐标实时计算,
+ * 用于"尚未组装出 Graph"的统计场景。B 的 `Graph.edgeLength(id)` 是装载期预计算的同源 Haversine,
+ * 但坐标以 Float32Array 存储,单边存在量化误差(分轴最坏 ~0.7 m),两者数值不严格相等。
+ * 待 A 组装出 Graph 后,统计里程应改为取 `edgeLength`,使"统计里程"与"路径权重"严格同源;
+ * 切换前以本注释为口径依据(见 docs/plans/d-sprint01-weights-stats.md §4.2)。
  */
-import type { RoadEdge } from '@gisalgo/shared';
+import type { RoadEdge, TopologyStats } from '@gisalgo/shared';
 import { haversineMeters } from './geo.js';
 import { travelSeconds } from './speed.js';
 import {
@@ -16,35 +22,21 @@ import {
 } from './weight.js';
 
 /**
- * 与 B 的 `server/src/graph/components.ts` 的 `TopologyStats` 结构一致的拓扑指标。
- * TODO(契约): B 的 TopologyStats 提升到 shared(issue #4)后改为直接引用,不再此处镜像。
- * 注意 degreeDistribution 是 Map,JSON 不可序列化,输出前须经 toTopologyMetrics 转换。
+ * 可序列化的拓扑指标(响应体形态)。
+ * 由 A 已冻结的 `TopologyStats` **派生**而来:除 `degreeDistribution` 需把 Map 摊成数组外,
+ * 其余字段直接继承,避免本模块另起一份平铺定义而与契约漂移。
+ * TODO(契约): issue #10 把 D 的类型冻结进 shared 时,本接口原样搬迁,保持派生形态。
  */
-export interface TopologyMetricsSource {
-  nodeCount: number;
-  edgeCount: number;
-  connectedComponentCount: number;
-  largestComponentSize: number;
-  danglingNodeCount: number;
-  isolatedNodeCount: number;
-  averageDegree: number;
-  degreeDistribution: Map<number, number>;
-}
-
-/** 可序列化的拓扑指标(响应体形态)。 */
-export interface TopologyMetrics {
-  nodeCount: number;
-  edgeCount: number;
-  connectedComponentCount: number;
-  largestComponentSize: number;
-  danglingNodeCount: number;
-  isolatedNodeCount: number;
-  averageDegree: number;
+export interface TopologyMetrics extends Omit<TopologyStats, 'degreeDistribution'> {
+  /** 有向度 → 节点数,按度升序;B 侧的 Map 为节点迭代序(无序),此处统一排序后下发。 */
   degreeDistribution: { degree: number; count: number }[];
 }
 
-/** 拓扑指标的来源标注,供前端区分"指标为零"与"尚未接入"。 */
-export type TopologyMetricsSourceTag = 'server/src/graph(graph-engine)' | 'pending';
+/**
+ * 拓扑指标的来源标注,供前端区分"指标为零"与"尚未接入"。
+ * 用语义名而非模块路径,避免目录改名就失效。
+ */
+export type TopologyMetricsSourceTag = 'graph-engine' | 'pending';
 
 /** 单个 highway 等级的统计口径。 */
 export interface HighwayStat {
@@ -135,12 +127,13 @@ function buildLengthHistogram(lengths: readonly number[]): LengthBucket[] {
 }
 
 /**
- * 把 B 的拓扑指标 Map 转换为可序列化形态。
- * @param source 与 TopologyStats 结构一致的指标。
+ * 把 B 的拓扑指标 Map 转换为可序列化形态(即 shared JSDoc 要求的"API 层转换")。
+ * @param source B 的 `computeTopologyStats` 产物。
  * @returns 度分布按度升序排列的纯数组结构。
- * @remarks 复杂度 O(d log d),d 为不同度的个数。
+ * @remarks 复杂度 O(d log d),d 为不同度的个数。度分布排序是 D 侧的呈现约定:
+ * B 的 Map 为节点迭代序(无序),直接下发会让前端每次刷新看到不同的顺序。
  */
-export function toTopologyMetrics(source: TopologyMetricsSource): TopologyMetrics {
+export function toTopologyMetrics(source: TopologyStats): TopologyMetrics {
   return {
     nodeCount: source.nodeCount,
     edgeCount: source.edgeCount,
@@ -159,7 +152,9 @@ export function toTopologyMetrics(source: TopologyMetricsSource): TopologyMetric
  * 计算网络统计。
  * @param input 坐标表、边集与 way→等级表。
  * @param options.profile 权重配置;省略用默认配置。
- * @param options.topology B 的图引擎拓扑指标;省略时 topology 为 null、topologySource 为 'pending'。
+ * @param options.topology B 的图引擎拓扑指标(`TopologyStats`);省略时 topology 为 null、
+ * topologySource 为 'pending'。M1 为全道路拓扑(与 C 构边口径一致,不做模态过滤),
+ * 模态子图待准入规则立项后再另立口径。
  * @returns 里程、时间、等级分布、边长分布与拓扑指标。
  * @remarks 端点缺失的边整体跳过,不按 0 米计入——否则会把"未知长度"伪装成极短边,既拉低
  * 平均边长也污染直方图。里程与时间分别累加,等级平均速度由二者反算,因此不受逐条舍入影响。
@@ -167,7 +162,7 @@ export function toTopologyMetrics(source: TopologyMetricsSource): TopologyMetric
  */
 export function computeNetworkStats(
   input: StatsInput,
-  options?: { profile?: WeightProfile; topology?: TopologyMetricsSource | null },
+  options?: { profile?: WeightProfile; topology?: TopologyStats | null },
 ): NetworkStats {
   const profile = normalizeWeightProfile(options?.profile ?? DEFAULT_WEIGHT_PROFILE);
 
@@ -250,7 +245,7 @@ export function computeNetworkStats(
     byHighway: byHighwayList,
     lengthHistogram: buildLengthHistogram(lengths),
     topology: topology ? toTopologyMetrics(topology) : null,
-    topologySource: topology ? 'server/src/graph(graph-engine)' : 'pending',
+    topologySource: topology ? 'graph-engine' : 'pending',
     profile,
   };
 }

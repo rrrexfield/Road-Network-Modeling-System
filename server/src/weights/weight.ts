@@ -11,8 +11,16 @@ export const UNKNOWN_HIGHWAY = 'unknown';
 
 /**
  * 边权函数:输入一条有向边,输出非负代价(数值越小越优先)。
- * TODO(契约): 与 B 的 `server/src/graph/dijkstra.ts` 的 `EdgeWeightFn` 结构完全一致;
- * 待 PR #7 合入、该类型冻结到 shared 后,本定义改为引用同一来源(见 issue #10)。
+ * 与 B 的 `server/src/graph/dijkstra.ts` 的 `EdgeWeightFn` 结构一致,并沿用其前置条件:
+ * **返回值必须 ≥ 0 且有限**(负值破坏 Dijkstra 最优子结构,NaN/Infinity 会让边被静默跳过)。
+ *
+ * 本模块对"端点缺失"的边返回 `Infinity`(见 createDistanceWeight)。该分支在注入 B 的
+ * `Graph` 时不会触发——`Graph.addEdge` 已校验端点存在,图内每条边两端都可解析;它只在
+ * 图外场景(如统计直接遍历原始边集)出现。因此**在图内注入路径上本模块满足上述前置条件**;
+ * 若 Sprint 3 把签名扩展为 `(edge, length) => number`,仍需沿此约束(见 issue #10)。
+ *
+ * TODO(契约): #14 同步区已记明 `EdgeWeightFn` 暂不冻结、Sprint 3 需 A/D/B 评审扩展
+ * (当前签名不含边长);冻结到 shared 后本定义改为引用同一来源。
  */
 export type EdgeWeightFn = (edge: RoadEdge) => number;
 

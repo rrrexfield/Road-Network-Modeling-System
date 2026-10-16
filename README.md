@@ -6,7 +6,7 @@
 
 Sprint 1 的 B 图引擎与 C 拓扑基础模块已实现：`server/src/graph/index.ts` 提供有向图 Graph（直接消费 C 的 buildTopology 产物）、Dijkstra 最短路径与连通分量/度统计；`server/src/topology/index.ts` 提供方向判定（含 true/false）、独立构边和可序列化构边报告，按原始节点 ID 连接道路并保留桥隧、层级属性。两个模块均未接入当前数据装载流程，网页仍使用 Sprint 0 链路，loader → topology → graph 的组装待后续迭代。topology 不做模态/车辆准入过滤，不能将输出解释为汽车可通行图；无法确定方向的道路跳过并在报告中列明。全仓 69 项测试通过，B 模块规则与验证见 `docs/plans/b-sprint1-graph.md` 与 `docs/plans/b-sprint1-graph-interface.md`，C 模块见 `docs/plans/c-sprint1-topology.md`，M1 集成策略确认草稿见 `docs/plans/c-m1-integration-issue-draft.md`。
 
-Sprint 0/1 的 D 权重与统计模块已实现：`server/src/weights/index.ts` 提供 Haversine 距离、等级限速模型、可注入 B 的 `dijkstra` 的边权函数（距离/时间，由 `WeightProfile.metric` 选择）与网络统计（里程/等级分布/边长分布/通行时间）；`web/src/charts/`、`web/src/panels/stats/`、`web/src/panels/weight/` 提供 ECharts 深色主题封装、统计仪表盘与权重配置面板，独立预览页见 `web/src/panels/stats/demo.html`。统计中的拓扑指标为显式占位（`topology=null` + `topologySource='pending'`），待 B 的图引擎接入。**路由插件尚未注册到服务端启动流程、面板尚未挂载进主界面**，所需集成动作见 `docs/plans/d-sprint01-weights-stats.md` §5。全仓 98 项测试通过。
+Sprint 0/1 的 D 权重与统计模块已实现：`server/src/weights/index.ts` 提供 Haversine 距离、等级限速模型、可注入 B 的 `dijkstra` 的边权函数（距离/时间，由 `WeightProfile.metric` 选择）与网络统计（里程/等级分布/边长分布/通行时间）；`web/src/charts/`、`web/src/panels/stats/`、`web/src/panels/weight/` 提供 ECharts 深色主题封装、统计仪表盘与权重配置面板，独立预览页见 `web/src/panels/stats/demo.html`。统计中的拓扑指标为显式占位（`topology=null` + `topologySource='pending'`），待 B 的图引擎接入。PR #14 冻结 `TopologyStats` 后，D 侧已改为从 `@gisalgo/shared` 引用并以派生方式定义响应体形态的 `TopologyMetrics`，不再维护第二份拓扑定义。**路由插件尚未注册到服务端启动流程、面板尚未挂载进主界面**，所需集成动作见 `docs/plans/d-sprint01-weights-stats.md` §5。全仓 124 项测试通过。
 
 ## 技术栈
 

@@ -139,7 +139,7 @@ export const SAMPLE_STATS: NetworkStats = {
       },
     ],
   },
-  topologySource: 'server/src/graph(graph-engine)',
+  topologySource: 'graph-engine',
   profile: {
     metric: 'time',
     speedFactor: 1,

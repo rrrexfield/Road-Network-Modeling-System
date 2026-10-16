@@ -197,3 +197,44 @@ describe('createEdgeWeight', () => {
     expect(weight(primaryEdge)).toBeCloseTo(haversineMeters(A, B) / metersPerSecond(60), 6);
   });
 });
+
+/**
+ * B 的 `EdgeWeightFn` 前置条件:返回值必须 ≥ 0 且有限(负值破坏最优子结构,
+ * NaN/Infinity 会让边被静默跳过)。Graph.addEdge 已校验端点存在,因此图内每条边
+ * 两端都可解析——以下断言正是"注入 Graph 时"的成立条件。
+ */
+describe('EdgeWeightFn 与 B 的 dijkstra 前置条件', () => {
+  /** 图内边:端点均已在坐标表中。 */
+  const graphEdges = [primaryEdge, motorwayEdge, unknownHighwayEdge];
+
+  for (const metric of ['distance', 'time'] as const) {
+    it(`metric=${metric} 时图内边的代价均 ≥0 且有限`, () => {
+      const weight = createEdgeWeight(context, { ...DEFAULT_WEIGHT_PROFILE, metric });
+      for (const e of graphEdges) {
+        const cost = weight(e);
+        expect(Number.isFinite(cost)).toBe(true);
+        expect(cost).toBeGreaterThanOrEqual(0);
+      }
+    });
+  }
+
+  it('极端限速下仍为有限值,不产生 NaN', () => {
+    // 极小限速会把时间推到极大,但必须保持有限;NaN 会破坏 B 的优先队列堆序
+    const weight = createTimeWeight(context, {
+      metric: 'time',
+      speedFactor: 0.0001,
+      speedOverridesKmh: {},
+    });
+    const cost = weight(primaryEdge);
+    expect(Number.isFinite(cost)).toBe(true);
+    expect(Number.isNaN(cost)).toBe(false);
+  });
+
+  it('图外边(端点缺失)返回 Infinity,由 B 侧视为不可通行而不参与松弛', () => {
+    // 这是有意的设计:0 会让 Dijkstra 把缺节点的边当作免费捷径。
+    // 该分支只在图外场景(如统计遍历原始边集)出现,不违反图内注入的前置条件。
+    expect(createEdgeWeight(context, DEFAULT_WEIGHT_PROFILE)(orphanEdge)).toBe(
+      Number.POSITIVE_INFINITY,
+    );
+  });
+});

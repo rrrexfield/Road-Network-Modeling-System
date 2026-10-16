@@ -24,7 +24,6 @@ export {
   type NetworkStats,
   type StatsInput,
   type TopologyMetrics,
-  type TopologyMetricsSource,
   type TopologyMetricsSourceTag,
 } from './stats.js';
 export {

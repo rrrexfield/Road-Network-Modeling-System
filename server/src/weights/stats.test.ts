@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { RoadEdge } from '@gisalgo/shared';
+import type { RoadEdge, TopologyStats } from '@gisalgo/shared';
 import { haversineMeters } from './geo.js';
-import {
-  computeNetworkStats,
-  toTopologyMetrics,
-  type StatsInput,
-  type TopologyMetricsSource,
-} from './stats.js';
+import { computeNetworkStats, toTopologyMetrics, type StatsInput } from './stats.js';
 
 const N1: readonly [number, number] = [30, 114];
 const N2: readonly [number, number] = [30, 114.001];
@@ -133,7 +128,8 @@ describe('computeNetworkStats', () => {
   });
 
   it('接入拓扑指标后转为可序列化数组并标注来源', () => {
-    const source: TopologyMetricsSource = {
+    // 直接用 shared 的 TopologyStats 构造,证明本模块消费的是冻结契约而非本地镜像
+    const source: TopologyStats = {
       nodeCount: 5,
       edgeCount: 4,
       connectedComponentCount: 1,
@@ -147,12 +143,51 @@ describe('computeNetworkStats', () => {
       ]),
     };
     const stats = computeNetworkStats(input, { topology: source });
-    expect(stats.topologySource).toBe('server/src/graph(graph-engine)');
+    expect(stats.topologySource).toBe('graph-engine');
     expect(stats.topology?.degreeDistribution).toEqual([
       { degree: 1, count: 2 },
       { degree: 2, count: 3 },
     ]);
     expect(JSON.parse(JSON.stringify(stats))).toEqual(stats);
+  });
+
+  it('度分布按度升序输出,与 B 侧 Map 的迭代序无关', () => {
+    // B 的 Map 是节点迭代序(无序);若不下发前排序,同一份数据每次刷新顺序都可能不同
+    const source: TopologyStats = {
+      nodeCount: 3,
+      edgeCount: 2,
+      connectedComponentCount: 1,
+      largestComponentSize: 3,
+      danglingNodeCount: 1,
+      isolatedNodeCount: 0,
+      averageDegree: 1.33,
+      degreeDistribution: new Map<number, number>([
+        [4, 1],
+        [1, 1],
+        [3, 1],
+      ]),
+    };
+    expect(toTopologyMetrics(source).degreeDistribution.map((row) => row.degree)).toEqual([
+      1, 3, 4,
+    ]);
+  });
+
+  it('拓扑指标沿用 shared 的有向度语义字段,不另立第二套口径', () => {
+    // 派生而非平铺:字段集合必须与 shared 的 TopologyStats 对齐(除 degreeDistribution)
+    const source: TopologyStats = {
+      nodeCount: 1,
+      edgeCount: 0,
+      connectedComponentCount: 1,
+      largestComponentSize: 1,
+      danglingNodeCount: 0,
+      isolatedNodeCount: 1,
+      averageDegree: 0,
+      degreeDistribution: new Map<number, number>([[0, 1]]),
+    };
+    const metrics = toTopologyMetrics(source);
+    expect(metrics.isolatedNodeCount).toBe(1);
+    expect(metrics.nodeCount).toBe(1);
+    expect(metrics.averageDegree).toBe(0);
   });
 
   it('空边集返回全零而非 NaN', () => {

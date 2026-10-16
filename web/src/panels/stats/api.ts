@@ -19,15 +19,19 @@ async function getJson<T>(path: string): Promise<T | null> {
 
 /**
  * 拉取网络统计。
+ * @param params.metric 优化目标;省略则用服务端默认值。必须透传——否则响应回显的
+ * `profile.metric` 仍是服务端默认,前端面板的模式徽标会与实际选择不一致。
  * @param params.speedFactor 全局速度系数;省略则用服务端默认值。
  * @param params.speedOverridesKmh 等级限速覆盖表;省略或空表则不传参。
  * @returns 统计数据;接口不可用或返回错误状态时返回 null。
  */
 export async function fetchStats(params?: {
+  metric?: 'distance' | 'time';
   speedFactor?: number;
   speedOverridesKmh?: Record<string, number>;
 }): Promise<NetworkStats | null> {
   const query = new URLSearchParams();
+  if (params?.metric !== undefined) query.set('metric', params.metric);
   if (params?.speedFactor !== undefined) query.set('speedFactor', String(params.speedFactor));
   const overrides = params?.speedOverridesKmh ?? {};
   const overridePairs = Object.entries(overrides);

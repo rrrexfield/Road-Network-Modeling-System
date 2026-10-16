@@ -25,7 +25,10 @@
 - `web/src/charts/`:ECharts 按需装配、`gisalgo-dark` 主题(配色取自 AGENTS.md 样式基线)、图表工厂(横向条形/环形/直方图)与数值格式化;`web/package.json` 新增 `echarts` 依赖。
 - `web/src/panels/stats/` 统计仪表盘(KPI + 等级里程分布/占比/边长分布 + 拓扑指标区)与 `web/src/panels/weight/` 权重配置面板(优化目标、速度系数、等级限速表、通行时间预估),均为自包含组件,挂载待 E。
 - 独立预览页 `web/src/panels/stats/demo.html`:优先请求实时接口,未就绪时降级到离线示例数据(由真实算法在合成路网上试算)并明确标注来源。
-- 新增 49 项测试(geo 7、speed 8、weight 22、stats 12);设计说明见 `docs/plans/d-sprint01-weights-stats.md`。
+- 新增 55 项测试(geo 7、speed 8、weight 26、stats 14),全仓 124 项通过;设计说明见 `docs/plans/d-sprint01-weights-stats.md`。
+- 适配 PR #14 契约冻结:删除本地 `TopologyMetricsSource` 镜像,改为从 `@gisalgo/shared` 引入 `TopologyStats`;`TopologyMetrics` 改为**派生**(`extends Omit<TopologyStats,'degreeDistribution'>`)而非平铺,避免字段漂移;`topologySource` 取值由模块路径 `'server/src/graph(graph-engine)'` 改为语义名 `'graph-engine'`。前端 `web/src/charts/contract.ts` 同样改为派生。
+- 边长口径留档:统计当前用 `geo.ts` 的 `haversineMeters`(原始 float64 坐标),与 B 的 `Graph.edgeLength`(Float32 预计算)同源但数值不严格相等(单边最坏 ~0.7 m);待 A 组装出 Graph 后统计里程改取 `edgeLength`,切换前以 `docs/plans/d-sprint01-weights-stats.md` §4.2 为口径依据。
+- `EdgeWeightFn` 沿用 B 的前置条件(返回 ≥0 且有限)并补测试锁定;图内注入路径成立(`Graph.addEdge` 已校验端点),`Infinity` 分支仅在图外场景触发。
 
 ### Added(Sprint 1 · C 数据与拓扑基础)
 

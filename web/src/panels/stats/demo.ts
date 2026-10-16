@@ -64,6 +64,7 @@ async function reload(profile?: WeightProfile): Promise<void> {
     profile === undefined
       ? undefined
       : {
+          metric: profile.metric,
           speedFactor: profile.speedFactor,
           speedOverridesKmh: profile.speedOverridesKmh,
         },

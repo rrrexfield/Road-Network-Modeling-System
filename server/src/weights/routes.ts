@@ -7,21 +7,17 @@
  * 详情见 issue #9。
  */
 import type { FastifyInstance } from 'fastify';
+import type { TopologyStats } from '@gisalgo/shared';
 import { DEFAULT_SPEED_KMH } from './speed.js';
 import { DEFAULT_WEIGHT_PROFILE, normalizeWeightProfile, type WeightProfile } from './weight.js';
-import {
-  computeNetworkStats,
-  type NetworkStats,
-  type StatsInput,
-  type TopologyMetricsSource,
-} from './stats.js';
+import { computeNetworkStats, type NetworkStats, type StatsInput } from './stats.js';
 
 /** 插件选项。 */
 export interface WeightRoutesOptions {
   /** 统计输入:坐标表 + 边集 + way→等级表。 */
   network: StatsInput;
-  /** B 的图引擎拓扑指标;未接入时省略,响应 topology 为 null。 */
-  topology?: TopologyMetricsSource;
+  /** B 的图引擎拓扑指标(shared 的 TopologyStats);未接入时省略,响应 topology 为 null。 */
+  topology?: TopologyStats;
 }
 
 /** 权重配置基线响应。 */
