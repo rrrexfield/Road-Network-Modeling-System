@@ -61,6 +61,42 @@ body {
   flex-wrap: wrap;
 }
 
+/* 右侧统计/权重面板:避开右上导航控件与右下 attribution,内部滚动 */
+#side-panels {
+  position: absolute;
+  top: 96px;
+  right: 12px;
+  bottom: 48px;
+  z-index: 20;
+  width: min(420px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+/* 统计面板默认双列在 420px 栏宽下过挤,主界面统一改单列 */
+#side-panels .gis-stats .gis-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#side-panels .gis-stats .gis-grid > .gis-card:nth-child(3) {
+  grid-column: auto;
+}
+
+@media (max-width: 900px) {
+  #side-panels {
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 64px;
+    width: auto;
+    max-height: 45vh;
+  }
+}
+
 .chip {
   padding: 4px 10px;
   font-size: 12px;
