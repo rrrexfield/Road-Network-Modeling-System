@@ -1,10 +1,6 @@
 /**
  * 权重与统计的 REST 路由,以 Fastify 插件形式提供。
- *
- * TODO(集成·A): 本插件尚未注册到服务端。请在 `server/src/index.ts` 增加
- * `await app.register(registerWeightRoutes, { network });`(network 为 loadNetwork 的产物,
- * 再补一份 wayId → highway 表;若 C 的 buildTopology 产物已接入,也可直接传其 nodes/edges)。
- * 详情见 issue #9。
+ * 由 `server/src/index.ts` 在组装出 Graph 之后注册(issue #9)。
  */
 import type { FastifyInstance } from 'fastify';
 import type { TopologyStats, WeightProfileResponse } from '@gisalgo/shared';
@@ -42,18 +38,45 @@ function parseSpeedOverrides(value: unknown): Record<string, number> | undefined
   return overrides;
 }
 
+/** 统计缓存上限;超过后淘汰最早插入的配置,避免任意查询参数无限占内存。 */
+const STATS_CACHE_LIMIT = 32;
+
+/** 归一化配置 → 稳定缓存 key;覆盖表排序后生成,与查询串输入顺序无关。 */
+function profileCacheKey(profile: WeightProfile): string {
+  const overrides = Object.entries(profile.speedOverridesKmh).sort(([a], [b]) => a.localeCompare(b));
+  return JSON.stringify([profile.metric, profile.speedFactor, overrides]);
+}
+
 /**
  * 注册 `/api/weights/profile` 与 `/api/stats`。
  * @param app Fastify 实例。
  * @param options 统计输入与可选拓扑指标。
- * @remarks 统计按请求实时计算,不做缓存:请求体量取决于边集,接入 120 万边规模时再接
- * 缓存或预计算(性能预算见 issue)。
+ * @remarks 统计结果按配置缓存(上限 32),注册时预热默认配置;全量约 120 万条有向边,
+ * 实时重算的排序与聚合成本不宜按每次请求承担。
  */
 export async function registerWeightRoutes(
   app: FastifyInstance,
   options: WeightRoutesOptions,
 ): Promise<void> {
   const { network, topology } = options;
+
+  const cache = new Map<string, NetworkStats>();
+  const statsFor = (profile: WeightProfile): NetworkStats => {
+    const key = profileCacheKey(profile);
+    const cached = cache.get(key);
+    if (cached !== undefined) return cached;
+    const stats = computeNetworkStats(network, { profile, topology });
+    if (cache.size >= STATS_CACHE_LIMIT) {
+      const oldest = cache.keys().next().value;
+      if (oldest !== undefined) cache.delete(oldest);
+    }
+    cache.set(key, stats);
+    return stats;
+  };
+
+  const warmupStartedAt = performance.now();
+  statsFor(DEFAULT_WEIGHT_PROFILE);
+  app.log.info(`统计缓存预热完成: ${Math.round(performance.now() - warmupStartedAt)} ms`);
 
   app.get('/api/weights/profile', (): WeightProfileResponse => ({
     default: DEFAULT_WEIGHT_PROFILE,
@@ -70,6 +93,6 @@ export async function registerWeightRoutes(
     const speedOverridesKmh = parseSpeedOverrides(query['speedKmh']);
     if (speedOverridesKmh !== undefined) profile.speedOverridesKmh = speedOverridesKmh;
 
-    return computeNetworkStats(network, { profile: normalizeWeightProfile(profile), topology });
+    return statsFor(normalizeWeightProfile(profile));
   });
 }

@@ -7,6 +7,9 @@
 ### Added(Sprint 1 · A 集成)
 
 - 契约冻结(issue #10):`WeightProfile`、`HighwayStat`、`LengthBucket`、`TopologyMetrics`、`TopologyMetricsSourceTag`、`NetworkStats`、`WeightProfileResponse` 进入 `shared/src/index.ts`;服务端 `weights` 改为从 shared 导入并只做 re-export,删除前端临时镜像 `web/src/charts/contract.ts`,前端统一经 `web/src/charts/index.ts` 引用同一份契约,前后端不再各自定义。
+- 服务端启动组装(issue #9/#11/#12):`server/src/io/loader.ts` 暴露原始 `ways` 并移除预构无向边;启动时执行 `buildTopology → new Graph → computeTopologyStats`,再注册 `registerWeightRoutes`。`/api/health` 与 WS 的 `edgeCount` 改为有向边口径,`wayCount` 取保留道路数;`wayId → highway` 使用 C 确认的权威来源 `TopologyResult.ways`,统计边集为 `topology.edges`,启动日志输出拓扑 issue、方向排除数与缺失映射诊断。统计中的 `topology` 不再为占位,null 仅表示图引擎未接入。
+- `/api/stats` 性能:`StatsInput` 新增可选 `edgeLength` 注入,服务端使用 `Graph.edgeLength`,使统计里程与路径权重同源;统计按归一化配置缓存(上限 32)并在插件注册时预热默认配置。
+- 新增 3 项权重统计路由测试(普通端口 + fetch,规避 Node 22.11 下 light-my-request 的 ESM 兼容问题),覆盖权重基线、拓扑序列化、`speedFactor`/逐等级限速覆盖与缓存命中。
 
 ### Added(Sprint 1 · A 契约与平台)
 

@@ -1,25 +1,17 @@
 /**
- * 数据装载:把派生路网文件读入内存(nodes/edges/GeoJSON)。
- * Sprint 1 起 Graph 类(C)将基于同一份产物构建邻接表。
+ * 数据装载:把派生路网文件读入内存(nodes/ways/GeoJSON)。
+ * 有向边由 topology 模块的 buildTopology 在组装阶段生成,本模块不再预构无向段。
  */
 import { readFileSync } from 'node:fs';
 import type {
   NetworkMeta,
-  RoadEdge,
   RoadFeature,
   RoadFeatureCollection,
   WayProperties,
 } from '@gisalgo/shared';
 
-export interface LoadedNetwork {
-  meta: NetworkMeta;
-  /** OSM 节点 id → [lat, lon] */
-  nodes: Map<number, [number, number]>;
-  edges: RoadEdge[];
-  geojson: RoadFeatureCollection;
-}
-
-interface DerivedWay {
+/** 派生数据中的原始道路(含节点顺序),供 buildTopology 使用。 */
+export interface LoadedWay {
   id: number;
   highway: string;
   name?: string;
@@ -27,10 +19,19 @@ interface DerivedWay {
   nds: number[];
 }
 
+export interface LoadedNetwork {
+  meta: NetworkMeta;
+  /** OSM 节点 id → [lat, lon] */
+  nodes: Map<number, [number, number]>;
+  /** 原始道路(含 nds);方向判定与构边由 topology 模块负责。 */
+  ways: LoadedWay[];
+  geojson: RoadFeatureCollection;
+}
+
 interface DerivedFile {
   meta: NetworkMeta;
   nodes: [number, number, number][];
-  ways: DerivedWay[];
+  ways: LoadedWay[];
 }
 
 export function loadNetwork(fileUrl: URL): LoadedNetwork {
@@ -39,19 +40,9 @@ export function loadNetwork(fileUrl: URL): LoadedNetwork {
   const nodes = new Map<number, [number, number]>();
   for (const [id, lat, lon] of raw.nodes) nodes.set(id, [lat, lon]);
 
-  const edges: RoadEdge[] = [];
   const features: RoadFeature[] = [];
-  let edgeId = 0;
 
   for (const way of raw.ways) {
-    for (let i = 0; i + 1 < way.nds.length; i++) {
-      const from = way.nds[i];
-      const to = way.nds[i + 1];
-      if (from === undefined || to === undefined) continue;
-      if (!nodes.has(from) || !nodes.has(to)) continue;
-      edges.push({ id: edgeId++, from, to, wayId: way.id });
-    }
-
     const coordinates: [number, number][] = [];
     for (const nodeId of way.nds) {
       const p = nodes.get(nodeId);
@@ -65,5 +56,10 @@ export function loadNetwork(fileUrl: URL): LoadedNetwork {
     features.push({ type: 'Feature', geometry: { type: 'LineString', coordinates }, properties });
   }
 
-  return { meta: raw.meta, nodes, edges, geojson: { type: 'FeatureCollection', features } };
+  return {
+    meta: raw.meta,
+    nodes,
+    ways: raw.ways,
+    geojson: { type: 'FeatureCollection', features },
+  };
 }
