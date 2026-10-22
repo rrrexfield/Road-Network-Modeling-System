@@ -7,7 +7,7 @@
  * 详情见 issue #9。
  */
 import type { FastifyInstance } from 'fastify';
-import type { TopologyStats } from '@gisalgo/shared';
+import type { TopologyStats, WeightProfileResponse } from '@gisalgo/shared';
 import { DEFAULT_SPEED_KMH } from './speed.js';
 import { DEFAULT_WEIGHT_PROFILE, normalizeWeightProfile, type WeightProfile } from './weight.js';
 import { computeNetworkStats, type NetworkStats, type StatsInput } from './stats.js';
@@ -18,13 +18,6 @@ export interface WeightRoutesOptions {
   network: StatsInput;
   /** B 的图引擎拓扑指标(shared 的 TopologyStats);未接入时省略,响应 topology 为 null。 */
   topology?: TopologyStats;
-}
-
-/** 权重配置基线响应。 */
-export interface WeightProfileResponse {
-  default: WeightProfile;
-  /** 各等级默认限速(km/h),前端面板据此渲染限速输入项。 */
-  speedTable: Readonly<Record<string, number>>;
 }
 
 /** 解析查询串里的正有限数;缺省、空串、非数字或非正数一律返回 undefined。 */

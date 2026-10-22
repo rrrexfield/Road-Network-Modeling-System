@@ -71,6 +71,80 @@ export interface TopologyStats {
   degreeDistribution: Map<number, number>;
 }
 
+/** 权重配置（路径优化目标 + 等级限速 + 全局速度系数）。 */
+export interface WeightProfile {
+  /** 优化目标：distance = 里程最短（米），time = 用时最短（秒）。 */
+  metric: 'distance' | 'time';
+  /** 全局速度系数，>0；1 表示各等级按默认限速。仅 metric='time' 时影响结果。 */
+  speedFactor: number;
+  /** 等级 → 限速（km/h）覆盖表，优先于默认表。仅 metric='time' 时影响结果。 */
+  speedOverridesKmh: Record<string, number>;
+}
+
+/** 单个 highway 等级的统计口径。 */
+export interface HighwayStat {
+  highway: string;
+  edgeCount: number;
+  lengthMeters: number;
+  /** 里程占比（0–1），按里程而非按条数。 */
+  lengthShare: number;
+  /** 按 lengthMeters / travelSeconds 反算的平均速度（km/h）；不可通行时为 0。 */
+  averageSpeedKmh: number;
+  travelSeconds: number;
+}
+
+/** 边长分布直方图的一档；maxMeters 为 null 表示最后一档无上界。 */
+export interface LengthBucket {
+  label: string;
+  minMeters: number;
+  maxMeters: number | null;
+  edgeCount: number;
+}
+
+/**
+ * 可序列化的拓扑指标（响应体形态）。
+ * 由 `TopologyStats` 派生：仅 `degreeDistribution` 由 Map 摊成按度升序的数组，
+ * 其余字段直接继承，禁止平铺副本。
+ */
+export interface TopologyMetrics extends Omit<TopologyStats, 'degreeDistribution'> {
+  /** 有向度 → 节点数，按度升序。 */
+  degreeDistribution: { degree: number; count: number }[];
+}
+
+/** 拓扑指标来源标注；用语义名而非模块路径，避免目录改名就失效。 */
+export type TopologyMetricsSourceTag = 'graph-engine' | 'pending';
+
+/** 网络统计响应体（GET /api/stats）。 */
+export interface NetworkStats {
+  /** 坐标表节点数。 */
+  nodeCount: number;
+  /** 参与统计的边数（端点缺失的边不计入）。 */
+  edgeCount: number;
+  /** 出现过的 way 数（按边集去重）。 */
+  wayCount: number;
+  totalLengthMeters: number;
+  /** 按当前限速估算的总通行时间；与 profile.metric 无关——metric 只决定路径优化的目标。 */
+  totalTravelSeconds: number;
+  minEdgeMeters: number;
+  maxEdgeMeters: number;
+  meanEdgeMeters: number;
+  medianEdgeMeters: number;
+  byHighway: HighwayStat[];
+  lengthHistogram: LengthBucket[];
+  /** 拓扑指标；图引擎未接入时为 null。 */
+  topology: TopologyMetrics | null;
+  topologySource: TopologyMetricsSourceTag;
+  /** 本次统计所用的权重配置，便于前端回显。 */
+  profile: WeightProfile;
+}
+
+/** 权重配置基线响应（GET /api/weights/profile）。 */
+export interface WeightProfileResponse {
+  default: WeightProfile;
+  /** 各等级默认限速（km/h），前端面板据此渲染限速输入项。 */
+  speedTable: Readonly<Record<string, number>>;
+}
+
 /** 派生数据文件元信息 */
 export interface NetworkMeta {
   source: string;

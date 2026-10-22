@@ -29,5 +29,5 @@ export {
 export {
   registerWeightRoutes,
   type WeightRoutesOptions,
-  type WeightProfileResponse,
 } from './routes.js';
+export type { WeightProfileResponse } from '@gisalgo/shared';
