@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GISAlgo · 权重与统计面板预览</title>
+  </head>
+  <body>
+    <div class="demo-shell gis-scope">
+      <header class="demo-head">
+        <div>
+          <h1 class="demo-head__title">GISAlgo · 权重与统计面板</h1>
+          <p class="demo-head__subtitle">
+            D · 权重与统计工程师 · Sprint 0/1 交付预览（统计仪表盘 + 权重配置）
+          </p>
+        </div>
+        <div class="demo-head__actions">
+          <span id="demo-source" class="gis-badge gis-badge--wait">加载中…</span>
+          <button id="demo-topology" class="gis-button" type="button">切换拓扑占位态</button>
+        </div>
+      </header>
+
+      <main class="demo-grid">
+        <div id="slot-stats"></div>
+        <div id="slot-weight"></div>
+      </main>
+
+      <p class="demo-footnote">
+        数据来源：服务端 <code>GET /api/stats</code>（由
+        <code>server/src/weights</code> 插件提供，注册依赖 A 的集成
+        issue）；接口未就绪时页头会标注"离线示例"。权重面板中的通行时间为即时预估，
+        权威值由服务端按同一配置重算。拓扑指标由 B 的图引擎提供，接入前显示占位态。
+      </p>
+    </div>
+    <script type="module" src="./demo.ts"></script>
+  </body>
+</html>

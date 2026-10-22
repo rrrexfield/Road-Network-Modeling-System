@@ -16,6 +16,20 @@
 - Dijkstra 默认以端点 Haversine 距离为边权，预留权重函数注入（Sprint 3 接 D 的动态权重）。
 - 新增 19 项图引擎单元/联调测试；`PathResult` / `TopologyStats` 已由 A 冻结到 shared（issue #4）。
 
+### Added(Sprint 1 · D 权重与统计基础)
+
+- 独立 `server/src/weights/` 模块:Haversine 距离、等级限速模型、可注入边权函数(距离/时间,经 `createEdgeWeight` 按 `WeightProfile.metric` 分派)与网络统计,公开入口为 `index.ts`。
+- `WeightProfile` 纳入优化目标 `metric`(distance/time)、全局速度系数与逐等级限速覆盖表,`normalizeWeightProfile` 统一兜底外部输入。
+- `GET /api/weights/profile`、`GET /api/stats`(支持 `metric`/`speedFactor`/`speedKmh` 查询参数)以 Fastify 插件形式提供,**尚未注册到服务端启动流程**,待 A 集成(issue 见 PR 描述)。
+- 统计中的拓扑指标为显式占位:`topology=null` 且 `topologySource='pending'`,接入 B 的图引擎后经 `toTopologyMetrics()` 转为可序列化结构,不以零值冒充统计结果。
+- `web/src/charts/`:ECharts 按需装配、`gisalgo-dark` 主题(配色取自 AGENTS.md 样式基线)、图表工厂(横向条形/环形/直方图)与数值格式化;`web/package.json` 新增 `echarts` 依赖。
+- `web/src/panels/stats/` 统计仪表盘(KPI + 等级里程分布/占比/边长分布 + 拓扑指标区)与 `web/src/panels/weight/` 权重配置面板(优化目标、速度系数、等级限速表、通行时间预估),均为自包含组件,挂载待 E。
+- 独立预览页 `web/src/panels/stats/demo.html`:优先请求实时接口,未就绪时降级到离线示例数据(由真实算法在合成路网上试算)并明确标注来源。
+- 新增 55 项测试(geo 7、speed 8、weight 26、stats 14),全仓 124 项通过;设计说明见 `docs/plans/d-sprint01-weights-stats.md`。
+- 适配 PR #14 契约冻结:删除本地 `TopologyMetricsSource` 镜像,改为从 `@gisalgo/shared` 引入 `TopologyStats`;`TopologyMetrics` 改为**派生**(`extends Omit<TopologyStats,'degreeDistribution'>`)而非平铺,避免字段漂移;`topologySource` 取值由模块路径 `'server/src/graph(graph-engine)'` 改为语义名 `'graph-engine'`。前端 `web/src/charts/contract.ts` 同样改为派生。
+- 边长口径留档:统计当前用 `geo.ts` 的 `haversineMeters`(原始 float64 坐标),与 B 的 `Graph.edgeLength`(Float32 预计算)同源但数值不严格相等(单边最坏 ~0.7 m);待 A 组装出 Graph 后统计里程改取 `edgeLength`,切换前以 `docs/plans/d-sprint01-weights-stats.md` §4.2 为口径依据。
+- `EdgeWeightFn` 沿用 B 的前置条件(返回 ≥0 且有限)并补测试锁定;图内注入路径成立(`Graph.addEdge` 已校验端点),`Infinity` 分支仅在图外场景触发。
+
 ### Added(Sprint 1 · C 数据与拓扑基础)
 
 - 独立 `server/src/topology/` 模块：道路方向判定与按原始节点 ID 生成有向边，公开入口为 `index.ts`。
