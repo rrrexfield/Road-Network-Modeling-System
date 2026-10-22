@@ -28,13 +28,7 @@ import {
 } from './weight.js';
 
 /** 统计响应体与子类型由 shared 冻结；本模块只 re-export，不再定义本地副本。 */
-export type {
-  HighwayStat,
-  LengthBucket,
-  NetworkStats,
-  TopologyMetrics,
-  TopologyMetricsSourceTag,
-};
+export type { HighwayStat, LengthBucket, NetworkStats, TopologyMetrics, TopologyMetricsSourceTag };
 
 /** 统计输入:在权重上下文之上补一份边集。 */
 export interface StatsInput extends NetworkContext {

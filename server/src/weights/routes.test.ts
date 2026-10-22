@@ -72,7 +72,9 @@ describe('registerWeightRoutes', () => {
 
   it('applies speedFactor and per-highway overrides, with caching', async () => {
     await withApp(async (baseUrl) => {
-      const fast = (await (await fetch(`${baseUrl}/api/stats?speedFactor=2`)).json()) as NetworkStats;
+      const fast = (await (
+        await fetch(`${baseUrl}/api/stats?speedFactor=2`)
+      ).json()) as NetworkStats;
       expect(fast.profile.speedFactor).toBe(2);
       expect(fast.totalTravelSeconds).toBeCloseTo(6, 6);
 

@@ -26,8 +26,5 @@ export {
   type TopologyMetrics,
   type TopologyMetricsSourceTag,
 } from './stats.js';
-export {
-  registerWeightRoutes,
-  type WeightRoutesOptions,
-} from './routes.js';
+export { registerWeightRoutes, type WeightRoutesOptions } from './routes.js';
 export type { WeightProfileResponse } from '@gisalgo/shared';

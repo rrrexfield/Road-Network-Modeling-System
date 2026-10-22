@@ -43,7 +43,9 @@ const STATS_CACHE_LIMIT = 32;
 
 /** 归一化配置 → 稳定缓存 key;覆盖表排序后生成,与查询串输入顺序无关。 */
 function profileCacheKey(profile: WeightProfile): string {
-  const overrides = Object.entries(profile.speedOverridesKmh).sort(([a], [b]) => a.localeCompare(b));
+  const overrides = Object.entries(profile.speedOverridesKmh).sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
   return JSON.stringify([profile.metric, profile.speedFactor, overrides]);
 }
 
