@@ -13,6 +13,7 @@
 - 主界面接入 PR #15 的 `web/src/map/` 模块(底图可达性检测、离线降级样式、路网图层工厂),删除 `main.ts` 内的重复实现与 Carto 死代码。
 - 统计/权重面板挂载到右侧 `#side-panels`(issue #13):路网加载成功后拉取 `/api/weights/profile` 与 `/api/stats`,权重配置变化去抖后重取统计;主界面不使用示例数据,接口不可用时显式标注。
 - Vitest 放开 `web/**` 测试范围(issue #16),新增 `web/src/map/basemap.test.ts`。Vitest 4 已移除 `environmentMatchGlobs`,后续 DOM 测试使用文件头 `// @vitest-environment jsdom` 并在需要时补充 jsdom 依赖。
+- 修复权重面板切换优化目标后右上徽标未同步的问题:徽标更新移入 `syncControls`,无需为刷新徽标而重建等级表格行。
 
 ### Added(Sprint 1 · A 契约与平台)
 

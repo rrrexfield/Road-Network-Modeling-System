@@ -1,6 +1,6 @@
 # D · Sprint 0/1 权重与统计模块交付说明
 
-日期：2026-10-14（2026-10-16 复审更新）。状态：权重/统计模块、ECharts 图表封装、统计与权重面板均已完成；已 rebase 到含 B 图引擎（PR #7）与契约冻结（PR #14）的最新 main；全仓 124 项测试通过（本次新增 55 项），shared/server/web 三包 typecheck、全仓 ESLint 与 Prettier 通过。**模块尚未接入服务端启动流程与主界面**，需要的集成动作已整理为 issue（#9–#13），见 §5；对 PR #8 评审意见的逐条处理见 §7。
+日期：2026-10-14（2026-10-16 复审更新）。状态：权重/统计模块、ECharts 图表封装、统计与权重面板均已完成；已 rebase 到含 B 图引擎（PR #7）与契约冻结（PR #14）的最新 main；全仓 124 项测试通过（本次新增 55 项），shared/server/web 三包 typecheck、全仓 ESLint 与 Prettier 通过。**2026-10-22 已由 A 完成服务端启动流程与主界面集成**（#9/#10/#11/#13/#16，见 §5；#12 决策见 §6）；对 PR #8 评审意见的逐条处理见 §7。
 
 ## 1. 范围与边界
 
@@ -11,8 +11,8 @@ Sprint 0/1 的主线是 C 的拓扑构建与 B 的图引擎，D 在这两周内�
 | 距离度量 | `server/src/weights/geo.ts` | Haversine，与 B 的默认边权同公式同半径 |
 | 等级限速模型 | `server/src/weights/speed.ts` | highway 等级 → 限速(km/h)，里程 → 通行时间 |
 | 可注入权重函数 | `server/src/weights/weight.ts` | 距离/时间两种边权，配置可由前端驱动 |
-| 网络统计 | `server/src/weights/stats.ts` | 里程、等级分布、边长分布、通行时间、拓扑指标占位 |
-| REST 路由插件 | `server/src/weights/routes.ts` | `/api/stats`、`/api/weights/profile`，待 A 注册 |
+| 网络统计 | `server/src/weights/stats.ts` | 里程、等级分布、边长分布、通行时间、拓扑指标 |
+| REST 路由插件 | `server/src/weights/routes.ts` | `/api/stats`、`/api/weights/profile`，已注册 |
 | 图表封装 | `web/src/charts/` | ECharts 按需装配 + 深色主题 + 图表工厂 |
 | 统计面板 | `web/src/panels/stats/` | KPI + 三张图 + 拓扑指标区 |
 | 权重面板 | `web/src/panels/weight/` | 优化目标、速度系数、等级限速表、时间预估 |
@@ -138,11 +138,13 @@ KPI 区（节点/边/道路/总里程/总通行时间/平均与中位边长）+ 
 | 5 | 将统计/权重面板挂载进主界面布局 | **E** | [#13](https://github.com/rrrexfield/Road-Network-Modeling-System/issues/13) | 面板为自包含组件（`createStatsPanel()` / `createWeightPanel()`），E 在 `web/src/map` 的布局中预留挂载点即可；`web/src/main.ts` D 未改动 |
 | 6 | `/api/stats` 在全量数据上的性能预算 | **A** | 并入 #9 | 当前按请求实时计算；120 万边规模建议预计算或缓存 |
 
+**2026-10-22 集成完成**:A 在 `feature/sprint1-integration` 中完成 #9/#10/#11/#13/#16。服务端启动时执行 `buildTopology → new Graph → computeTopologyStats`,注册 `registerWeightRoutes`,并用 `TopologyResult.ways` 生成 `wayId → highway`;统计边集为 `topology.edges`,`StatsInput.edgeLength` 注入 `Graph.edgeLength`;`/api/stats` 按配置缓存(上限 32)并预热默认配置。前端 main.ts 接入 `web/src/map/`,统计/权重面板挂载到右侧 `#side-panels`。Vitest 已包含 `web/**`。#12 的决策见 §6。
+
 ## 6. 已知限制与 Sprint 3 衔接
 
 - 限速是"设计通行能力"，不是实时路况；Sprint 3 的拥堵系数在 `WeightProfile` 上扩展为时间槽函数，接口形态已预留（`speedOverridesKmh` 即逐等级覆盖的先例）。
-- 等级集合须与 `shared` 的 `HIGHWAY_COLORS` 同步维护，新增等级两处都要补。
-- 统计输入要求 way→highway 表；在 A 接入前，任何"真实统计"都无法出数——这也是本模块先交付占位态而非假数据的原因。
+- 等级集合须与 `shared` 的 `HIGHWAY_COLORS` / `HIGHWAY_WIDTHS` 同步维护,新增等级两处都要补。#12 决策:暂不把限速表并入 shared——配色/线宽是展示参数、限速是算法参数;`wayId → highway` 以 `TopologyResult.ways` 为权威来源。
+- 统计输入要求 way→highway 表;服务端已从 `TopologyResult.ways` 生成,统计范围为 `topology.edges`,不再把 `ways.size` 当作实际入图道路数。
 - `EdgeWeightFn` 暂不冻结（#14 同步区已记明）：当前签名 `(edge) => number` 不含边长，Sprint 3 实现行程时间权重需 A/D/B 评审扩展。本模块在扩展时仍须满足"返回 ≥0 且有限"的前置条件。
 
 ## 7. PR #8 评审意见处理记录（2026-10-16）
