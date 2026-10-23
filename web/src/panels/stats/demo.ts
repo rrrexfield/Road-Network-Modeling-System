@@ -28,7 +28,7 @@ const weightPanel = createWeightPanel({ onChange: (profile) => void reload(profi
 statsSlot.append(statsPanel.element);
 weightSlot.append(weightPanel.element);
 
-let speedTable: Record<string, number> | undefined;
+let speedTable: Readonly<Record<string, number>> | undefined;
 let latest: NetworkStats | null = null;
 let latestIsLive = false;
 let placeholderMode = false;

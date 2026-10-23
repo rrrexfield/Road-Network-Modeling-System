@@ -26,4 +26,4 @@ export type {
   TopologyMetricsSourceTag,
   WeightProfile,
   WeightProfileResponse,
-} from './contract.js';
+} from '@gisalgo/shared';

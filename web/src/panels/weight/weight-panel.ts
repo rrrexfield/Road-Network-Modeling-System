@@ -238,6 +238,8 @@ export function createWeightPanel(options: WeightPanelOptions = {}): WeightPanel
       button.classList.toggle('gis-segmented__item--active', value === profile.metric);
       button.setAttribute('aria-pressed', String(value === profile.metric));
     }
+    summaryBadge.textContent = profile.metric === 'time' ? '按时间' : '按距离';
+    summaryBadge.className = 'gis-badge gis-badge--ok';
     factorValue.textContent = `×${profile.speedFactor.toFixed(2)}`;
     const timeMode = profile.metric === 'time';
     factorInput.disabled = !timeMode;
@@ -291,8 +293,6 @@ export function createWeightPanel(options: WeightPanelOptions = {}): WeightPanel
       renderRows();
       syncControls();
 
-      summaryBadge.textContent = stats.profile.metric === 'time' ? '按时间' : '按距离';
-      summaryBadge.className = 'gis-badge gis-badge--ok';
       sourceNote.textContent = hasServerSpeedTable
         ? '基准限速取自服务端 /api/weights/profile;修改后由服务端重算权威值,面板显示为即时预估。'
         : '未取到服务端限速表,基准限速由统计数据反算;修改后由服务端重算权威值,面板显示为即时预估。';

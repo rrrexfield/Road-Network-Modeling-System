@@ -98,16 +98,18 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
-**最后更新:2026-10-16(D 权重与统计模块合入 PR #8)**
+**最后更新:2026-10-22(A 集成:契约冻结、topology→graph→stats 组装、面板挂载)**
 
-`shared` 的 `NetworkMeta.edgeCount` 更名为 `segmentCount`,定义为预处理产物中的原始相邻节点段数(方向处理前);API `HealthResponse` 与 WS 的 `edgeCount` 含义不变,仍为服务端当前装载图的有向边数。
-`server/src/topology/index.ts` 公开方向判定、按节点 ID 构边与 `createTopologyReport` 报告入口；兼容 oneway=true/false，未确定方向的道路跳过并在报告列出。本模块不做模态过滤，节点包含有效相邻段的中间节点，边 ID 不保证跨版本稳定。组装由 A 负责；M1 策略确认草稿位于 docs/plans/c-m1-integration-issue-draft.md（未发布、未定案）。本模块未修改 REST/WS 或 shared 契约。
-`server/src/graph/`(B)已随 PR #7 合入:公开入口导出 `Graph`、`dijkstra`、`connectedComponents`、`computeTopologyStats`;`new Graph(topo.nodes, topo.edges)` 直接消费 buildTopology 产物;尚未接入 loader/服务组装。
-契约冻结(issue #4):`PathResult`、`TopologyStats` 已进入 `shared/src/index.ts`,graph 模块改为从 `@gisalgo/shared` 导入,禁止再定义本地副本。度均为有向度(入+出)——M1 口径;无向物理邻接度取舍见 issue #5 留档,变更须契约评审。`degreeDistribution` 为进程内 Map,不可直接 JSON 下发;`PathResult.distance` 不可达为 Infinity,JSON 下发前由 API 层转换。`EdgeWeightFn` 暂不冻结:Sprint 3 权重注入前需 A/D/B 评审扩展(当前签名不含边长,无法实现行程时间权重)。
-`server/src/weights/`(D)已随 PR #8 提交:公开入口导出 Haversine 距离、等级限速、可注入边权(`createEdgeWeight(context, profile)` 产出符合 `EdgeWeightFn` 的闭包,由 `WeightProfile.metric` 选 distance/time)与网络统计;REST 以 Fastify 插件 `registerWeightRoutes` 提供 `GET /api/weights/profile` 与 `GET /api/stats`(支持 `metric`/`speedFactor`/`speedKmh`),**尚未注册到服务启动流程**,待 A 集成(issue #9)。统计的拓扑指标为显式占位(`topology: null` + `topologySource: 'pending'`),接入后由 `toTopologyMetrics()` 把 `TopologyStats` 的 Map 度分布转为按度升序的数组。
-D 侧契约口径:`TopologyStats` 引用 shared,响应体 `TopologyMetrics` 以 `extends Omit<TopologyStats,'degreeDistribution'>` **派生**,禁止平铺副本;`topologySource` 取语义值 `'graph-engine' | 'pending'`,不得用模块路径当枚举值。`WeightProfile`/`NetworkStats`/`HighwayStat`/`LengthBucket` 待 issue #10 冻结进 shared,冻结前前端只读镜像位于 `web/src/charts/contract.ts`(冻结后整体删除)。
-边长口径:统计当前用 `weights/geo.ts` 的 `haversineMeters`(原始 float64 坐标),与 `Graph.edgeLength`(Float32 预计算)同源但数值不严格相等(单边最坏 ~0.7 m);A 组装出 Graph 后统计里程应改取 `edgeLength`,切换前以 `docs/plans/d-sprint01-weights-stats.md` §4.2 为口径依据。
-`EdgeWeightFn` 前置条件:返回值须 ≥0 且有限。D 的权重函数在"图内注入"路径上满足(`Graph.addEdge` 已校验端点存在),端点缺失返回的 `Infinity` 仅在图外场景(如统计遍历原始边集)触发。
+`shared` 的 `NetworkMeta.edgeCount` 更名为 `segmentCount`,定义为预处理产物中的原始相邻节点段数(方向处理前);API `HealthResponse` 与 WS 的 `edgeCount` 为服务端当前装载图的有向边数。
+`server/src/topology/index.ts` 公开方向判定、按节点 ID 构边与 `createTopologyReport` 报告入口；兼容 oneway=true/false，未确定方向的道路跳过并在报告列出。本模块不做模态过滤，节点包含有效相邻段的中间节点，边 ID 不保证跨版本稳定。M1 策略确认草稿位于 docs/plans/c-m1-integration-issue-draft.md（未发布、未定案）。
+`server/src/graph/`(B):公开入口导出 `Graph`、`dijkstra`、`connectedComponents`、`computeTopologyStats`;`new Graph(topo.nodes, topo.edges)` 直接消费 buildTopology 产物。已接入服务启动组装(2026-10-22)。
+契约冻结(issue #4):`PathResult`、`TopologyStats` 已进入 `shared/src/index.ts`,graph 模块改为从 `@gisalgo/shared` 导入,禁止再定义本地副本。度均为有向度(入+出)——M1 口径;无向物理邻接度取舍见 issue #5 留档,变更须契约评审。`degreeDistribution` 为进程内 Map,不可直接 JSON 下发;`PathResult.distance` 不可达为 Infinity,JSON 下发前由 API 层转换。
+契约冻结(issue #10):`WeightProfile`、`HighwayStat`、`LengthBucket`、`TopologyMetrics`、`TopologyMetricsSourceTag`、`NetworkStats`、`WeightProfileResponse` 已进入 `shared/src/index.ts`;服务端 weights 与前端 charts/panels 统一从 `@gisalgo/shared` 引用,`web/src/charts/contract.ts` 已删除,禁止再定义本地副本。`TopologyMetrics` 以 `extends Omit<TopologyStats,'degreeDistribution'>` **派生**,`topologySource` 取语义值 `'graph-engine' | 'pending'`。
+服务端组装(issue #9/#11/#12):`LoadedNetwork` 现为 `{ meta, nodes, ways, geojson }`,不再预构无向边;`server/src/index.ts` 启动时依次执行 `buildTopology → new Graph → computeTopologyStats → registerRoutes → registerWeightRoutes`。`/api/health` 与 WS 的 `edgeCount` 为有向边数,`wayCount` 为保留道路数;`/api/network` 仍返回原始 GeoJSON。`wayId → highway` 的权威来源为 `TopologyResult.ways`,统计边集为 `topology.edges`;启动日志报告拓扑 issue、方向排除数与缺失映射诊断。
+权重统计路由:`registerWeightRoutes` 已注册;`StatsInput.edgeLength` 可注入 `Graph.edgeLength`,使统计里程与路径权重同源;`/api/stats` 按归一化配置缓存(上限 32)并在注册时预热默认配置。拓扑指标由 `computeTopologyStats` 填充(`topologySource='graph-engine'`),Map 度分布经 `toTopologyMetrics()` 转为按度升序数组。
+前端集成(issue #13/#15/#16):`web/src/map/` 为 E 的公开入口,`main.ts` 已改用其底图检测/降级与路网图层工厂;统计/权重面板挂载到右侧 `#side-panels`,权重变化去抖后重取统计。Vitest 已包含 `web/**`;Vitest 4 不再支持 `environmentMatchGlobs`,DOM 测试需在文件头写 `// @vitest-environment jsdom` 并在需要时补充 jsdom 依赖。
+等级元数据(#12 决策):暂不把限速表并入 shared——配色/线宽是展示参数、限速是算法参数;新增 highway 等级须同时更新 `shared` 的配色/线宽与 `server/src/weights/speed.ts`。
+`EdgeWeightFn` 暂不冻结:Sprint 3 权重注入前需 A/D/B 评审扩展(当前签名不含边长,无法实现行程时间权重)。其前置条件为返回值 ≥0 且有限;D 的权重函数在"图内注入"路径上满足(`Graph.addEdge` 已校验端点存在),端点缺失返回的 `Infinity` 仅在图外场景触发。
 
 ### API 格式
 
