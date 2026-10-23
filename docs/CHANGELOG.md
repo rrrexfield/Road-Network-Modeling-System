@@ -50,6 +50,15 @@
 - 可序列化构边报告：明确输入道路未做模态过滤，并列出无方向高速匝道、条件方向及未知方向的排除明细。
 - 模块尚未接入现有 loader 或 B 的 Graph；M1 图范围、方向排除及路径/ID 约定的确认请求已整理为本地 Issue 草稿，待用户审核发布。
 
+### Added(Sprint 1 · E 前端交互)
+
+- 新增 `web/src/map/` 模块（公开入口 `index.ts`）：底图可用性预探测与无底图降级样式、路网 deck.gl `PathLayer` 创建。`main.ts` 已改为经该模块调用，原 Carto 死代码一并移除（PR #15）。
+- 新增 `web/src/panels/property/` 道路属性面板：
+  - `property-view-model.ts` 把 GeoJSON 要素转换成视图模型，与 DOM 解耦，可在 Node 环境单测而无需引入 jsdom；
+  - `property-panel.ts` 只负责渲染，复用 `charts/ui.css` 的 `.gis-panel` / `.gis-badge` 视觉原语；
+  - 展示全部 OSM 标签（原 Popup 截断为 6 个）、固定侧栏、全部用 `textContent` 写入以规避注入。
+- 面板块由宿主（`main.ts`）挂载到 `#side-panels`，与 D 的统计/权重面板共用同一视觉基线，未引入新主色。
+
 ### Added(Sprint 0 · 立项与地基)
 
 - npm workspaces monorepo:`server/`(Fastify)+ `web/`(Vite)+ `shared/`(跨端契约)+ `scripts/`
