@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+### Added(Sprint 1 · A 集成)
+
+- 契约冻结(issue #10):`WeightProfile`、`HighwayStat`、`LengthBucket`、`TopologyMetrics`、`TopologyMetricsSourceTag`、`NetworkStats`、`WeightProfileResponse` 进入 `shared/src/index.ts`;服务端 `weights` 改为从 shared 导入并只做 re-export,删除前端临时镜像 `web/src/charts/contract.ts`,前端统一经 `web/src/charts/index.ts` 引用同一份契约,前后端不再各自定义。
+- 服务端启动组装(issue #9/#11/#12):`server/src/io/loader.ts` 暴露原始 `ways` 并移除预构无向边;启动时执行 `buildTopology → new Graph → computeTopologyStats`,再注册 `registerWeightRoutes`。`/api/health` 与 WS 的 `edgeCount` 改为有向边口径,`wayCount` 取保留道路数;`wayId → highway` 使用 C 确认的权威来源 `TopologyResult.ways`,统计边集为 `topology.edges`,启动日志输出拓扑 issue、方向排除数与缺失映射诊断。统计中的 `topology` 不再为占位,null 仅表示图引擎未接入。
+- `/api/stats` 性能:`StatsInput` 新增可选 `edgeLength` 注入,服务端使用 `Graph.edgeLength`,使统计里程与路径权重同源;统计按归一化配置缓存(上限 32)并在插件注册时预热默认配置。
+- 新增 3 项权重统计路由测试(普通端口 + fetch,规避 Node 22.11 下 light-my-request 的 ESM 兼容问题),覆盖权重基线、拓扑序列化、`speedFactor`/逐等级限速覆盖与缓存命中。
+- 主界面接入 PR #15 的 `web/src/map/` 模块(底图可达性检测、离线降级样式、路网图层工厂),删除 `main.ts` 内的重复实现与 Carto 死代码。
+- 统计/权重面板挂载到右侧 `#side-panels`(issue #13):路网加载成功后拉取 `/api/weights/profile` 与 `/api/stats`,权重配置变化去抖后重取统计;主界面不使用示例数据,接口不可用时显式标注。
+- Vitest 放开 `web/**` 测试范围(issue #16),新增 `web/src/map/basemap.test.ts`。Vitest 4 已移除 `environmentMatchGlobs`,后续 DOM 测试使用文件头 `// @vitest-environment jsdom` 并在需要时补充 jsdom 依赖。
+- 修复权重面板切换优化目标后右上徽标未同步的问题:徽标更新移入 `syncControls`,无需为刷新徽标而重建等级表格行。
+
 ### Added(Sprint 1 · A 契约与平台)
 
 - 契约冻结:`PathResult`(Dijkstra 输出)与 `TopologyStats`(拓扑统计报告)进入 `shared/src/index.ts`(issue #4)。度均为有向度(入度+出度,M1 口径;无向物理邻接度取舍见 issue #5 留档,变更须契约评审);`degreeDistribution` 为进程内 Map,不可直接 JSON 下发;`PathResult.distance` 不可达为 Infinity,经 REST/WS 下发前由 API 层转换。

@@ -2,9 +2,12 @@
  * 动态权重模型:把"边 → 代价"的计算封装为可注入 B 的 dijkstra 的纯函数闭包。
  * 本模块不反向依赖 io/topology,只消费节点坐标表与 way→等级表两张最简查找表。
  */
-import type { RoadEdge } from '@gisalgo/shared';
+import type { RoadEdge, WeightProfile } from '@gisalgo/shared';
 import { haversineMeters } from './geo.js';
 import { speedKmh, travelSeconds } from './speed.js';
+
+/** 权重配置由 shared 冻结；本模块只 re-export，不再定义本地副本。 */
+export type { WeightProfile };
 
 /** 未收录等级在查找表中的占位名。 */
 export const UNKNOWN_HIGHWAY = 'unknown';
@@ -35,16 +38,8 @@ export interface NetworkContext {
 /**
  * 权重配置。
  * Sprint 1 只包含"以什么为代价 + 等级限速 + 全局速度系数";Sprint 3 的拥堵/事件系数
- * 在此扩展为时间槽函数。
+ * 在此扩展为时间槽函数。类型已冻结在 shared/src/index.ts(issue #10)。
  */
-export interface WeightProfile {
-  /** 优化目标:distance = 里程最短(米),time = 用时最短(秒)。 */
-  metric: 'distance' | 'time';
-  /** 全局速度系数,>0;1 表示各等级按默认限速。仅 metric='time' 时影响结果。 */
-  speedFactor: number;
-  /** 等级 → 限速(km/h)覆盖表,优先于默认表。仅 metric='time' 时影响结果。 */
-  speedOverridesKmh: Record<string, number>;
-}
 
 /** 默认权重配置:以用时最短为目标、不覆盖任何等级限速。 */
 export const DEFAULT_WEIGHT_PROFILE: WeightProfile = {

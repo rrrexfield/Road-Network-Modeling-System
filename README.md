@@ -4,9 +4,9 @@
 
 当前进度:**Sprint 0(立项与地基)已完成**——"数据 → 服务端 → 浏览器渲染"最小链路已跑通并验收。
 
-Sprint 1 的 B 图引擎与 C 拓扑基础模块已实现：`server/src/graph/index.ts` 提供有向图 Graph（直接消费 C 的 buildTopology 产物）、Dijkstra 最短路径与连通分量/度统计；`server/src/topology/index.ts` 提供方向判定（含 true/false）、独立构边和可序列化构边报告，按原始节点 ID 连接道路并保留桥隧、层级属性。两个模块均未接入当前数据装载流程，网页仍使用 Sprint 0 链路，loader → topology → graph 的组装待后续迭代。topology 不做模态/车辆准入过滤，不能将输出解释为汽车可通行图；无法确定方向的道路跳过并在报告中列明。全仓 69 项测试通过，B 模块规则与验证见 `docs/plans/b-sprint1-graph.md` 与 `docs/plans/b-sprint1-graph-interface.md`，C 模块见 `docs/plans/c-sprint1-topology.md`，M1 集成策略确认草稿见 `docs/plans/c-m1-integration-issue-draft.md`。
+Sprint 1 的 B 图引擎、C 拓扑与 D 权重统计已接入服务启动链路:`server/src/index.ts` 依次执行 `loadNetwork → buildTopology → new Graph → computeTopologyStats`,再注册 REST/WS 与权重统计路由;`/api/health` 与 WS 的 `edgeCount` 为**有向边数**。topology 不做模态/车辆准入过滤,不能将输出解释为汽车可通行图;无法确定方向的道路跳过并在启动日志中列明。B 模块规则见 `docs/plans/b-sprint1-graph.md` 与 `docs/plans/b-sprint1-graph-interface.md`,C 模块见 `docs/plans/c-sprint1-topology.md`。
 
-Sprint 0/1 的 D 权重与统计模块已实现：`server/src/weights/index.ts` 提供 Haversine 距离、等级限速模型、可注入 B 的 `dijkstra` 的边权函数（距离/时间，由 `WeightProfile.metric` 选择）与网络统计（里程/等级分布/边长分布/通行时间）；`web/src/charts/`、`web/src/panels/stats/`、`web/src/panels/weight/` 提供 ECharts 深色主题封装、统计仪表盘与权重配置面板，独立预览页见 `web/src/panels/stats/demo.html`。统计中的拓扑指标为显式占位（`topology=null` + `topologySource='pending'`），待 B 的图引擎接入。PR #14 冻结 `TopologyStats` 后，D 侧已改为从 `@gisalgo/shared` 引用并以派生方式定义响应体形态的 `TopologyMetrics`，不再维护第二份拓扑定义。**路由插件尚未注册到服务端启动流程、面板尚未挂载进主界面**，所需集成动作见 `docs/plans/d-sprint01-weights-stats.md` §5。全仓 124 项测试通过。
+D 的 `server/src/weights/` 提供 Haversine 距离、等级限速、可注入 `dijkstra` 的边权函数与网络统计;`web/src/charts/`、`web/src/panels/stats/`、`web/src/panels/weight/` 提供 ECharts 深色主题、统计仪表盘与权重配置面板,独立预览页见 `web/src/panels/stats/demo.html`。统计中的拓扑指标由 B 的 `computeTopologyStats` 填充(`topologySource='graph-engine'`),`/api/stats` 按权重配置缓存并预热默认配置;`WeightProfile`/`NetworkStats` 等契约已冻结进 `shared/src/index.ts`。主界面右侧栏挂载统计与权重面板,权重变化后重取统计。全仓 128 项测试通过。
 
 ## 技术栈
 
@@ -24,15 +24,16 @@ GISAlgo/
 ├── server/              # Fastify 服务
 │   └── src/
 │       ├── api/         # REST + WS 路由
-│       ├── io/          # 派生数据装载(内存 nodes/edges/GeoJSON)
-│       ├── topology/    # [C] 独立道路方向与构边模块(尚未接入 loader)
-│       ├── graph/       # [B] 图引擎:Graph/Dijkstra/拓扑统计(尚未接入 loader/服务组装)
-│       ├── weights/     # [D] 权重与统计:距离/限速/可注入边权/网络统计 + REST 插件(待 A 注册)
+│       ├── io/          # 派生数据装载(内存 nodes/ways/GeoJSON)
+│       ├── topology/    # [C] 道路方向与构边(启动时接入)
+│       ├── graph/       # [B] 图引擎:Graph/Dijkstra/拓扑统计(启动时接入)
+│       ├── weights/     # [D] 权重与统计 + REST 路由(已注册)
 │       └── index.ts     # 组装与启动(端口 3000)
 ├── web/                 # Vite 前端(端口 5173,代理 /api、/ws 到 3000)
 │   └── src/
-│       ├── main.ts             # 地图与图层
+│       ├── main.ts             # 地图、图层与面板装配
 │       ├── api-client.ts       # REST+WS 客户端
+│       ├── map/                # [E] 底图检测/降级与路网图层工厂
 │       ├── charts/             # [D] ECharts 按需装配、深色主题、图表工厂
 │       └── panels/
 │           ├── stats/          # [D] 统计仪表盘 + 独立预览页 demo.html
@@ -58,7 +59,7 @@ npm run dev
 2. 启动服务端(127.0.0.1:3000),将路网载入内存;
 3. 启动前端(http://localhost:5173)并自动打开浏览器。
 
-打开后应看到:深色底图上的武汉路网(按 highway 等级着色);点击道路弹出属性;左下角为 API / WS / 底图状态徽标;悬停可点选道路时光标变为 pointer。
+打开后应看到:深色底图上的武汉路网(按 highway 等级着色);点击道路弹出属性;左下角为 API / WS / 底图状态徽标;右侧为统计仪表盘与权重配置面板(实时数据,拓扑指标来自图引擎);悬停可点选道路时光标变为 pointer。
 
 > 离线环境:底图(OpenFreeMap Dark,免 key)加载失败会自动降级为纯色背景,路网渲染与点选不受影响。
 
@@ -71,11 +72,12 @@ data/wuhan.json (教师备份,162MB,不入库——经教师/组内渠道获取�
 data/derived/wuhan-roads.json (~30MB, 不入库)
    │  server/src/io/loader.ts 启动时载入
    ▼
-内存路网:69,382 条道路 / 627,900 节点 / 673,120 条边
+内存路网:627,898 节点 / 1,194,218 条有向边 / 69,382 条道路
 ```
 
 - 源数据 `data/wuhan.json` 与 `data/hubei.json` 已从 Git 历史彻底移除,不随仓库分发;克隆后需自行获取 `wuhan.json` 放入 `data/`,否则预处理无法执行(可直接向组内索取现成的 `data/derived/wuhan-roads.json` 放到同路径使用);
 - 预处理只保留带 `highway` 标签的 way 及其关联节点,保留 OSM 节点 ID(`nds`),供 Sprint 1 图引擎构建拓扑;
+- `NetworkMeta.segmentCount` 是方向处理前的原始相邻节点段数;服务端 `/api/health` 与 WS 的 `edgeCount` 是方向化后的有向边数(双向道路计两条),统计接口使用同一有向边集;
 - 处理脚本读取 162MB JSON 需要较大堆内存,已通过 `NODE_OPTIONS=--max-old-space-size` 注入,无需手动设置。
 
 ## 可用脚本
@@ -93,11 +95,11 @@ data/derived/wuhan-roads.json (~30MB, 不入库)
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/health` | 健康检查:节点 / 边 / way 计数与运行时长 |
+| GET | `/api/health` | 健康检查:节点 / 有向边 / way 计数与运行时长 |
 | GET | `/api/network` | 全量路网 GeoJSON(每 way 一条 LineString,属性含 id/name/highway/tags) |
-| GET | `/api/weights/profile` | 权重基线:默认 `WeightProfile` + 各等级默认限速表(**插件待 A 注册,当前不可用**) |
-| GET | `/api/stats` | 网络统计:里程/等级分布/边长分布/通行时间/拓扑指标占位;支持 `metric`、`speedFactor`、`speedKmh=等级:限速,…`(**插件待 A 注册,当前不可用**) |
-| WS | `/ws` | 消息信封 `{ type, payload }`;连接即推 `hello`,支持 `ping`/`pong` |
+| GET | `/api/weights/profile` | 权重基线:默认 `WeightProfile` + 各等级默认限速表 |
+| GET | `/api/stats` | 网络统计:里程/等级分布/边长分布/通行时间/拓扑指标;支持 `metric`、`speedFactor`、`speedKmh=等级:限速,…`;结果按配置缓存 |
+| WS | `/ws` | 消息信封 `{ type, payload }`;连接即推 `hello`(有向边数),支持 `ping`/`pong` |
 
 错误响应统一为 `{ "error": { "message": "..." } }`;契约类型见 `shared/src/index.ts`,前后端禁止重复定义。
 

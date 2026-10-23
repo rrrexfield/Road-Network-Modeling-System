@@ -10,12 +10,23 @@ interface WsLike {
   on(event: string, cb: (data: unknown) => void): void;
 }
 
-export async function registerRoutes(app: FastifyInstance, network: LoadedNetwork): Promise<void> {
+/** 当前装载图的规模计数(有向边口径,与 shared 的 HealthResponse 一致)。 */
+export interface NetworkCounts {
+  nodeCount: number;
+  edgeCount: number;
+  wayCount: number;
+}
+
+export async function registerRoutes(
+  app: FastifyInstance,
+  network: LoadedNetwork,
+  counts: NetworkCounts,
+): Promise<void> {
   app.get('/api/health', (): HealthResponse => ({
     status: 'ok',
-    nodeCount: network.nodes.size,
-    edgeCount: network.edges.length,
-    wayCount: network.meta.wayCount,
+    nodeCount: counts.nodeCount,
+    edgeCount: counts.edgeCount,
+    wayCount: counts.wayCount,
     uptime: Math.round(process.uptime()),
   }));
 
@@ -29,9 +40,9 @@ export async function registerRoutes(app: FastifyInstance, network: LoadedNetwor
     const hello: WSMessage = {
       type: 'hello',
       payload: {
-        nodeCount: network.nodes.size,
-        edgeCount: network.edges.length,
-        wayCount: network.meta.wayCount,
+        nodeCount: counts.nodeCount,
+        edgeCount: counts.edgeCount,
+        wayCount: counts.wayCount,
       },
     };
     ws.send(JSON.stringify(hello));

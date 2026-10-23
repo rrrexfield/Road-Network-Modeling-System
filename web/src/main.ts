@@ -1,56 +1,19 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './style.css';
-import {
-  Map as MaplibreMap,
-  NavigationControl,
-  Popup,
-  type StyleSpecification,
-} from 'maplibre-gl';
+import { Map as MaplibreMap, NavigationControl, Popup } from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
-import { PathLayer } from '@deck.gl/layers';
-import type { RoadFeature, WSMessage } from '@gisalgo/shared';
-import { highwayColor, highwayWidth } from '@gisalgo/shared';
+import type { RoadFeature, WeightProfile, WSMessage } from '@gisalgo/shared';
 import { connectWebSocket, fetchHealth, fetchNetwork, type WsStatus } from './api-client';
-
-// Carto 瓦片 2025 起需 API key(带水印),故选用免 key 的 OpenFreeMap 深色矢量样式
-const BASEMAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
-const WUHAN_CENTER: [number, number] = [114.305, 30.593];
-const WUHAN_ZOOM = 11;
-
-async function reachable(url: string, timeoutMs = 4000): Promise<boolean> {
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-    await fetch(url, { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal });
-    clearTimeout(timer);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function buildStyle(withBasemap: boolean): StyleSpecification {
-  const layers: StyleSpecification['layers'] = [
-    { id: 'bg', type: 'background', paint: { 'background-color': '#101418' } },
-  ];
-  const sources: StyleSpecification['sources'] = {};
-  if (withBasemap) {
-    sources['carto'] = {
-      type: 'raster',
-      tiles: [
-        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-      ],
-      tileSize: 256,
-      maxzoom: 20,
-      attribution: '© OpenStreetMap contributors © CARTO',
-    };
-    layers.push({ id: 'carto', type: 'raster', source: 'carto', paint: { 'raster-opacity': 0.95 } });
-  }
-  return { version: 8, sources, layers };
-}
+import {
+  BASEMAP_STYLE_URL,
+  WUHAN_CENTER,
+  WUHAN_ZOOM,
+  buildFallbackStyle,
+  createRoadsLayer,
+  isBasemapReachable,
+} from './map/index.js';
+import { createStatsPanel, fetchStats, fetchWeightProfile } from './panels/stats/index.js';
+import { createWeightPanel } from './panels/weight/index.js';
 
 function $(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -94,8 +57,63 @@ function escapeHtml(s: string): string {
     .replaceAll('"', '&quot;');
 }
 
+/**
+ * 把统计/权重面板挂载到右侧栏,并接上实时接口。
+ * 面板只在路网加载成功后初始化(此时服务端已完成拓扑组装)。
+ */
+async function initPanels(): Promise<void> {
+  const host = document.getElementById('side-panels');
+  if (host === null) return;
+
+  const statsPanel = createStatsPanel();
+  let hasStats = false;
+  const weightPanel = createWeightPanel({ onChange: (profile) => void reloadStats(profile) });
+  host.append(statsPanel.element, weightPanel.element);
+
+  const panelState: { speedTable?: Readonly<Record<string, number>> } = {};
+  let requestToken = 0;
+
+  /** 按(可选的)权重配置重取统计;旧响应由 token 丢弃。 */
+  async function reloadStats(profile?: WeightProfile): Promise<void> {
+    const token = ++requestToken;
+    const stats = await fetchStats(
+      profile === undefined
+        ? undefined
+        : {
+            metric: profile.metric,
+            speedFactor: profile.speedFactor,
+            speedOverridesKmh: profile.speedOverridesKmh,
+          },
+    );
+    if (token !== requestToken) return;
+    if (stats === null) {
+      statsPanel.setSource('接口不可用', false);
+      return;
+    }
+    statsPanel.render(stats);
+    statsPanel.setSource('实时接口', true);
+    // 首次拿到数据后填充权重面板的等级行;之后不再 update,避免输入框失焦
+    if (!hasStats) {
+      weightPanel.update(stats, panelState.speedTable);
+      hasStats = true;
+    }
+  }
+
+  const [profileResponse, initialStats] = await Promise.all([fetchWeightProfile(), fetchStats()]);
+  panelState.speedTable = profileResponse?.speedTable;
+
+  if (initialStats !== null) {
+    statsPanel.render(initialStats);
+    statsPanel.setSource('实时接口', true);
+    weightPanel.update(initialStats, panelState.speedTable);
+    hasStats = true;
+  } else {
+    statsPanel.setSource('接口不可用', false);
+  }
+}
+
 async function main(): Promise<void> {
-  const basemapOnline = await reachable(BASEMAP_STYLE_URL);
+  const basemapOnline = await isBasemapReachable(BASEMAP_STYLE_URL);
   setChip(
     $('chip-basemap'),
     basemapOnline ? '底图 · 在线(OpenFreeMap Dark)' : '底图 · 离线(纯色降级)',
@@ -104,7 +122,7 @@ async function main(): Promise<void> {
 
   const map = new MaplibreMap({
     container: 'map',
-    style: basemapOnline ? BASEMAP_STYLE_URL : buildStyle(false),
+    style: basemapOnline ? BASEMAP_STYLE_URL : buildFallbackStyle(),
     center: WUHAN_CENTER,
     zoom: WUHAN_ZOOM,
     attributionControl: { compact: true },
@@ -156,33 +174,18 @@ async function main(): Promise<void> {
   connectWebSocket(
     (msg: WSMessage) => {
       if (msg.type === 'hello') {
-        setChip(
-          $('chip-ws'),
-          `WS · 已连接(${msg.payload.edgeCount.toLocaleString()} 边)`,
-          true,
-        );
+        setChip($('chip-ws'), `WS · 已连接(${msg.payload.edgeCount.toLocaleString()} 边)`, true);
       }
     },
     (status: WsStatus) => {
-      if (status !== 'connected') setChip($('chip-ws'), `WS · ${status === 'connecting' ? '连接中…' : '断开,重连中…'}`, null);
+      if (status !== 'connected')
+        setChip($('chip-ws'), `WS · ${status === 'connecting' ? '连接中…' : '断开,重连中…'}`, null);
     },
   );
 
   try {
     const gj = await fetchNetwork();
-    const roadsLayer = new PathLayer<RoadFeature>({
-      id: 'roads',
-      data: gj.features,
-      getPath: (f) => f.geometry.coordinates,
-      getColor: (f) => highwayColor(f.properties.highway),
-      getWidth: (f) => highwayWidth(f.properties.highway),
-      widthUnits: 'meters',
-      widthMinPixels: 1,
-      capRounded: true,
-      jointRounded: true,
-      pickable: true,
-    });
-    overlay.setProps({ layers: [roadsLayer] });
+    overlay.setProps({ layers: [createRoadsLayer(gj.features)] });
   } catch (err) {
     console.error('路网数据加载失败', err);
     $('loading').textContent = '路网数据加载失败,请确认服务端已启动(/api/network)';
@@ -190,6 +193,7 @@ async function main(): Promise<void> {
   }
 
   $('loading').remove();
+  void initPanels();
 }
 
 main().catch((err) => {
