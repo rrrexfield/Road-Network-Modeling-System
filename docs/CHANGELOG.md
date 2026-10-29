@@ -52,6 +52,12 @@
 
 ### Added(Sprint 1 · E 前端交互)
 
+- 新增 `web/src/map/` 模块（公开入口 `index.ts`）：底图可用性预探测与无底图降级样式、路网 deck.gl `PathLayer` 创建。`main.ts` 已改为经该模块调用，原 Carto 死代码一并移除（PR #15）。
+- 新增 `web/src/panels/property/` 道路属性面板：
+  - `property-view-model.ts` 把 GeoJSON 要素转换成视图模型，与 DOM 解耦，可在 Node 环境单测而无需引入 jsdom；
+  - `property-panel.ts` 只负责渲染，复用 `charts/ui.css` 的 `.gis-panel` / `.gis-badge` 视觉原语；
+  - 展示全部 OSM 标签（原 Popup 截断为 6 个）、固定侧栏、全部用 `textContent` 写入以规避注入。
+- 面板块由宿主（`main.ts`）挂载到 `#side-panels`，与 D 的统计/权重面板共用同一视觉基线，未引入新主色。
 - 新增 `GET /api/path`（`server/src/api/routes.ts`）：按 `from=lon,lat&to=lon,lat&metric=distance|time`
   把点击坐标吸附到最近图节点后运行 Dijkstra，返回 `PathResponse`（`shared` 新增，`extends PathResult`
   的非破坏性扩展），包含吸附后的起终点坐标与整条路径折线，前端可直接绘制。

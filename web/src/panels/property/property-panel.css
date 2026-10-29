@@ -1,0 +1,78 @@
+@import '../../charts/ui.css';
+
+/* 展开/收起的显示控制：优先于 .gis-panel 的 display:flex */
+.gis-property[hidden],
+.gis-property [hidden] {
+  display: none !important;
+}
+
+.gis-property {
+  gap: 10px;
+  max-height: 42vh;
+  overflow-y: auto;
+}
+
+.gis-property__empty {
+  margin: 0;
+  color: var(--gis-muted);
+}
+
+.gis-property__name {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--gis-gold);
+  word-break: break-word;
+}
+
+.gis-property__meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 12px;
+  margin: 0;
+}
+
+.gis-property__label {
+  margin: 0;
+  color: var(--gis-muted);
+}
+
+.gis-property__value {
+  margin: 0;
+  text-align: right;
+  word-break: break-all;
+}
+
+.gis-property__subtitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--gis-muted);
+}
+
+.gis-property__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.gis-property__tag {
+  display: inline-flex;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 7px;
+  font-size: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.gis-property__tag-key {
+  color: var(--gis-muted);
+}
+
+.gis-property__tag-value {
+  color: var(--gis-text);
+  word-break: break-word;
+}
