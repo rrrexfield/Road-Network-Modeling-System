@@ -4,3 +4,5 @@
  */
 export * from './basemap';
 export * from './roads-layer';
+export { createPathSelection } from './path-selection.js';
+export type { PathSelectionHandle, PathSelectionOptions } from './path-selection.js';
