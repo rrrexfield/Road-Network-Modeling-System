@@ -46,11 +46,16 @@ async function main(): Promise<void> {
     app.log.warn(`有 ${missingWayHighway} 条边的 wayId 未找到 highway 映射,统计将按 unknown 兜底`);
   }
 
-  await registerRoutes(app, network, {
-    nodeCount: graph.nodeCount,
-    edgeCount: graph.edgeCount,
-    wayCount: topology.ways.size,
-  });
+  await registerRoutes(
+    app,
+    network,
+    {
+      nodeCount: graph.nodeCount,
+      edgeCount: graph.edgeCount,
+      wayCount: topology.ways.size,
+    },
+    { graph, wayHighway },
+  );
   await app.register(registerWeightRoutes, {
     network: {
       nodes: topology.nodes,
@@ -60,6 +65,7 @@ async function main(): Promise<void> {
     },
     topology: topologyStats,
   });
+  
 
   await app.listen({ port: PORT, host: '127.0.0.1' });
 }

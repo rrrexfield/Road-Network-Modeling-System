@@ -50,6 +50,14 @@
 - 可序列化构边报告：明确输入道路未做模态过滤，并列出无方向高速匝道、条件方向及未知方向的排除明细。
 - 模块尚未接入现有 loader 或 B 的 Graph；M1 图范围、方向排除及路径/ID 约定的确认请求已整理为本地 Issue 草稿，待用户审核发布。
 
+### Added(Sprint 1 · E 前端交互)
+
+- 新增 `GET /api/path`（`server/src/api/routes.ts`）：按 `from=lon,lat&to=lon,lat&metric=distance|time`
+  把点击坐标吸附到最近图节点后运行 Dijkstra，返回 `PathResponse`（`shared` 新增，`extends PathResult`
+  的非破坏性扩展），包含吸附后的起终点坐标与整条路径折线，前端可直接绘制。
+  不可达返回 404，避免把 `Infinity` 下发到 JSON；时间权重复用 D 的 `createEdgeWeight`。
+  配套 7 项路由与吸附测试（`server/src/api/routes.test.ts`）。
+  
 ### Added(Sprint 0 · 立项与地基)
 
 - npm workspaces monorepo:`server/`(Fastify)+ `web/`(Vite)+ `shared/`(跨端契约)+ `scripts/`

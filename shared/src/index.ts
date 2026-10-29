@@ -50,6 +50,26 @@ export interface PathResult {
   edgeIds: number[];
 }
 
+/**
+ * GET /api/path 的响应体。
+ *
+ * 相比 `PathResult` 补充了两类前端必需的信息：
+ * - `from` / `to`：请求里的经纬度被吸附到的实际节点坐标（[lon, lat]）；
+ * - `coordinates`：整条路径的折线（[lon, lat]），前端可直接绘制，
+ *   无需再按 edgeId 反查 way 几何。
+ *
+ * 采用 `extends` 而非修改 `PathResult`：后者已冻结（issue #4），
+ * 这里只做非破坏性扩展。
+ */
+export interface PathResponse extends PathResult {
+  /** 起点吸附到的节点坐标 [lon, lat] */
+  from: [number, number];
+  /** 终点吸附到的节点坐标 [lon, lat] */
+  to: [number, number];
+  /** 路径折线 [lon, lat][]，长度等于 nodeIds 长度 */
+  coordinates: [number, number][];
+}
+
 /** 拓扑统计报告（graph 模块 computeTopologyStats 输出）。度均为有向度（入度 + 出度）。 */
 export interface TopologyStats {
   nodeCount: number;
