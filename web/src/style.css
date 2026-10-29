@@ -72,9 +72,68 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+/* 每个面板一个独立分区：标题条固定、内容区各自滚动、可收起 */
+.side-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.side-section.is-collapsed {
+  flex: 0 0 auto;
+}
+
+.side-section__toggle {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #9aa4b2;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.side-section__toggle:hover {
+  color: #f2c66d;
+  border-color: rgba(242, 198, 109, 0.35);
+}
+
+.side-section__toggle:focus-visible {
+  outline: 2px solid rgba(242, 198, 109, 0.6);
+  outline-offset: 1px;
+}
+
+.side-section__chevron {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.side-section__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 8px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
+}
+
+.side-section.is-collapsed .side-section__body {
+  display: none;
 }
 
 /* 统计面板默认双列在 420px 栏宽下过挤,主界面统一改单列 */

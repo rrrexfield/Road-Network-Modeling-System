@@ -58,6 +58,16 @@
   - `property-panel.ts` 只负责渲染，复用 `charts/ui.css` 的 `.gis-panel` / `.gis-badge` 视觉原语；
   - 展示全部 OSM 标签（原 Popup 截断为 6 个）、固定侧栏、全部用 `textContent` 写入以规避注入。
 - 面板块由宿主（`main.ts`）挂载到 `#side-panels`，与 D 的统计/权重面板共用同一视觉基线，未引入新主色。
+- 新增 `GET /api/path`（`server/src/api/routes.ts`）：按 `from=lon,lat&to=lon,lat&metric=distance|time`
+  把点击坐标吸附到最近图节点后运行 Dijkstra，返回 `PathResponse`（`shared` 新增，`extends PathResult`
+  的非破坏性扩展），包含吸附后的起终点坐标与整条路径折线，前端可直接绘制。
+  不可达返回 404，避免把 `Infinity` 下发到 JSON；时间权重复用 D 的 `createEdgeWeight`。
+  配套 7 项路由与吸附测试（`server/src/api/routes.test.ts`）。
+- 新增 `web/src/map/path-selection.ts` 起终点选路：点击地图取经纬度后调 `/api/path`，
+  用 deck.gl `ScatterplotLayer` 画起终点标记、双层 `PathLayer`（白描边 + 金色主线）高亮路径；
+  与道路属性弹窗互斥，切换权重目标后自动按新目标重算。
+- 右侧统计/权重面板改为两个独立分区（`.side-section`）：标题条固定、内容区各自滚动、
+  支持点击收起；`#side-panels` 由整列滚动改为 flex 分区，避免权重面板被挤到滚动底部。
 
 ### Added(Sprint 0 · 立项与地基)
 
