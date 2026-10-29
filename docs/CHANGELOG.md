@@ -8,8 +8,10 @@
 
 - 契约冻结(issue #23):`AttributeCompleteness` 与 `AttributeCompletenessReport` 进入 `shared/src/index.ts`;`NetworkStats.attributeCompleteness` 为可选字段,缺省表示服务端尚未提供该统计(前端不得以 0 冒充完整率),D 实现后由 A 评审收紧为必填。口径为按 way 统计,而非逐条有向边。
 - 契约冻结(issue #24,作业二转向限制与多模态):`TravelMode`、`TurnRestrictionType`、`TurnKind`、`TurnRestriction`、`TurnAction`、`IntersectionTurns`、`SetIntersectionTurnsRequest`、`SetIntersectionTurnsResponse`、`TransferPoint` 进入 `shared/src/index.ts`。转向限制按边对存储与判定,`type` 由服务端按几何方位角判定;`turnKind` 与 `angleDelta` 仅供展示;模态接口复用 `RoadFeatureCollection` 与 `TransferPoint[]`。
+- 新增 `.github/` 治理文件:`CODEOWNERS`(把立项文档 §4.1 的目录所有权映射为 GitHub owner 审批)、`workflows/ci.yml`(typecheck / ESLint / Vitest / 前端构建)、`pull_request_template.md`(强制填写关联 issue、改动目录、是否涉及契约变更)。
+- `main` 的 ruleset「Restrict mian」开启 `require_code_owner_review` 与必需状态检查 `check`:改动他人目录的 PR 需该 owner 批准且 CI 通过;禁止直推与强推的规则沿用原有配置。
 - 合并 PR #19(道路属性面板组件)、#20(`/api/path` 与 `PathResponse` 契约)、#21(起终点选路 UI)、#22(Sprint 1 拓扑验证报告与 E 前端设计说明);#19 与 main 的 `docs/CHANGELOG.md` 冲突由 A 解决,双方条目均保留。
-- 新增 `.github/` 治理文件(CODEOWNERS / CI 工作流 / PR 模板)并对 `main` 开启分支保护:禁止直推与强推,PR 需 1 个批准与 CI 通过。
+- issue 流转:关闭 #18(VIS-3,已由 PR #20/#21 闭环)与 #24(接口形状已冻结,实现拆为 #27/#28/#29);#23 属性完整率契约冻结后交 D 实现,保持 open。
 - 同步区(`AGENTS.md` / `CLAUDE.md`)补充作业二契约说明与当前已注册端点清单。
 
 ### Added(Sprint 1 · A 集成)
