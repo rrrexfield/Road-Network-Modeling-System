@@ -1,0 +1,48 @@
+# 目录所有权（立项文档 §4.1）
+#
+# 机制：非 owner 触碰该目录的 PR，必须由该 owner 审批（配合 main 的 ruleset
+# "Restrict mian" 的 require_code_owner_review）。未列出的路径不受 owner 审批约束，
+# 但仍需任意 1 个批准 + CI 通过。
+#
+# A = @rrrexfield（组长/PO·平台与集成）
+# B = @HCl2778（图引擎算法）
+# C = @youjh1205-maker（数据与拓扑）
+# D = @WinYuhan（权重与统计）
+# E = @heocean3-cmyk（前端交互）
+
+# ---- A · 平台与集成 ----
+/server/src/api/           @rrrexfield
+/server/src/index.ts       @rrrexfield
+/web/src/api-client.ts     @rrrexfield
+/shared/                   @rrrexfield
+/scripts/                  @rrrexfield
+/.github/                  @rrrexfield
+/README.md                 @rrrexfield
+/docs/CHANGELOG.md         @rrrexfield
+/docs/AI日志.md            @rrrexfield
+/vitest.config.ts          @rrrexfield
+/*.json                    @rrrexfield
+/*.js                      @rrrexfield
+/*.ts                      @rrrexfield
+
+# ---- B · 图引擎算法 ----
+/server/src/graph/         @HCl2778
+
+# ---- C · 数据与拓扑 ----
+/server/src/io/            @youjh1205-maker
+/server/src/topology/      @youjh1205-maker
+
+# ---- D · 权重与统计 ----
+/server/src/weights/       @WinYuhan
+/web/src/charts/           @WinYuhan
+/web/src/panels/weight/    @WinYuhan
+/web/src/panels/stats/     @WinYuhan
+
+# ---- E · 前端交互 ----
+/web/src/map/              @heocean3-cmyk
+/web/src/panels/editor/    @heocean3-cmyk
+/web/src/panels/property/  @heocean3-cmyk
+/web/src/replay/           @heocean3-cmyk
+/web/src/main.ts           @heocean3-cmyk
+/web/src/style.css         @heocean3-cmyk
+/web/index.html            @heocean3-cmyk
