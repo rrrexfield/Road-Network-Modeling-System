@@ -98,7 +98,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
-**最后更新:2026-10-22(A 集成:契约冻结、topology→graph→stats 组装、面板挂载)**
+**最后更新:2026-10-29(A 流程处理:PR #19–#22 合并、契约冻结 issue #23/#24、仓库治理)**
 
 `shared` 的 `NetworkMeta.edgeCount` 更名为 `segmentCount`,定义为预处理产物中的原始相邻节点段数(方向处理前);API `HealthResponse` 与 WS 的 `edgeCount` 为服务端当前装载图的有向边数。
 `server/src/topology/index.ts` 公开方向判定、按节点 ID 构边与 `createTopologyReport` 报告入口；兼容 oneway=true/false，未确定方向的道路跳过并在报告列出。本模块不做模态过滤，节点包含有效相邻段的中间节点，边 ID 不保证跨版本稳定。M1 策略确认草稿位于 docs/plans/c-m1-integration-issue-draft.md（未发布、未定案）。
@@ -110,10 +110,14 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 前端集成(issue #13/#15/#16):`web/src/map/` 为 E 的公开入口,`main.ts` 已改用其底图检测/降级与路网图层工厂;统计/权重面板挂载到右侧 `#side-panels`,权重变化去抖后重取统计。Vitest 已包含 `web/**`;Vitest 4 不再支持 `environmentMatchGlobs`,DOM 测试需在文件头写 `// @vitest-environment jsdom` 并在需要时补充 jsdom 依赖。
 等级元数据(#12 决策):暂不把限速表并入 shared——配色/线宽是展示参数、限速是算法参数;新增 highway 等级须同时更新 `shared` 的配色/线宽与 `server/src/weights/speed.ts`。
 `EdgeWeightFn` 暂不冻结:Sprint 3 权重注入前需 A/D/B 评审扩展(当前签名不含边长,无法实现行程时间权重)。其前置条件为返回值 ≥0 且有限;D 的权重函数在"图内注入"路径上满足(`Graph.addEdge` 已校验端点存在),端点缺失返回的 `Infinity` 仅在图外场景触发。
+契约冻结(issue #23):`AttributeCompleteness` 与 `AttributeCompletenessReport` 已进入 `shared/src/index.ts`;`NetworkStats.attributeCompleteness` 为**可选**字段——缺省表示服务端尚未提供该统计,前端不得以 0 冒充完整率,D 实现后由 A 评审收紧为必填。口径为**按 way 统计**(属性来自 way 标签,不是逐条有向边,否则同一 way 的标签会被拆边重复稀释)。
+契约冻结(issue #24,作业二):`TravelMode`、`TurnRestrictionType`、`TurnKind`、`TurnRestriction`、`TurnAction`、`IntersectionTurns`、`SetIntersectionTurnsRequest`、`SetIntersectionTurnsResponse`、`TransferPoint` 已进入 `shared/src/index.ts`。转向限制一律按**边对**存储与判定(`viaNode` + `fromEdge` + `toEdge`),`type` 由服务端按几何方位角判定后写入、客户端只提交禁转边对;`TurnAction.turnKind` 与 `angleDelta` **仅供展示**,模糊路口回退显示"目标路名 + 偏角"。多模态接口:`GET /api/network?mode=car|walk|bike|bus` 复用 `RoadFeatureCollection`,`GET /api/transfer-points?mode=` 返回 `TransferPoint[]`;模态过滤规则由 C 在 `server/src/topology/` 定义并写入多模态设计文档。
+PR #19–#22 合入(2026-10-29):`/api/path` 采用 issue #18 的**方案 A(服务端坐标吸附)**,`PathResponse extends PathResult` 为非破坏性扩展;`web/src/map/path-selection.ts` 提供起终点选路与权重目标变更后重算;`web/src/panels/property/` 道路属性面板组件已入库但**尚未接入主界面**,待 E 在 `web/src/main.ts` 接线;`docs/拓扑验证报告.md` 已提交(注意:99% 的限速来自等级推断,时间类指标均为估算值)。
 
 ### API 格式
 
 - REST 统一前缀 `/api`,资源名 kebab-case(如 `/api/health`);响应 JSON、字段 camelCase;错误响应 `{ "error": { "message": "..." } }`。
+- 当前已注册端点:`GET /api/health`、`GET /api/network`(`?mode=` 为作业二预留)、`GET /api/path`、`GET /api/weights/profile`、`GET /api/stats`、WS `/ws`;作业二新增 `GET /api/intersections/:nodeId/turns`、`PUT /api/intersections/:nodeId/turns`、`GET /api/transfer-points`。
 - WebSocket 消息信封 `{ "type": "...", "payload": { ... } }`,`type` 为判别字段(见 `WSMessage`)。
 - 跨端契约类型(领域模型、API 出入参、WS 消息)统一定义于 `shared/src/index.ts`,前后端禁止重复定义;契约变更须评审。
 

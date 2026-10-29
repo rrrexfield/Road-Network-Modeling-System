@@ -134,6 +134,29 @@ export interface TopologyMetrics extends Omit<TopologyStats, 'degreeDistribution
 /** 拓扑指标来源标注；用语义名而非模块路径，避免目录改名就失效。 */
 export type TopologyMetricsSourceTag = 'graph-engine' | 'pending';
 
+/**
+ * 单个属性的完整率。
+ * 口径：**按 way 统计**（属性来自 way 标签），不是按有向边逐条统计——
+ * 同一 way 的标签会被拆成多条有向边，按边统计会把完整率重复稀释。
+ */
+export interface AttributeCompleteness {
+  /** 已填写该属性的 way 数。 */
+  filled: number;
+  /** 参与统计的 way 总数。 */
+  total: number;
+  /** 完整率，0–1；等于 filled / total。 */
+  ratio: number;
+}
+
+/** 若干属性的完整率集合。 */
+export interface AttributeCompletenessReport {
+  name: AttributeCompleteness;
+  maxspeed: AttributeCompleteness;
+  lanes: AttributeCompleteness;
+  surface: AttributeCompleteness;
+  oneway: AttributeCompleteness;
+}
+
 /** 网络统计响应体（GET /api/stats）。 */
 export interface NetworkStats {
   /** 坐标表节点数。 */
@@ -154,6 +177,11 @@ export interface NetworkStats {
   /** 拓扑指标；图引擎未接入时为 null。 */
   topology: TopologyMetrics | null;
   topologySource: TopologyMetricsSourceTag;
+  /**
+   * 道路属性完整率。**缺省表示服务端尚未提供该统计**（实现落地前前端不展示该区块，
+   * 不得以 0 冒充完整率）；实现落地后由 A 评审收紧为必填。
+   */
+  attributeCompleteness?: AttributeCompletenessReport;
   /** 本次统计所用的权重配置，便于前端回显。 */
   profile: WeightProfile;
 }
@@ -163,6 +191,106 @@ export interface WeightProfileResponse {
   default: WeightProfile;
   /** 各等级默认限速（km/h），前端面板据此渲染限速输入项。 */
   speedTable: Readonly<Record<string, number>>;
+}
+
+/* ==================== Sprint 2 · 转向限制与多模态 ==================== */
+
+/**
+ * 交通模态。Sprint 2 的四模态子图按此枚举过滤，与 `GET /api/network?mode=`、
+ * `GET /api/transfer-points?mode=` 的 `mode` 取值一致。
+ */
+export type TravelMode = 'car' | 'walk' | 'bike' | 'bus';
+
+/**
+ * 转向限制类型。含 OSM 的 only_* 变体（专用车道：除该方向外其余转向一律禁止）。
+ * 存储与算法判定一律使用 (fromEdge, toEdge) 边对；本字段只描述禁转的语义类别。
+ */
+export type TurnRestrictionType =
+  | 'no_left_turn'
+  | 'no_right_turn'
+  | 'no_u_turn'
+  | 'no_straight_on'
+  | 'only_left_turn'
+  | 'only_right_turn'
+  | 'only_straight_on'
+  | 'only_u_turn';
+
+/**
+ * 转向动作的几何分类，**仅供展示**。
+ * 方位角差落入明确区间才给出四分类；模糊地带回退 'ambiguous'，
+ * 由前端改显「驶入<道路名>（左偏 75°）」。
+ */
+export type TurnKind = 'left' | 'right' | 'straight' | 'u_turn' | 'ambiguous';
+
+/** 一条禁转规则：在 viaNode 处，禁止从 fromEdge 转入 toEdge。 */
+export interface TurnRestriction {
+  id: number;
+  /** 禁转所在路口（节点）id。 */
+  viaNode: number;
+  /** 入口边 id。 */
+  fromEdge: number;
+  /** 目标边 id。 */
+  toEdge: number;
+  /**
+   * 禁转语义类别。由服务端按几何方位角判定后写入；
+   * 客户端只提交边对，不直接指定本字段。
+   */
+  type: TurnRestrictionType;
+  /** 'osm' 为导入所得，'manual' 为用户在编辑器中设置。 */
+  source: 'osm' | 'manual';
+}
+
+/** 路口的一个转向动作（编辑器清单的一行）。 */
+export interface TurnAction {
+  fromEdge: number;
+  toEdge: number;
+  /** 入口边所属 way id，用于显示道路名。 */
+  fromWayId: number;
+  /** 目标边所属 way id，用于显示道路名。 */
+  toWayId: number;
+  /** 几何分类，仅用于展示。 */
+  turnKind: TurnKind;
+  /** 方位角差（度）：目标边方位角 − 入口边方位角，顺时针（右）为正。 */
+  angleDelta: number;
+  /** 该转向当前是否被禁止。 */
+  forbidden: boolean;
+  /** 该禁转是否来自 OSM 导入（用于与用户手动设置区分展示）。 */
+  fromOsm: boolean;
+}
+
+/** `GET /api/intersections/:nodeId/turns` 响应。 */
+export interface IntersectionTurns {
+  nodeId: number;
+  /** 路口位置 [lon, lat]。 */
+  position: [number, number];
+  /** 该路口的全部转向动作。 */
+  turns: TurnAction[];
+}
+
+/**
+ * `PUT /api/intersections/:nodeId/turns` 请求体。
+ * 语义为**整体覆盖该路口的禁转集合**（编辑器是「完整转向清单 + 勾选」），
+ * 不是逐条增删，以避免部分成功导致的状态不一致。
+ */
+export interface SetIntersectionTurnsRequest {
+  forbidden: Array<{ fromEdge: number; toEdge: number }>;
+}
+
+/** `PUT /api/intersections/:nodeId/turns` 响应。 */
+export interface SetIntersectionTurnsResponse {
+  ok: true;
+  /** 覆盖后该路口的禁转规则条数。 */
+  restrictionCount: number;
+}
+
+/** 模态转换点（地铁站 / 公交站 / 停车场）。 */
+export interface TransferPoint {
+  id: number;
+  kind: 'subway' | 'bus' | 'parking';
+  /** 站名或停车场名；无名时缺省。 */
+  name?: string;
+  /** 位置 [lon, lat]。 */
+  position: [number, number];
 }
 
 /** 派生数据文件元信息 */

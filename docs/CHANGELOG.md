@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### Added(Sprint 2 前置 · A 契约冻结与流程处理)
+
+- 契约冻结(issue #23):`AttributeCompleteness` 与 `AttributeCompletenessReport` 进入 `shared/src/index.ts`;`NetworkStats.attributeCompleteness` 为可选字段,缺省表示服务端尚未提供该统计(前端不得以 0 冒充完整率),D 实现后由 A 评审收紧为必填。口径为按 way 统计,而非逐条有向边。
+- 契约冻结(issue #24,作业二转向限制与多模态):`TravelMode`、`TurnRestrictionType`、`TurnKind`、`TurnRestriction`、`TurnAction`、`IntersectionTurns`、`SetIntersectionTurnsRequest`、`SetIntersectionTurnsResponse`、`TransferPoint` 进入 `shared/src/index.ts`。转向限制按边对存储与判定,`type` 由服务端按几何方位角判定;`turnKind` 与 `angleDelta` 仅供展示;模态接口复用 `RoadFeatureCollection` 与 `TransferPoint[]`。
+- 合并 PR #19(道路属性面板组件)、#20(`/api/path` 与 `PathResponse` 契约)、#21(起终点选路 UI)、#22(Sprint 1 拓扑验证报告与 E 前端设计说明);#19 与 main 的 `docs/CHANGELOG.md` 冲突由 A 解决,双方条目均保留。
+- 新增 `.github/` 治理文件(CODEOWNERS / CI 工作流 / PR 模板)并对 `main` 开启分支保护:禁止直推与强推,PR 需 1 个批准与 CI 通过。
+- 同步区(`AGENTS.md` / `CLAUDE.md`)补充作业二契约说明与当前已注册端点清单。
+
 ### Added(Sprint 1 · A 集成)
 
 - 契约冻结(issue #10):`WeightProfile`、`HighwayStat`、`LengthBucket`、`TopologyMetrics`、`TopologyMetricsSourceTag`、`NetworkStats`、`WeightProfileResponse` 进入 `shared/src/index.ts`;服务端 `weights` 改为从 shared 导入并只做 re-export,删除前端临时镜像 `web/src/charts/contract.ts`,前端统一经 `web/src/charts/index.ts` 引用同一份契约,前后端不再各自定义。
