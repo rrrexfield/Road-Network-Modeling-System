@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### Fixed(Sprint 2 · 数据缺口与 SQLite 可交接入口)
+
+- 预处理保留道路节点标签、转换点提取结果与restriction/public_transport/route关系，loader提供扩展数据及旧文件警告；运行时拒绝缺少Sprint2数据的旧派生文件。
+- OSM via-node禁转关系解析为source=osm边对，only_*展开为其他出口禁转，保留relation溯源及不完整/失配诊断，不伪造102条全部可用。
+- 结构属性疑点进入createTopologyReport，检查内部共享节点而不自动断边；武汉当前规则识别26个疑点，非截图“5个”的直接复现。
+- 新增PersistentTurnService/createTurnRuntime，提供启动恢复、来源标记、磁盘优先事务更新与显式清空持久化；恢复失配时禁止覆盖旧快照。
+- 全仓212项测试通过；武汉汽车模式SQLite保存/重建运行时恢复通过。脚本改动需A评审，尚未注册REST或修改B/E。
+
 ### Added(Sprint 2 · C 基础模块，待评审与集成)
 
 - 禁转稀疏表、路口入出边索引、球面偏角与全部转向动作枚举，以及普通禁转类型和按入口的 only_straight_on 语义归并。

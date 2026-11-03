@@ -74,6 +74,7 @@ describe('createTopologyReport', () => {
       builtWayCount: 0,
       issueCounts: {},
       excludedDirectionWays: [],
+      structureConflicts: [],
     });
   });
 });

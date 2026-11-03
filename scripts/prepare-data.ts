@@ -8,6 +8,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { NetworkMeta } from '@gisalgo/shared';
+import { extractTransferPoints } from '../server/src/io/index.js';
+import type { OsmRelation } from '../server/src/io/index.js';
 
 export interface RawTag {
   k: string;
@@ -32,7 +34,7 @@ export interface RawOsmJson {
   source_file?: string;
   nodes: RawNode[];
   ways: RawWay[];
-  relations?: unknown[];
+  relations?: OsmRelation[];
 }
 
 export interface PreparedWay {
@@ -54,6 +56,10 @@ export interface DerivedFile {
   /** [id, lat, lon] 紧凑数组 */
   nodes: [number, number, number][];
   ways: PreparedWay[];
+  /** 道路节点原始标签与独立转换点，避免道路裁剪丢失POI。 */
+  nodeTags: [number, RawTag[]][];
+  transferPoints: ReturnType<typeof extractTransferPoints>;
+  relations: OsmRelation[];
 }
 
 export function parseTags(tags: RawTag[]): Record<string, string> {
@@ -120,7 +126,7 @@ export function prepare(raw: RawOsmJson, generatedAt = new Date().toISOString())
   for (const n of raw.nodes) {
     if (nodeIds.has(n.id)) nodes.push([n.id, n.lat, n.lon]);
   }
-  const edges = buildEdges(ways, nodeIds);
+  const edges = buildEdges(ways, new Set(nodes.map((n) => n[0])));
   const meta: NetworkMeta = {
     source: raw.source_file ?? 'unknown',
     generatedAt,
@@ -129,7 +135,15 @@ export function prepare(raw: RawOsmJson, generatedAt = new Date().toISOString())
     segmentCount: edges.length,
     bbox: computeBbox(nodes),
   };
-  return { meta, nodes, ways };
+  const relations = (raw.relations ?? []).filter((r) =>
+    r.tags.some(
+      (t) => t.k === 'type' && ['restriction', 'public_transport', 'route'].includes(t.v),
+    ),
+  );
+  const nodeTags: [number, RawTag[]][] = raw.nodes
+    .filter((n) => nodeIds.has(n.id) && n.tags.length > 0)
+    .map((n) => [n.id, n.tags]);
+  return { meta, nodes, ways, nodeTags, transferPoints: extractTransferPoints(raw), relations };
 }
 
 async function main(): Promise<void> {

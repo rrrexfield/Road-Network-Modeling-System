@@ -1,5 +1,7 @@
 # Sprint 2 · C 手动禁转持久化
 
+2026-11-03：本文描述底层快照接口；其他成员优先使用c-sqlite-ready.md中的createTurnRuntime/PersistentTurnService，已统一处理OSM来源、恢复、显式清空和磁盘优先更新。不要再自行复制手动拼接流程。
+
 状态：本地实现，尚未接入 A 的 API 或启动流程。公开入口为 server/src/io/index.ts 的 TurnRestrictionStore。
 
 ## 选择与环境

@@ -3,6 +3,8 @@
  * 有向边由 topology 模块的 buildTopology 在组装阶段生成,本模块不再预构无向段。
  */
 import { readFileSync } from 'node:fs';
+import type { OsmRelation } from './osm-relations.js';
+import type { TransferPointData } from './transfer-points.js';
 import type {
   NetworkMeta,
   RoadFeature,
@@ -26,12 +28,20 @@ export interface LoadedNetwork {
   /** 原始道路(含 nds);方向判定与构边由 topology 模块负责。 */
   ways: LoadedWay[];
   geojson: RoadFeatureCollection;
+  /** 旧派生文件缺少扩展字段时需重新预处理，不假装已有完整数据。 */
+  nodeTags: Map<number, { k: string; v: string }[]>;
+  relations: OsmRelation[];
+  transferPoints: TransferPointData;
+  dataWarnings: string[];
 }
 
 interface DerivedFile {
   meta: NetworkMeta;
   nodes: [number, number, number][];
   ways: LoadedWay[];
+  nodeTags?: [number, { k: string; v: string }[]][];
+  relations?: OsmRelation[];
+  transferPoints?: TransferPointData;
 }
 
 export function loadNetwork(fileUrl: URL): LoadedNetwork {
@@ -61,5 +71,12 @@ export function loadNetwork(fileUrl: URL): LoadedNetwork {
     nodes,
     ways: raw.ways,
     geojson: { type: 'FeatureCollection', features },
+    nodeTags: new Map(raw.nodeTags ?? []),
+    relations: raw.relations ?? [],
+    transferPoints: raw.transferPoints ?? { points: [], sources: [], issues: [] },
+    dataWarnings:
+      raw.relations === undefined || raw.transferPoints === undefined || raw.nodeTags === undefined
+        ? ['派生文件缺少Sprint2数据，请重新运行prepare:data以保留关系与POI']
+        : [],
   };
 }

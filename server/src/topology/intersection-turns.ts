@@ -32,7 +32,7 @@ export class IntersectionTurnIndex {
    * 枚举全部入边×出边（含掉头），返回冻结的 IntersectionTurns 形状。
    * @param nodeId 当前图中的节点 ID。
    * @returns 路口 [lon,lat] 位置、全部转向动作及最新禁转状态。
-   * @remarks O(入度×出度)。当前规则仅来自手动集合，fromOsm=false。
+   * @remarks O(入度×出度)。fromOsm由禁转表的来源标记产生。
    * 对不存在节点或无法计算方向的几何抛出带定位信息的错误，不伪造角度或遗漏动作。
    */
   getTurns(nodeId: number): IntersectionTurns {
@@ -64,7 +64,7 @@ export class IntersectionTurnIndex {
           toWayId: to.wayId,
           ...geometry,
           forbidden: this.restrictions.isForbidden(nodeId, from.id, to.id),
-          fromOsm: false,
+          fromOsm: this.restrictions.isFromOsm(nodeId, from.id, to.id),
         });
       }
     }

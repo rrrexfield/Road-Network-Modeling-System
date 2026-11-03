@@ -37,6 +37,8 @@ export class TurnRestrictionStore {
       db.exec(
         'CREATE TABLE IF NOT EXISTS turn_snapshots (dataset TEXT NOT NULL, ordinal INTEGER NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(dataset, ordinal))',
       );
+      db.exec('CREATE TABLE IF NOT EXISTS turn_datasets (dataset TEXT PRIMARY KEY)');
+      db.exec('INSERT OR IGNORE INTO turn_datasets SELECT DISTINCT dataset FROM turn_snapshots');
       if (version === 0) db.exec('PRAGMA user_version = 1');
       return db;
     } catch (error) {
@@ -93,6 +95,7 @@ export class TurnRestrictionStore {
       db.exec('BEGIN IMMEDIATE');
       try {
         db.prepare('DELETE FROM turn_snapshots WHERE dataset = ?').run(this.dataset);
+        db.prepare('INSERT OR IGNORE INTO turn_datasets VALUES (?)').run(this.dataset);
         const insert = db.prepare('INSERT INTO turn_snapshots VALUES (?, ?, ?)');
         records.forEach((record, i) => insert.run(this.dataset, i, JSON.stringify(record)));
         db.exec('COMMIT');
@@ -100,6 +103,18 @@ export class TurnRestrictionStore {
         db.exec('ROLLBACK');
         throw error;
       }
+    } finally {
+      db.close();
+    }
+  }
+
+  /** 区分从未保存与显式清空，避免重启后重新启用用户已清除的OSM规则。 */
+  hasSnapshot(): boolean {
+    const db = this.open();
+    try {
+      return (
+        db.prepare('SELECT 1 FROM turn_datasets WHERE dataset=?').get(this.dataset) !== undefined
+      );
     } finally {
       db.close();
     }
