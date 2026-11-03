@@ -1,6 +1,6 @@
 # C：转换点接驳证据与交接（Issue #34）
 
-2026-11-03，分支 `feature/transfer-attachments`，基于 main `6852326`。本批未发布、未合并；已合并的SQLite交付见 `c-sqlite-ready.md`。原stash保留。
+2026-11-03，分支 `feature/transfer-attachments`，基于 main `6852316`。本批为待合并功能分支，发布记录以Issue #34为准；已合并的SQLite交付见 `c-sqlite-ready.md`。原stash保留。
 
 ## 已完成与调用方式
 
@@ -44,7 +44,7 @@ const entrances = inspectTransferEntrances(data, rawOsm, networks);
 
 | 项目 | 结果 |
 |---|---:|
-| 标记总数 | 2930：bus1232 / subway659 / parking1040 |
+| 标记总数 | 2930：bus1231 / subway659 / parking1040 |
 | 新识别地铁出入口 | 334，其中86共享walk源节点 |
 | 提取排除诊断 | 43 |
 | 100米点-模式匹配 | 3050：共享598 / 近邻2452 |
