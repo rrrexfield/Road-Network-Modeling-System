@@ -98,13 +98,13 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
-**最后更新:2026-10-30(C Sprint 2 本地实现进展；此前 A 的集成与冻结约定保留)**
+**最后更新:2026-11-03(A 评审并合并 PR #31/#32：C Sprint 2 基础模块已入库；此前 A 的集成与冻结约定保留)**
 
-C 的 Sprint 2 功能在 feature/turn-restrictions 本地开发：topology/index.ts 导出禁转表、几何、动作枚举与语义分类；io/index.ts 导出 loader 与 SQLite 手动禁转快照存储。持久化不保存易变 edgeId，恢复失配须报告。尚未接入 A 的 API 或 B/E 联调，未修改 shared 契约。Node 旧版本兼容、API 事务与恢复分组要求见 docs/plans/c-sprint2-persistence.md。
+C 的 Sprint 2 基础模块已合入 main(PR #31 `0b62afd`、PR #32 `0e8eb9d`，A 评审通过)：`server/src/topology/index.ts` 公开禁转表、转向几何、路口动作枚举、语义分类、OSM 禁转导入、四模态构图与结构诊断；`server/src/io/index.ts` 公开 loader、转换点提取、SQLite 快照存储与 `createTurnRuntime`/`PersistentTurnService`。禁转一律按边对存储与判定，持久化不保存易变 edgeId(按 way 段端点+几何重新匹配)，恢复失配须报告并禁止覆盖旧快照，`setTurns` 磁盘优先、写盘失败不改旧内存。尚未接入 A 的 REST、未与 B/E 联调，未修改 shared 契约；接入示例见 docs/plans/c-sqlite-ready.md。
 
-C 本地新增 buildModalTopology(nodes,ways,mode)，返回 mode、独立 topology 与准入排除列表；原始属性不改变。模式规则及武汉计数见 docs/多模态路网设计.md；方向排除另见 topology.issues，不能跨模式复用 edgeId。转换点和跨模态路径尚未实现，默认准入策略待 A/B 评审。
+四模态子图 `buildModalTopology(nodes,ways,mode)` 返回 mode、独立 topology 与准入排除列表，原始道路属性不改变；真实武汉实测 car 990929 / walk 1220177 / bike 1000032 / bus 991582 条有向边，edgeId 不跨模态复用，方向排除另见 topology.issues。转换点 `extractTransferPoints`/`getTransferPoints` 从原始 node/way 提取并按模式查询(真实数据 2596 个：bus 1231 / subway 325 / parking 1040)，way 型位置仅为展示代表点，尚无真实出入口与道路吸附。规则与理由见 docs/多模态路网设计.md。
 
-C 本地io新增extractTransferPoints/getTransferPoints，提取原始node/way中的转换点标记并按模式查询；way位置只是展示代表点。具体策略见多模态设计文档，尚未实现真实出入口/道路吸附、跨模态路径或API接入，未改变shared契约。
+作业二剩余项：4 个 REST 路由(GET/PUT /api/intersections/:nodeId/turns、GET /api/network?mode=、GET /api/transfer-points?mode=)与派生数据重建由 A 在 issue #33 处理；跨模态换乘连接见 issue #34。
 
 `shared` 的 `NetworkMeta.edgeCount` 更名为 `segmentCount`,定义为预处理产物中的原始相邻节点段数(方向处理前);API `HealthResponse` 与 WS 的 `edgeCount` 为服务端当前装载图的有向边数。
 `server/src/topology/index.ts` 公开方向判定、按节点 ID 构边与 `createTopologyReport` 报告入口；兼容 oneway=true/false，未确定方向的道路跳过并在报告列出。本模块不做模态过滤，节点包含有效相邻段的中间节点，边 ID 不保证跨版本稳定。M1 策略确认草稿位于 docs/plans/c-m1-integration-issue-draft.md（未发布、未定案）。
@@ -121,7 +121,7 @@ C 本地io新增extractTransferPoints/getTransferPoints，提取原始node/way�
 仓库治理(2026-10-29):新增 `.github/CODEOWNERS`(把 §4.1 的目录所有权映射为 GitHub owner 审批)、`.github/workflows/ci.yml`(typecheck / ESLint / Vitest / 前端构建,PR 与 main 推送均触发)、`.github/pull_request_template.md`(强制填写关联 issue / 改动目录 / 是否涉及契约变更)。`main` 的 ruleset「Restrict mian」已开启 `require_code_owner_review` 与必需状态检查 `check`——改动他人目录的 PR 需该 owner 批准且 CI 通过;A 保留 bypass 权限用于每日集成。注:`web/src/api-client` 实际是单文件,CODEOWNERS 按真实路径映射;`web/src/main.ts`、`web/src/style.css`、`web/index.html` 归 E。
 PR #19–#22 合入(2026-10-29):`/api/path` 采用 issue #18 的**方案 A(服务端坐标吸附)**,`PathResponse extends PathResult` 为非破坏性扩展;`web/src/map/path-selection.ts` 提供起终点选路与权重目标变更后重算;`web/src/panels/property/` 道路属性面板组件已入库但**尚未接入主界面**,待 E 在 `web/src/main.ts` 接线;`docs/拓扑验证报告.md` 已提交(注意:99% 的限速来自等级推断,时间类指标均为估算值)。
 
-2026-11-03 数据/持久化修复：预处理保留nodeTags、转换点与所选relations；io公开createTurnRuntime/PersistentTurnService，完成OSM导入、SQLite恢复和磁盘优先更新。report新增structureConflicts疑点；未修改REST/shared/B/E。旧派生文件需重建，细节与实测见docs/plans/c-sqlite-ready.md。脚本变更需A评审。
+2026-11-03 数据/持久化修复：预处理保留nodeTags、转换点与所选relations；io公开createTurnRuntime/PersistentTurnService，完成OSM导入、SQLite恢复和磁盘优先更新。report新增structureConflicts疑点；未修改REST/shared/B/E。旧派生文件需重建，细节与实测见docs/plans/c-sqlite-ready.md。脚本变更已由 A 评审通过。
 
 ### API 格式
 
