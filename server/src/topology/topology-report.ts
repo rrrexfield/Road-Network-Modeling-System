@@ -1,6 +1,8 @@
 import type { TopologyIssue, TopologyResult } from './build-topology.js';
+import type { StructureConflict } from './structure-diagnostics.js';
 
 export interface TopologyReport {
+  structureConflicts: StructureConflict[];
   /** 不进行模态过滤，不能将本报告解释为汽车路网的通行性报告。 */
   scope: 'input-roads-without-mode-filter';
   nodeCount: number;
@@ -49,6 +51,7 @@ export function createTopologyReport(topology: TopologyResult): TopologyReport {
   const builtWayIds = new Set<number>();
   for (const edge of topology.edges) builtWayIds.add(edge.wayId);
   return {
+    structureConflicts: topology.structureConflicts ?? [],
     scope: 'input-roads-without-mode-filter',
     nodeCount: topology.nodes.size,
     edgeCount: topology.edges.length,

@@ -33,7 +33,12 @@ const raw: RawOsmJson = {
 
 describe('parseTags', () => {
   it('将 {k,v} 数组转为对象', () => {
-    expect(parseTags([{ k: 'highway', v: 'primary' }, { k: 'name', v: '人民路' }])).toEqual({
+    expect(
+      parseTags([
+        { k: 'highway', v: 'primary' },
+        { k: 'name', v: '人民路' },
+      ]),
+    ).toEqual({
       highway: 'primary',
       name: '人民路',
     });
@@ -68,15 +73,37 @@ describe('collectNodeIds + buildEdges', () => {
 
   it('不传节点集合时不过滤', () => {
     const ways = filterRoadWays(raw.ways);
-    const allWays = [
-      ...ways,
-      { id: 200, highway: 'service', tags: {}, nds: [4, 5] },
-    ];
+    const allWays = [...ways, { id: 200, highway: 'service', tags: {}, nds: [4, 5] }];
     expect(buildEdges(allWays)).toHaveLength(4);
   });
 });
 
 describe('prepare', () => {
+  it('保留道路节点标签、路外POI与三类关系，不再静默丢失Sprint2数据', () => {
+    const input: RawOsmJson = {
+      ...raw,
+      nodes: [
+        ...raw.nodes.map((n) =>
+          n.id === 1 ? { ...n, tags: [{ k: 'highway', v: 'bus_stop' }] } : n,
+        ),
+        { id: 777, lat: 30, lon: 114, tags: [{ k: 'amenity', v: 'parking' }] },
+      ],
+      relations: ['restriction', 'route', 'public_transport', 'multipolygon'].map((type, id) => ({
+        id,
+        members: [],
+        tags: [{ k: 'type', v: type }],
+      })),
+    };
+    const derived = prepare(input);
+    expect(derived.nodeTags).toContainEqual([1, [{ k: 'highway', v: 'bus_stop' }]]);
+    expect(derived.nodes.some((n) => n[0] === 777)).toBe(false);
+    expect(derived.transferPoints.points.some((p) => p.id === 1554)).toBe(true);
+    expect(derived.relations.map((r) => r.tags[0]?.v)).toEqual([
+      'restriction',
+      'route',
+      'public_transport',
+    ]);
+  });
   it('过滤节点与 way,产出元信息与 bbox', () => {
     const derived = prepare(raw, '2026-01-01T00:00:00Z');
     expect(derived.nodes).toEqual([

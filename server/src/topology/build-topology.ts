@@ -1,5 +1,6 @@
 import type { RoadEdge, WayProperties } from '@gisalgo/shared';
 import { resolveRoadDirection } from './direction.js';
+import { diagnoseStructureConflicts, type StructureConflict } from './structure-diagnostics.js';
 
 /** C 模块内部输入；Graph 契约确认后由适配层转换。 */
 export interface TopologyWay extends WayProperties {
@@ -21,6 +22,7 @@ export interface TopologyIssue {
 }
 
 export interface TopologyResult {
+  structureConflicts?: StructureConflict[];
   nodes: Map<number, [number, number]>;
   edges: RoadEdge[];
   /** 原始道路属性（含 bridge/tunnel/layer）；边通过 wayId 引用，不保留 nds。 */
@@ -106,5 +108,6 @@ export function buildTopology(
       }
     }
   }
+  result.structureConflicts = diagnoseStructureConflicts(sourceWays);
   return result;
 }

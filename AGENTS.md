@@ -121,6 +121,8 @@ C 本地io新增extractTransferPoints/getTransferPoints，提取原始node/way�
 仓库治理(2026-10-29):新增 `.github/CODEOWNERS`(把 §4.1 的目录所有权映射为 GitHub owner 审批)、`.github/workflows/ci.yml`(typecheck / ESLint / Vitest / 前端构建,PR 与 main 推送均触发)、`.github/pull_request_template.md`(强制填写关联 issue / 改动目录 / 是否涉及契约变更)。`main` 的 ruleset「Restrict mian」已开启 `require_code_owner_review` 与必需状态检查 `check`——改动他人目录的 PR 需该 owner 批准且 CI 通过;A 保留 bypass 权限用于每日集成。注:`web/src/api-client` 实际是单文件,CODEOWNERS 按真实路径映射;`web/src/main.ts`、`web/src/style.css`、`web/index.html` 归 E。
 PR #19–#22 合入(2026-10-29):`/api/path` 采用 issue #18 的**方案 A(服务端坐标吸附)**,`PathResponse extends PathResult` 为非破坏性扩展;`web/src/map/path-selection.ts` 提供起终点选路与权重目标变更后重算;`web/src/panels/property/` 道路属性面板组件已入库但**尚未接入主界面**,待 E 在 `web/src/main.ts` 接线;`docs/拓扑验证报告.md` 已提交(注意:99% 的限速来自等级推断,时间类指标均为估算值)。
 
+2026-11-03 数据/持久化修复：预处理保留nodeTags、转换点与所选relations；io公开createTurnRuntime/PersistentTurnService，完成OSM导入、SQLite恢复和磁盘优先更新。report新增structureConflicts疑点；未修改REST/shared/B/E。旧派生文件需重建，细节与实测见docs/plans/c-sqlite-ready.md。脚本变更需A评审。
+
 ### API 格式
 
 - REST 统一前缀 `/api`,资源名 kebab-case(如 `/api/health`);响应 JSON、字段 camelCase;错误响应 `{ "error": { "message": "..." } }`。
