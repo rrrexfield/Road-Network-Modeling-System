@@ -2,6 +2,8 @@
 
 面向 GIS 算法课程的 B/S 架构路网建模系统:Node.js 服务端持有路网图模型与全部算法,浏览器端负责可视化与交互编辑。
 
+本功能分支新增 C 的 Sprint 2 基础模块（待评审）：禁转表、路口转向枚举、SQLite 手动禁转快照、四模态构图及原始数据转换点提取。公开入口为 `server/src/topology/index.ts`、`server/src/io/index.ts`。这些新能力尚未接入当前 REST/页面流程，也未完成真实换乘连接与 B/E 联调；使用与限制见 `docs/plans/c-sprint2-handoff.md`、`docs/多模态路网设计.md`。SQLite 已在 Node 24.20 验证，旧 Node 22.11 的运行参数需集成方确认。
+
 当前进度:**Sprint 1(路网拓扑构建基础)已完成并合入 main**——图引擎、拓扑构边、权重统计、属性面板与起终点选路均已交付,M1 交付物 `docs/拓扑验证报告.md` 已提交。**作业二(转向限制与多模态路网)的接口契约已冻结**,功能实现按目录所有权分派给 B/C/E,详见对应交接 issue。
 
 Sprint 1 的 B 图引擎、C 拓扑与 D 权重统计已接入服务启动链路:`server/src/index.ts` 依次执行 `loadNetwork → buildTopology → new Graph → computeTopologyStats`,再注册 REST/WS 与权重统计路由;`/api/health` 与 WS 的 `edgeCount` 为**有向边数**。topology 不做模态/车辆准入过滤,不能将输出解释为汽车可通行图;无法确定方向的道路跳过并在启动日志中列明。B 模块规则见 `docs/plans/b-sprint1-graph.md` 与 `docs/plans/b-sprint1-graph-interface.md`,C 模块见 `docs/plans/c-sprint1-topology.md`。

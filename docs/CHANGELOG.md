@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### Added(Sprint 2 · C 基础模块，待评审与集成)
+
+- 禁转稀疏表、路口入出边索引、球面偏角与全部转向动作枚举，以及普通禁转类型和按入口的 only_straight_on 语义归并。
+- 手动禁转 SQLite 快照：使用有向道路段及几何匹配恢复当前 edgeId，事务保存，失配明确诊断。
+- 四模态独立准入与方向构边、排除记录；原始道路标签保持不变，默认矩阵待 A/B 评审。
+- 从武汉原始 node/way 提取转换点标记与模式查询，记录来源及代表点方法；尚未建立真实出入口/换乘连接。
+- 武汉五分支小型固定夹具、60 项新增测试、设计与交接文档。尚未注册 API、导入 OSM 禁转或完成 B/E 联调，不代表 Issue #27 已全部完成。
+
 ### Added(Sprint 2 前置 · A 契约冻结与流程处理)
 
 - 契约冻结(issue #23):`AttributeCompleteness` 与 `AttributeCompletenessReport` 进入 `shared/src/index.ts`;`NetworkStats.attributeCompleteness` 为可选字段,缺省表示服务端尚未提供该统计(前端不得以 0 冒充完整率),D 实现后由 A 评审收紧为必填。口径为按 way 统计,而非逐条有向边。
