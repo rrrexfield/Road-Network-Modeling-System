@@ -98,7 +98,13 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
-**最后更新:2026-10-29(A 流程处理:PR #19–#22 合并、契约冻结 issue #23/#24、仓库治理)**
+**最后更新:2026-10-30(C Sprint 2 本地实现进展；此前 A 的集成与冻结约定保留)**
+
+C 的 Sprint 2 功能在 feature/turn-restrictions 本地开发：topology/index.ts 导出禁转表、几何、动作枚举与语义分类；io/index.ts 导出 loader 与 SQLite 手动禁转快照存储。持久化不保存易变 edgeId，恢复失配须报告。尚未接入 A 的 API 或 B/E 联调，未修改 shared 契约。Node 旧版本兼容、API 事务与恢复分组要求见 docs/plans/c-sprint2-persistence.md。
+
+C 本地新增 buildModalTopology(nodes,ways,mode)，返回 mode、独立 topology 与准入排除列表；原始属性不改变。模式规则及武汉计数见 docs/多模态路网设计.md；方向排除另见 topology.issues，不能跨模式复用 edgeId。转换点和跨模态路径尚未实现，默认准入策略待 A/B 评审。
+
+C 本地io新增extractTransferPoints/getTransferPoints，提取原始node/way中的转换点标记并按模式查询；way位置只是展示代表点。具体策略见多模态设计文档，尚未实现真实出入口/道路吸附、跨模态路径或API接入，未改变shared契约。
 
 `shared` 的 `NetworkMeta.edgeCount` 更名为 `segmentCount`,定义为预处理产物中的原始相邻节点段数(方向处理前);API `HealthResponse` 与 WS 的 `edgeCount` 为服务端当前装载图的有向边数。
 `server/src/topology/index.ts` 公开方向判定、按节点 ID 构边与 `createTopologyReport` 报告入口；兼容 oneway=true/false，未确定方向的道路跳过并在报告列出。本模块不做模态过滤，节点包含有效相邻段的中间节点，边 ID 不保证跨版本稳定。M1 策略确认草稿位于 docs/plans/c-m1-integration-issue-draft.md（未发布、未定案）。
