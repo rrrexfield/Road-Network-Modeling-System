@@ -2,6 +2,8 @@
 
 面向 GIS 算法课程的 B/S 架构路网建模系统:Node.js 服务端持有路网图模型与全部算法,浏览器端负责可视化与交互编辑。
 
+当前 `feature/transfer-attachments` 分支另提供 `matchTransferConnections`（逐模式节点证据/距离/诊断）与 `inspectTransferEntrances`（原way入口候选），并补识别地铁出入口；武汉标记增至2930，旧派生文件需重建。本批尚未合并或生成实际转换边；提供真实片段的分段可达性测试，停车入口仍需核验，多段路径契约与搜索待A/B/E对接。调用、实测和限制见 `docs/plans/c-transfer-connections.md`。
+
 本修复分支提供可交接的 SQLite 运行时：`server/src/io/index.ts` 导出 `createTurnRuntime` / `PersistentTurnService`，从新版派生文件完成模式构图、OSM禁转导入和数据库恢复，并提供磁盘优先的 `setTurns`。数据修复、武汉实测和调用示例见 `docs/plans/c-sqlite-ready.md`。仍需 A 注册路由、B 接搜索、E 接页面，不能据此声称网页已接通。新的派生格式保留 POI 与 relations；旧文件需重新预处理，验证未覆盖原数据文件。
 
 本功能分支新增 C 的 Sprint 2 基础模块（待评审）：禁转表、路口转向枚举、SQLite 手动禁转快照、四模态构图及原始数据转换点提取。公开入口为 `server/src/topology/index.ts`、`server/src/io/index.ts`。这些新能力尚未接入当前 REST/页面流程，也未完成真实换乘连接与 B/E 联调；使用与限制见 `docs/plans/c-sprint2-handoff.md`、`docs/多模态路网设计.md`。SQLite 已在 Node 24.20 验证，旧 Node 22.11 的运行参数需集成方确认。

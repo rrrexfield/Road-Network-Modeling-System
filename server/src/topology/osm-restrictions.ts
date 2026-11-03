@@ -76,10 +76,6 @@ export function importOsmRestrictions(
       ignored('mode-exception');
       continue;
     }
-    if (['restriction', ...keys].some((k) => tags[`${k}:conditional`] !== undefined)) {
-      issue('conditional-restriction');
-      continue;
-    }
     if (!types.has(kind)) {
       issue('unsupported-restriction-type');
       continue;

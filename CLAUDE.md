@@ -100,6 +100,8 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **最后更新:2026-11-03(A 评审并合并 PR #31/#32：C Sprint 2 基础模块已入库；此前 A 的集成与冻结约定保留)**
 
+2026-11-03 C后续分支 `feature/transfer-attachments`（未合并）：topology公开matchTransferConnections/inspectTransferEntrances，分别返回逐模式节点匹配证据及原way入口候选，均不自动建立转换边；全部入口候选须核验，边界共享不能证明楼层/屏障可通行。io补识别subway_entrance，武汉标记2930（bus1231/subway659/parking1040），合并后需A重建派生文件；以下2596为旧main基线。真实片段只验证car/walk分段有向可达；A多段路径契约、B搜索、E页面尚待对接，#34保持开放。交接见docs/plans/c-transfer-connections.md。
+
 C 的 Sprint 2 基础模块已合入 main(PR #31 `0b62afd`、PR #32 `0e8eb9d`，A 评审通过)：`server/src/topology/index.ts` 公开禁转表、转向几何、路口动作枚举、语义分类、OSM 禁转导入、四模态构图与结构诊断；`server/src/io/index.ts` 公开 loader、转换点提取、SQLite 快照存储与 `createTurnRuntime`/`PersistentTurnService`。禁转一律按边对存储与判定，持久化不保存易变 edgeId(按 way 段端点+几何重新匹配)，恢复失配须报告并禁止覆盖旧快照，`setTurns` 磁盘优先、写盘失败不改旧内存。尚未接入 A 的 REST、未与 B/E 联调，未修改 shared 契约；接入示例见 docs/plans/c-sqlite-ready.md。
 
 四模态子图 `buildModalTopology(nodes,ways,mode)` 返回 mode、独立 topology 与准入排除列表，原始道路属性不改变；真实武汉实测 car 990929 / walk 1220177 / bike 1000032 / bus 991582 条有向边，edgeId 不跨模态复用，方向排除另见 topology.issues。转换点 `extractTransferPoints`/`getTransferPoints` 从原始 node/way 提取并按模式查询(真实数据 2596 个：bus 1231 / subway 325 / parking 1040)，way 型位置仅为展示代表点，尚无真实出入口与道路吸附。规则与理由见 docs/多模态路网设计.md。

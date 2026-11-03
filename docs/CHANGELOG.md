@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### Added(Sprint 2 · 接驳证据，feature/transfer-attachments 未合并)
+
+- 补识别地铁出入口subway_entrance，武汉标记由2596增至2930，仍属walk，旧派生文件须重建。
+- 公开逐模式的共享节点/近邻候选匹配及原way入口证据核查，报告距离、并列、权限、屏障和失配，不自动生成转换边。
+- 武汉35节点/5条way固定片段验证car/walk分段有向可达与断路负例，停车共享边界仍需核验，未完成跨模态搜索。
+- 清理OSM导入重复条件判断并补foot回归，修正近等距歧义对遍历顺序的依赖；232项测试、全仓typecheck/lint及生产构建通过，交接和限制见docs/plans/c-transfer-connections.md。
+
 ### Fixed(Sprint 2 · 数据缺口与 SQLite 可交接入口)
 
 - 预处理保留道路节点标签、转换点提取结果与restriction/public_transport/route关系，loader提供扩展数据及旧文件警告；运行时拒绝缺少Sprint2数据的旧派生文件。
