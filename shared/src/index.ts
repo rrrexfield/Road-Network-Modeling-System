@@ -48,6 +48,14 @@ export interface PathResult {
   nodeIds: number[];
   /** 对应边 id 序列（比 nodeIds 少一项）；边 id 仅在同一次装载的图内有意义，不跨版本 */
   edgeIds: number[];
+  /**
+   * 跨模态路径的分段明细（作业二，issue #34 的 A 决策）。
+   *
+   * 缺省表示单段路径，客户端沿用 `nodeIds`/`edgeIds` 绘制；
+   * 提供时为跨模态路径，各段之间以转换点相接，`distance` 为各段距离之和
+   * （换乘惩罚属于时间/成本口径，不计入距离）。
+   */
+  segments?: PathSegment[];
 }
 
 /**
@@ -200,6 +208,29 @@ export interface WeightProfileResponse {
  * `GET /api/transfer-points?mode=` 的 `mode` 取值一致。
  */
 export type TravelMode = 'car' | 'walk' | 'bike' | 'bus';
+
+/**
+ * 跨模态路径的一段（作业二，issue #34 的 A 决策）。
+ *
+ * 一条跨模态路径由若干段组成：段内是同一模态的连续行驶，段与段之间是换乘。
+ * 单模态路径不提供该结构（`PathResult.segments` 缺省），前端按整条路径绘制即可。
+ */
+export interface PathSegment {
+  /** 本段的交通模态。 */
+  mode: TravelMode;
+  /** 本段代价（米；时间口径下为秒），与 `PathResult.distance` 同量纲。 */
+  distance: number;
+  /** 本段节点 id 序列（起点→终点）。 */
+  nodeIds: number[];
+  /** 本段边 id 序列；边 id 只在所属模态内有效，不可跨段跨模态复用。 */
+  edgeIds: number[];
+  /** 本段折线 [lon, lat][]，长度等于 nodeIds 长度。 */
+  coordinates: [number, number][];
+  /** 本段起点所在的转换点 id；首段缺省（起点是用户给定的坐标）。 */
+  fromTransferPoint?: number;
+  /** 本段终点所在的转换点 id；末段缺省。 */
+  toTransferPoint?: number;
+}
 
 /**
  * 转向限制类型。含 OSM 的 only_* 变体（专用车道：除该方向外其余转向一律禁止）。
