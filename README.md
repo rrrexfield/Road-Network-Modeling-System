@@ -8,6 +8,8 @@
 
 当前进度:**Sprint 1(路网拓扑构建基础)已完成并合入 main**——图引擎、拓扑构边、权重统计、属性面板与起终点选路均已交付,M1 交付物 `docs/拓扑验证报告.md` 已提交。**作业二(转向限制与多模态路网)的接口契约已冻结**,功能实现按目录所有权分派给 B/C/E,详见对应交接 issue。
 
+**作业二的四个 REST 接口已由 A 挂载上线**(issue #33):`GET /api/network?mode=`、`GET /api/transfer-points?mode=`、`GET/PUT /api/intersections/:nodeId/turns`。派生数据已按新格式重建(保留 POI 与 relations),禁转快照落 `data/derived/wuhan-turns.sqlite`。B 的禁转感知搜索(#28)与 E 的编辑器/模态切换(#29)可直接消费,交接说明见 `docs/plans/a-sprint2-rest-handoff.md`。
+
 Sprint 1 的 B 图引擎、C 拓扑与 D 权重统计已接入服务启动链路:`server/src/index.ts` 依次执行 `loadNetwork → buildTopology → new Graph → computeTopologyStats`,再注册 REST/WS 与权重统计路由;`/api/health` 与 WS 的 `edgeCount` 为**有向边数**。topology 不做模态/车辆准入过滤,不能将输出解释为汽车可通行图;无法确定方向的道路跳过并在启动日志中列明。B 模块规则见 `docs/plans/b-sprint1-graph.md` 与 `docs/plans/b-sprint1-graph-interface.md`,C 模块见 `docs/plans/c-sprint1-topology.md`。
 
 D 的 `server/src/weights/` 提供 Haversine 距离、等级限速、可注入 `dijkstra` 的边权函数与网络统计;`web/src/charts/`、`web/src/panels/stats/`、`web/src/panels/weight/` 提供 ECharts 深色主题、统计仪表盘与权重配置面板,独立预览页见 `web/src/panels/stats/demo.html`。统计中的拓扑指标由 B 的 `computeTopologyStats` 填充(`topologySource='graph-engine'`),`/api/stats` 按权重配置缓存并预热默认配置;`WeightProfile`/`NetworkStats` 等契约已冻结进 `shared/src/index.ts`。主界面右侧栏挂载统计与权重面板,权重变化后重取统计。全仓 141 项测试通过。
@@ -29,8 +31,8 @@ D 的 `server/src/weights/` 提供 Haversine 距离、等级限速、可注入 `
 GISAlgo/
 ├── server/              # Fastify 服务
 │   └── src/
-│       ├── api/         # REST + WS 路由
-│       ├── io/          # 派生数据装载(内存 nodes/ways/GeoJSON)
+│       ├── api/         # REST + WS 路由;index.ts 为跨目录公开入口(多模态运行时)
+│       ├── io/          # 派生数据装载(内存 nodes/ways/GeoJSON)、禁转持久化
 │       ├── topology/    # [C] 道路方向与构边(启动时接入)
 │       ├── graph/       # [B] 图引擎:Graph/Dijkstra/拓扑统计(启动时接入)
 │       ├── weights/     # [D] 权重与统计 + REST 路由(已注册)
@@ -38,7 +40,7 @@ GISAlgo/
 ├── web/                 # Vite 前端(端口 5173,代理 /api、/ws 到 3000)
 │   └── src/
 │       ├── main.ts             # 地图、图层与面板装配
-│       ├── api-client.ts       # REST+WS 客户端
+│       ├── api-client.ts       # REST+WS 客户端(含模态路网/转换点/转向限制封装)
 │       ├── map/                # [E] 底图检测/降级、路网图层工厂、起终点选路
 │       ├── charts/             # [D] ECharts 按需装配、深色主题、图表工厂
 │       └── panels/
@@ -54,7 +56,7 @@ GISAlgo/
 
 ## 快速开始
 
-环境要求:Node.js ≥ 22(开发机验证于 22.11),npm 10+。
+环境要求:Node.js ≥ 22.13(22.13.0 起 `node:sqlite` 不再需要 `--experimental-sqlite` 标志;开发机验证于 22.23.4),npm 10+。
 
 ```bash
 npm install
@@ -105,12 +107,18 @@ data/derived/wuhan-roads.json (~30MB, 不入库)
 |---|---|---|
 | GET | `/api/health` | 健康检查:节点 / 有向边 / way 计数与运行时长 |
 | GET | `/api/network` | 全量路网 GeoJSON(每 way 一条 LineString,属性含 id/name/highway/tags) |
+| GET | `/api/network?mode=car\|walk\|bike\|bus` | 指定模态的路网 GeoJSON:只含该模态准入且真正产生有向边的道路;不带 `mode` 时行为不变 |
+| GET | `/api/transfer-points?mode=car\|walk\|bike\|bus` | 模态转换点(`TransferPoint[]`,位置为 `[lon, lat]`),按模态筛选站点类型 |
+| GET | `/api/intersections/:nodeId/turns?mode=` | 某路口的全部转向动作(`IntersectionTurns`):`turnKind`/`angleDelta` 仅供展示,`forbidden` 为当前禁转状态,`fromOsm` 区分 OSM 导入与手动设置;`mode` 缺省 `car` |
+| PUT | `/api/intersections/:nodeId/turns?mode=` | **整体覆盖**该路口禁转集合,body `{ forbidden: [{ fromEdge, toEdge }] }`,返回 `{ ok, restrictionCount }`;写盘优先,写盘失败时旧规则不变 |
 | GET | `/api/path` | 起终点选路:`from=lon,lat&to=lon,lat&metric=distance\|time`,服务端吸附到最近节点后跑 Dijkstra,返回 `PathResult` + 吸附坐标 + 路径折线;不可达返回 404 |
 | GET | `/api/weights/profile` | 权重基线:默认 `WeightProfile` + 各等级默认限速表 |
 | GET | `/api/stats` | 网络统计:里程/等级分布/边长分布/通行时间/拓扑指标;支持 `metric`、`speedFactor`、`speedKmh=等级:限速,…`;结果按配置缓存 |
 | WS | `/ws` | 消息信封 `{ type, payload }`;连接即推 `hello`(有向边数),支持 `ping`/`pong` |
 
 错误响应统一为 `{ "error": { "message": "..." } }`;契约类型见 `shared/src/index.ts`,前后端禁止重复定义。
+
+> **转向边的 ID 只在所属模态内有效**:边 ID 按构边顺序生成,不同模态的准入与方向规则不同,同一路口在 `car` 与 `walk` 下的 `fromEdge`/`toEdge` 不通用。编辑器读写必须带同一个 `mode`,否则服务端返回 400。
 
 ## 开发约定
 
@@ -123,5 +131,7 @@ data/derived/wuhan-roads.json (~30MB, 不入库)
 ## 已知注意点
 
 - Node 22.11 搭配 Vite 6;maplibre-gl v6 需在 `vite.config.ts` 中排除依赖预构建(`optimizeDeps.exclude`),已配置;
+- `node:sqlite`(禁转快照)在 22.13.0 起无需 `--experimental-sqlite` 标志,但仍会打印 `ExperimentalWarning`——这是上游 API 仍处实验阶段的事实,不做屏蔽;`engines` 已收紧为 `>=22.13.0`;
+- 多模态按需构建:首次请求某模态时现建该模态子图与禁转表(武汉全量约 5 秒),因此切换模态后第一次请求会明显变慢,属预期行为;内存策略见 `docs/多模态路网设计.md`;
 - Carto 瓦片自 2025 年起需要 API key(带水印),底图已改用 OpenFreeMap Dark;
 - 端口占用:服务端 3000、前端 5173,启动前确保空闲。

@@ -4,13 +4,18 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
+import { fileURLToPath } from 'node:url';
 import { loadNetwork } from './io/loader.js';
 import { registerRoutes } from './api/routes.js';
+import { createModalRuntimeRegistry, setActiveModalRuntimeRegistry } from './api/index.js';
 import { buildTopology, createTopologyReport } from './topology/index.js';
 import { Graph, computeTopologyStats } from './graph/index.js';
 import { registerWeightRoutes } from './weights/index.js';
 
 const DATA_URL = new URL('../../data/derived/wuhan-roads.json', import.meta.url);
+const TURNS_DB_PATH = fileURLToPath(
+  new URL('../../data/derived/wuhan-turns.sqlite', import.meta.url),
+);
 const PORT = 3000;
 
 async function main(): Promise<void> {
@@ -46,6 +51,20 @@ async function main(): Promise<void> {
     app.log.warn(`有 ${missingWayHighway} 条边的 wayId 未找到 highway 映射,统计将按 unknown 兜底`);
   }
 
+  // 作业二:多模态运行时按需构建(装载策略决策见 docs/多模态路网设计.md)
+  const modal = createModalRuntimeRegistry(network, {
+    databasePath: TURNS_DB_PATH,
+    dataset: 'wuhan-current-source',
+  });
+  setActiveModalRuntimeRegistry(modal);
+  if (modal.ready) {
+    app.log.info(
+      '多模态运行时已就绪:首次请求某模态时才构建该模态子图与禁转表,禁转快照写入 data/derived/wuhan-turns.sqlite',
+    );
+  } else {
+    app.log.warn(`多模态接口暂不可用:${modal.unavailableReason ?? '派生数据不可用'}`);
+  }
+
   await registerRoutes(
     app,
     network,
@@ -55,6 +74,7 @@ async function main(): Promise<void> {
       wayCount: topology.ways.size,
     },
     { graph, wayHighway },
+    modal,
   );
   await app.register(registerWeightRoutes, {
     network: {
