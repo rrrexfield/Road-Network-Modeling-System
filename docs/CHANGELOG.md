@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Added(Sprint 2 · A 跨模态路径契约冻结,issue #34)
+
+- 契约冻结:`PathSegment` 进入 `shared/src/index.ts`,`PathResult` 增加**可选**字段 `segments?: PathSegment[]`(非破坏性扩展,单模态路径缺省)。跨模态路径由若干段组成,段间以转换点 id 相接;段内边 id 只在所属模态内有效,`distance` 为各段距离之和(换乘惩罚属时间/成本口径,不计入距离)。A 决策与理由见 `docs/多模态路网设计.md`。
+- A 决策:作业二不做公交线路级建模——bus 仅表示「公交通行道路」(`motorRoads + busway`),不含线路、站序、班次与停站规则;答辩口径已写入设计文档。
+
 ### Added(Sprint 2 · A 作业二 REST 挂载与派生数据重建)
 
 - 挂载作业二四个接口(issue #33):`GET /api/network?mode=car|walk|bike|bus`、`GET /api/transfer-points?mode=`、`GET/PUT /api/intersections/:nodeId/turns?mode=`;`/api/network` 不带 mode 时行为与作业一完全一致。

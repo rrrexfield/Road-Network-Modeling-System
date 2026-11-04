@@ -98,11 +98,13 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
-**最后更新:2026-11-04(A 完成 issue #33:作业二四个 REST 路由已挂载，派生数据已重建；此前 A 的集成与冻结约定保留)**
+**最后更新:2026-11-04(A 完成 issue #33:作业二四个 REST 路由已挂载、派生数据已重建；并冻结 issue #34 的跨模态路径契约 `PathSegment`；此前 A 的集成与冻结约定保留)**
 
 A 已把 C 的 Sprint 2 模块挂到 REST 层并用真实武汉数据联调（issue #33）。新增 `server/src/api/modal-runtime.ts`（多模态运行时：按需构建 + LRU）、`server/src/api/modal-routes.ts`（转换点与转向限制路由 + 错误映射）、`server/src/api/index.ts`（api 模块跨目录公开入口，暴露进程内唯一的多模态运行时注册表）。**多模态装载策略采用方案 A 按需懒加载**：武汉实测单模态完整运行时约 1.08 GB 堆、四模态全量约 2.5 GB 堆，故否决启动构建全部四份（方案 B）；重运行时 LRU 容量 1，道路 GeoJSON 序列化结果单独缓存，实测数据与决策见 docs/多模态路网设计.md。**转向边的 ID 只在所属模态内有效**，读写必须带同一个 `mode`（缺省 car），否则服务端返回 400。B 的禁转感知搜索必须与 REST 层共用同一份禁转服务，经 `server/src/api/index.ts` 的 `getActiveModalRuntimeRegistry()` 取用（该依赖方向 A 已预批）；交接说明见 docs/plans/a-sprint2-rest-handoff.md。
 
 错误响应统一为 `{ "error": { "message": "..." } }`（服务端已加统一错误处理与 404 处理，此前为 Fastify 默认形状）。禁转异常映射：400 非法 mode/nodeId/请求体/边对、404 路口不存在、409 恢复失配（带 `restoreIssues`）、422 转向几何无法判定、503 派生数据缺 Sprint2 字段；不留裸 500。C 的模块仍抛普通 Error，A 按消息前缀归类于 `server/src/api/modal-routes.ts` 的 `mapTurnError`（集中一处，C 改抛带 code 错误时只改该函数）。禁转快照落 `data/derived/wuhan-turns.sqlite`，写盘优先、写盘失败不改旧内存，重启按 way 段端点+几何重新匹配恢复（实测 PUT 后重启仍保留）。Node 基线：`node:sqlite` 自 22.13.0 起无需 `--experimental-sqlite`，`engines.node` 收紧为 `>=22.13.0`，不加启动标志、保留上游实验性告警。派生数据已重建（nodeTags 6995 / relations 353 / transferPoints 2596），旧派生文件触发 503 降级而非报错。
+
+契约冻结(issue #34 的 A 决策)：`PathSegment` 进入 `shared/src/index.ts`，`PathResult` 增加**可选**字段 `segments?: PathSegment[]`——跨模态路径分段，段间以 `TransferPoint.id` 相接，段内边 id 只在该段模态内有效，`PathResult.distance` 为各段距离之和（换乘惩罚属时间/成本口径，不计入距离）；单模态路径缺省该字段，现有客户端与测试不受影响。作业二**不做公交线路级建模**：bus 仅表示「公交通行道路」（`motorRoads + busway`），不含线路、站序、班次与停站规则，答辩口径已写入 `docs/多模态路网设计.md`。
 
 C 的 Sprint 2 基础模块已合入 main(PR #31 `0b62afd`、PR #32 `0e8eb9d`，A 评审通过)：`server/src/topology/index.ts` 公开禁转表、转向几何、路口动作枚举、语义分类、OSM 禁转导入、四模态构图与结构诊断；`server/src/io/index.ts` 公开 loader、转换点提取、SQLite 快照存储与 `createTurnRuntime`/`PersistentTurnService`。禁转一律按边对存储与判定，持久化不保存易变 edgeId(按 way 段端点+几何重新匹配)，恢复失配须报告并禁止覆盖旧快照，`setTurns` 磁盘优先、写盘失败不改旧内存。接入示例见 docs/plans/c-sqlite-ready.md。
 
