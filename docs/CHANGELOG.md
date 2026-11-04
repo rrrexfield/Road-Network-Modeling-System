@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+### Added(Sprint 2 · A 作业二 REST 挂载与派生数据重建)
+
+- 挂载作业二四个接口(issue #33):`GET /api/network?mode=car|walk|bike|bus`、`GET /api/transfer-points?mode=`、`GET/PUT /api/intersections/:nodeId/turns?mode=`;`/api/network` 不带 mode 时行为与作业一完全一致。
+- 新增 `server/src/api/modal-runtime.ts`:多模态运行时按需构建(方案 A 懒加载 + LRU 容量 1),道路 GeoJSON 序列化结果单独缓存;四模态完整运行时实测约 2.5 GB 堆,故否决启动构建全部四份的方案 B,实测数据与决策见 `docs/多模态路网设计.md`。
+- 新增 `server/src/api/index.ts` 作为 api 模块跨目录公开入口,暴露进程内唯一的多模态运行时注册表:B 的禁转感知搜索(#28)必须与 REST 层共用同一份禁转服务,否则编辑器保存的禁转不会立即影响路径结果。
+- 异常映射不留裸 500:400(非法 mode/nodeId/请求体/边对)、404(路口不存在)、409(禁转快照恢复失配,带 `restoreIssues`)、422(转向几何无法判定)、503(派生数据缺 Sprint2 字段);错误响应统一为 `{ error: { message } }`,未知路由同样使用该形状。
+- `web/src/api-client.ts` 补齐前端封装:`fetchNetworkByMode`、`fetchTransferPoints`、`fetchIntersectionTurns`、`setIntersectionTurns`(区分「恢复失配」与一般失败)。
+- 重建 Sprint2 派生数据(`npm run prepare:data`):nodeTags 6,995 条 / relations 353 条 / transferPoints 2,596 个,旧派生文件会触发 503 降级而非报错;禁转快照落 `data/derived/wuhan-turns.sqlite`,实测 PUT 后重启服务端仍能从磁盘恢复。
+- Node 基线决策:`node:sqlite` 自 22.13.0 起不再需要 `--experimental-sqlite`,`engines.node` 收紧为 `>=22.13.0`,启动命令不加标志,保留上游实验性告警。
+- 新增根配置 `.prettierrc`(单引号、分号、2 空格、行宽 100),使 `npm run format` 与 CLAUDE.md 的样式约定一致——此前仓库无 Prettier 配置,直接运行格式化会把全仓改成双引号、80 列,产生与功能无关的巨大 diff。
+- 新增 16 项测试(模态过滤、转向读写、错误映射、LRU 缓存),全仓 228 项通过;typecheck / lint 全绿。交接说明见 `docs/plans/a-sprint2-rest-handoff.md`。
+
 ### Fixed(Sprint 2 · 数据缺口与 SQLite 可交接入口)
 
 - 预处理保留道路节点标签、转换点提取结果与restriction/public_transport/route关系，loader提供扩展数据及旧文件警告；运行时拒绝缺少Sprint2数据的旧派生文件。

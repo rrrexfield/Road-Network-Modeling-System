@@ -5,7 +5,7 @@
   "type": "module",
   "description": "GISAlgo 路网建模与拓扑构建系统(G2 组)",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13.0"
   },
   "workspaces": [
     "shared",

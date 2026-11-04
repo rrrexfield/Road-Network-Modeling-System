@@ -6,6 +6,8 @@ import type { HealthResponse, PathResponse, WSMessage } from '@gisalgo/shared';
 import type { LoadedNetwork } from '../io/loader.js';
 import { dijkstra, type EdgeWeightFn, type Graph } from '../graph/index.js';
 import { DEFAULT_WEIGHT_PROFILE, createEdgeWeight } from '../weights/index.js';
+import { registerModalRoutes, parseMode } from './modal-routes.js';
+import type { ModalRuntimeRegistry } from './modal-runtime.js';
 
 interface WsLike {
   send(data: string): void;
@@ -68,7 +70,23 @@ export async function registerRoutes(
   network: LoadedNetwork,
   counts: NetworkCounts,
   pathDeps?: PathDeps,
+  modal?: ModalRuntimeRegistry,
 ): Promise<void> {
+  // 统一错误形状:契约规定错误响应为 { error: { message } }
+  app.setErrorHandler((error, request, reply) => {
+    const statusCode = (error as { statusCode?: unknown }).statusCode;
+    const status = typeof statusCode === 'number' ? statusCode : 500;
+    if (status >= 500) {
+      request.log.error({ err: error }, '请求处理失败');
+      return reply.code(500).send({ error: { message: '服务器内部错误' } });
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    return reply.code(status).send({ error: { message } });
+  });
+  app.setNotFoundHandler((request, reply) =>
+    reply.code(404).send({ error: { message: `未知路由:${request.method} ${request.url}` } }),
+  );
+
   app.get('/api/health', (): HealthResponse => ({
     status: 'ok',
     nodeCount: counts.nodeCount,
@@ -77,7 +95,27 @@ export async function registerRoutes(
     uptime: Math.round(process.uptime()),
   }));
 
-  app.get('/api/network', () => network.geojson);
+  // 不带 mode 时行为与作业一完全一致;带 mode 时返回该模态实际可通行的道路
+  app.get('/api/network', (request, reply) => {
+    const raw = (request.query as { mode?: unknown }).mode;
+    if (raw === undefined) return network.geojson;
+    const mode = parseMode(raw);
+    if (mode === null) {
+      return reply
+        .code(400)
+        .send({ error: { message: 'mode 必须是 car / walk / bike / bus 之一' } });
+    }
+    if (modal === undefined) {
+      return reply.code(501).send({ error: { message: '多模态路网未启用' } });
+    }
+    if (!modal.ready) {
+      return reply
+        .code(503)
+        .send({ error: { message: modal.unavailableReason ?? '派生数据不可用' } });
+    }
+    // 预先序列化的 JSON 字符串:避免每次请求重复 stringify 整个路网
+    return reply.type('application/json').send(modal.featuresJson(mode));
+  });
 
   if (pathDeps !== undefined) {
     const { graph, wayHighway } = pathDeps;
@@ -138,6 +176,11 @@ export async function registerRoutes(
       };
       return body;
     });
+  }
+
+  if (modal !== undefined) {
+    // 作业二:转换点与转向限制读写(issue #24 冻结的契约)
+    await registerModalRoutes(app, modal);
   }
 
   app.get('/ws', { websocket: true }, (connection) => {
