@@ -10,6 +10,15 @@ const node = (id: number, t: Record<string, string> = {}, lat = 30, lon = 114) =
 });
 
 describe('转换点提取与模式查询', () => {
+  it('保留真实地铁出入口而不仅是车站中心，仍仅属于步行接驳', () => {
+    const data = extractTransferPoints({
+      ways: [],
+      nodes: [node(9, { railway: 'subway_entrance', ref: 'D1' })],
+    });
+    expect(data.points[0]).toMatchObject({ id: 18, kind: 'subway', position: [114, 30] });
+    expect(getTransferPoints(data, 'walk')).toHaveLength(1);
+    expect(getTransferPoints(data, 'bus')).toEqual([]);
+  });
   it('提取真实标签并按模式分开，地铁不冒充公交轨道模式', () => {
     const data = extractTransferPoints({
       ways: [],

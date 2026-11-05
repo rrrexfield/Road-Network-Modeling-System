@@ -98,7 +98,11 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
-**最后更新:2026-11-04(A 完成 issue #33:作业二四个 REST 路由已挂载、派生数据已重建；并冻结 issue #34 的跨模态路径契约 `PathSegment`；此前 A 的集成与冻结约定保留)**
+**最后更新:2026-11-05(C完成B接驳输入；A的REST及PathSegment冻结约定保留)**
+
+2026-11-05 C分支补充：topology公开buildTransferAttachments/TransferAttachmentIndex/TransferAttachmentReview与computeTransferPenalty，供B直接查询转换点的逐模式节点、路径距离、入出方向及不可用原因。核验路径须显式提供来源记录，未经核验不建立实际连接；罚时显式输入步行距离、速度与等待秒数，不计入PathResult.distance。已同步main 5c0d194；A的REST与PathSegment契约已落地，武汉停车楼真实入口核验、B跨模态搜索和E渲染仍待联合完成。见docs/plans/c-b-attachments-ready.md；本批尚待PR评审。
+
+2026-11-03 C后续分支 `feature/transfer-attachments`（未合并）：topology公开matchTransferConnections/inspectTransferEntrances，分别返回逐模式节点匹配证据及原way入口候选，均不自动建立转换边；全部入口候选须核验，边界共享不能证明楼层/屏障可通行。io补识别subway_entrance，武汉标记2930（bus1231/subway659/parking1040），合并后需A重建派生文件；以下2596为旧main基线。真实片段只验证car/walk分段有向可达；A多段路径契约已冻结，B搜索与E页面尚待对接，#34保持开放。交接见docs/plans/c-transfer-connections.md。
 
 A 已把 C 的 Sprint 2 模块挂到 REST 层并用真实武汉数据联调（issue #33）。新增 `server/src/api/modal-runtime.ts`（多模态运行时：按需构建 + LRU）、`server/src/api/modal-routes.ts`（转换点与转向限制路由 + 错误映射）、`server/src/api/index.ts`（api 模块跨目录公开入口，暴露进程内唯一的多模态运行时注册表）。**多模态装载策略采用方案 A 按需懒加载**：武汉实测单模态完整运行时约 1.08 GB 堆、四模态全量约 2.5 GB 堆，故否决启动构建全部四份（方案 B）；重运行时 LRU 容量 1，道路 GeoJSON 序列化结果单独缓存，实测数据与决策见 docs/多模态路网设计.md。**转向边的 ID 只在所属模态内有效**，读写必须带同一个 `mode`（缺省 car），否则服务端返回 400。B 的禁转感知搜索必须与 REST 层共用同一份禁转服务，经 `server/src/api/index.ts` 的 `getActiveModalRuntimeRegistry()` 取用（该依赖方向 A 已预批）；交接说明见 docs/plans/a-sprint2-rest-handoff.md。
 

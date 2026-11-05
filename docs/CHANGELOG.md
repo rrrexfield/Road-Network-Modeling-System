@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+### Added(2026-11-05 · C给B的接驳表)
+
+- topology公开buildTransferAttachments与相关类型，返回逐模式可用性、节点、实际接驳路径长度、入出方向和核验记录；未经核验、超距/失配/无入口证据均不可用。
+- computeTransferPenalty显式接收步行距离、速度和等待秒数，不混入距离。同步main 5c0d194的REST及PathSegment约定；259项测试、完整typecheck/lint/build通过。真实停车楼入口核验仍待完成，#34不关闭。
+
+### Added(Sprint 2 · 接驳证据，feature/transfer-attachments 未合并)
+
+- 补识别地铁出入口subway_entrance，武汉标记由2596增至2930，仍属walk，旧派生文件须重建。
+- 公开逐模式的共享节点/近邻候选匹配及原way入口证据核查，报告距离、并列、权限、屏障和失配，不自动生成转换边。
+- 武汉35节点/5条way固定片段验证car/walk分段有向可达与断路负例，停车共享边界仍需核验，未完成跨模态搜索。
+- 清理OSM导入重复条件判断并补foot回归，修正近等距歧义对遍历顺序的依赖；232项测试、全仓typecheck/lint及生产构建通过，交接和限制见docs/plans/c-transfer-connections.md。
+
 ### Added(Sprint 2 · A /api/path 接入禁转判定,issue #38)
 
 - `/api/path` 新增 `mode` 查询参数(car / walk / bike / bus):缺省仍走基础图(无禁转,与作业一一致);显式给 `mode` 时走该模态子图,注入 `PersistentTurnService.isForbidden` 作为禁转谓词并用 `dijkstraWithTurnRestrictions` 计算——禁转边对与边 ID 只在所属模态内有效,故必须用同一模态的图 + 禁转服务。

@@ -25,6 +25,18 @@ const relation = (kind = 'no_left_turn'): OsmRelation => ({
   ],
 });
 describe('OSM禁转导入', () => {
+  it('步行专属规则不被机动车的条件禁转误屏蔽', () => {
+    const r = relation();
+    r.tags.push(
+      { k: 'restriction:foot', v: 'no_left_turn' },
+      { k: 'restriction:conditional', v: 'no_right_turn @ (Mo-Fr)' },
+    );
+    expect(importOsmRestrictions([r], edges, 'walk').restrictions).toHaveLength(1);
+    r.tags.push({ k: 'restriction:foot:conditional', v: 'no_left_turn @ (Mo-Fr)' });
+    expect(importOsmRestrictions([r], edges, 'walk').issues[0]?.reason).toBe(
+      'conditional-restriction',
+    );
+  });
   it('from/via/to解析成source=osm的边对，并保留relation溯源', () => {
     const r = importOsmRestrictions([relation()], edges);
     expect(r.restrictions).toEqual([

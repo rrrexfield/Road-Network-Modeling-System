@@ -31,7 +31,11 @@ function category(
     (tags.public_transport === 'platform' && tags.bus === 'yes')
   )
     return { kind: 'bus', modes: ['bus', 'walk'] };
-  if (tags.station === 'subway' || (tags.railway === 'station' && tags.subway === 'yes')) {
+  if (
+    tags.railway === 'subway_entrance' ||
+    tags.station === 'subway' ||
+    (tags.railway === 'station' && tags.subway === 'yes')
+  ) {
     return { kind: 'subway', modes: ['walk'] };
   }
   return null;
