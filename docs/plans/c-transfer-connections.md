@@ -73,10 +73,12 @@ const entrances = inspectTransferEntrances(data, rawOsm, networks);
 
 运行 `npm test`：全仓232项通过（main212项，本分支新增20项）；`npm run typecheck`（shared/server/web）、`npm run lint`、`npm run build`全部通过。专项覆盖球面半径/经度边界/极区、并列最近及近等距顺序无关性、同坐标不同ID、几何变化、中心拒绝吸附、屏障及权限、入口未入图、地铁入口提取、真实片段正负例。前端构建存在既有大包体积警告，不影响构建成功。
 
-## 成本与剩余依赖
+## 成本与剩余依赖（11月3日历史，11月5日接口交付见下）
 
 建议统一用秒：各模式边长/相应速度 + 实际接驳步行时间 + 换乘等待/停车罚时。不能把当前Dijkstra的米数与秒相加。速度、罚时、允许采用的连接证据待A/B/D确认，本分支不虚构默认等待时间。bus目前仅表示准入道路，缺少线路/班次/停站约束，不承诺公交线路级正确性。
 
 后续：A冻结多段路径/转换结构及公交语义 → 人工核验入口 → B按核验连接实现跨模式状态/成本搜索 → A注册接口、重建数据 → E接线并联合验收。C提供候选、诊断和固定片段，继续配合；#34不能关闭。
 
 GitHub对接文字见 `c-transfer-handoff-draft.md`，按用户约定先审核再发送。
+
+2026-11-05更新：main 5c0d194已合入本分支，A的REST及PathSegment均已落地；新增buildTransferAttachments逐模式可消费接驳表与computeTransferPenalty。最新调用方式、成本责任和259项验证见 `c-b-attachments-ready.md`。此前232项为11月3日验证，不是当前总数。真实停车楼入口仍未核验，未提供伪造核验记录；#34仍需B/E实现及实景联合验收。

@@ -2,6 +2,8 @@
 
 面向 GIS 算法课程的 B/S 架构路网建模系统:Node.js 服务端持有路网图模型与全部算法,浏览器端负责可视化与交互编辑。
 
+2026-11-05 C分支已同步A的REST与PathSegment冻结契约，另提供 `buildTransferAttachments`（逐模式节点/入出方向/核验诊断）与 `computeTransferPenalty`（显式参数计算秒数）。B调用示例见 `docs/plans/c-b-attachments-ready.md`；未经核验的候选不可用于实际连接，武汉停车楼入口仍待核验。本分支尚待PR评审。
+
 当前 `feature/transfer-attachments` 分支另提供 `matchTransferConnections`（逐模式节点证据/距离/诊断）与 `inspectTransferEntrances`（原way入口候选），并补识别地铁出入口；武汉标记增至2930，旧派生文件需重建。本批尚未合并或生成实际转换边；提供真实片段的分段可达性测试，停车入口仍需核验，多段路径契约与搜索待A/B/E对接。调用、实测和限制见 `docs/plans/c-transfer-connections.md`。
 
 本修复分支提供可交接的 SQLite 运行时：`server/src/io/index.ts` 导出 `createTurnRuntime` / `PersistentTurnService`，从新版派生文件完成模式构图、OSM禁转导入和数据库恢复，并提供磁盘优先的 `setTurns`。数据修复、武汉实测和调用示例见 `docs/plans/c-sqlite-ready.md`。仍需 A 注册路由、B 接搜索、E 接页面，不能据此声称网页已接通。新的派生格式保留 POI 与 relations；旧文件需重新预处理，验证未覆盖原数据文件。

@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { Graph, dijkstra } from '../graph/index.js';
 import { extractTransferPoints } from '../io/index.js';
-import { buildModalTopology, inspectTransferEntrances, type TopologyWay } from './index.js';
+import {
+  buildModalTopology,
+  buildTransferAttachments,
+  inspectTransferEntrances,
+  type TopologyWay,
+} from './index.js';
 
 type Input = Parameters<typeof extractTransferPoints>[0];
 const raw = JSON.parse(
@@ -29,6 +34,22 @@ function build(mode: 'car' | 'walk') {
 }
 
 describe('武汉停车区域至地铁出入口的路网候选（不是换乘验收）', () => {
+  it('武汉区域候选在未核验前不会被B当作可搜索连接', () => {
+    const car = build('car');
+    const walk = build('walk');
+    const data = extractTransferPoints(raw);
+    const entrances = inspectTransferEntrances(data, raw, { car: car.nodes, walk: walk.nodes });
+    const index = buildTransferAttachments(
+      data,
+      { car, walk },
+      { car: 100, bike: 100, walk: 200, bus: 200 },
+      [],
+      entrances,
+    );
+    const row = index.get(2 * raw.scenario.parkingWayId + 1)!;
+    expect(row.car).toEqual({ status: 'unavailable', reason: 'entrance-review-required' });
+    expect(row.walk).toEqual({ status: 'unavailable', reason: 'entrance-review-required' });
+  });
   it('原始片段支持分段有向可达性，但共享边界仍要求核验', () => {
     const car = build('car');
     const walk = build('walk');

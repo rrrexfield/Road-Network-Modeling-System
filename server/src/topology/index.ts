@@ -8,6 +8,13 @@ export { diagnoseStructureConflicts, type StructureConflict } from './structure-
 export { buildModalTopology, type ModalTopologyResult } from './modal-topology.js';
 export { matchTransferConnections, type TransferConnectionReport } from './transfer-connections.js';
 export { inspectTransferEntrances, type TransferEntranceReport } from './transfer-entrances.js';
+export {
+  buildTransferAttachments,
+  computeTransferPenalty,
+  type TransferAttachmentReview,
+  type TransferAttachment,
+  type TransferAttachmentIndex,
+} from './transfer-attachments.js';
 export { createTopologyReport, type TopologyReport } from './topology-report.js';
 export {
   buildTopology,

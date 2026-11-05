@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Added(2026-11-05 · C给B的接驳表)
+
+- topology公开buildTransferAttachments与相关类型，返回逐模式可用性、节点、实际接驳路径长度、入出方向和核验记录；未经核验、超距/失配/无入口证据均不可用。
+- computeTransferPenalty显式接收步行距离、速度和等待秒数，不混入距离。同步main 5c0d194的REST及PathSegment约定；259项测试、完整typecheck/lint/build通过。真实停车楼入口核验仍待完成，#34不关闭。
+
 ### Added(Sprint 2 · 接驳证据，feature/transfer-attachments 未合并)
 
 - 补识别地铁出入口subway_entrance，武汉标记由2596增至2930，仍属walk，旧派生文件须重建。
