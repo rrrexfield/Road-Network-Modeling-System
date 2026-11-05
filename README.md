@@ -6,17 +6,19 @@
 
 当前 `feature/transfer-attachments` 分支另提供 `matchTransferConnections`（逐模式节点证据/距离/诊断）与 `inspectTransferEntrances`（原way入口候选），并补识别地铁出入口；武汉标记增至2930，旧派生文件需重建。本批尚未合并或生成实际转换边；提供真实片段的分段可达性测试，停车入口仍需核验，多段路径契约与搜索待A/B/E对接。调用、实测和限制见 `docs/plans/c-transfer-connections.md`。
 
-本修复分支提供可交接的 SQLite 运行时：`server/src/io/index.ts` 导出 `createTurnRuntime` / `PersistentTurnService`，从新版派生文件完成模式构图、OSM禁转导入和数据库恢复，并提供磁盘优先的 `setTurns`。数据修复、武汉实测和调用示例见 `docs/plans/c-sqlite-ready.md`。仍需 A 注册路由、B 接搜索、E 接页面，不能据此声称网页已接通。新的派生格式保留 POI 与 relations；旧文件需重新预处理，验证未覆盖原数据文件。
+本仓库已提供可交接的 SQLite 运行时：`server/src/io/index.ts` 导出 `createTurnRuntime` / `PersistentTurnService`，从新版派生文件完成模式构图、OSM禁转导入和数据库恢复，并提供磁盘优先的 `setTurns`。数据修复、武汉实测和调用示例见 `docs/plans/c-sqlite-ready.md`。禁转快照落 `data/derived/wuhan-turns.sqlite`，写盘失败不改旧内存，重启按 way 段端点+几何重新匹配恢复。
 
-本功能分支新增 C 的 Sprint 2 基础模块（待评审）：禁转表、路口转向枚举、SQLite 手动禁转快照、四模态构图及原始数据转换点提取。公开入口为 `server/src/topology/index.ts`、`server/src/io/index.ts`。这些新能力尚未接入当前 REST/页面流程，也未完成真实换乘连接与 B/E 联调；使用与限制见 `docs/plans/c-sprint2-handoff.md`、`docs/多模态路网设计.md`。SQLite 已在 Node 24.20 验证，旧 Node 22.11 的运行参数需集成方确认。
+C 的 Sprint 2 基础模块已合入 main：禁转表、路口转向枚举、SQLite 手动禁转快照、四模态构图、原始数据转换点提取，以及逐模式接驳表与换乘罚时计算。公开入口为 `server/src/topology/index.ts`、`server/src/io/index.js`。这些能力已接入 REST 层（见下方作业二说明）；**真实换乘连接与跨模态搜索尚未完成**，使用与限制见 `docs/plans/c-sprint2-handoff.md`、`docs/多模态路网设计.md`。
 
 当前进度:**Sprint 1(路网拓扑构建基础)已完成并合入 main**——图引擎、拓扑构边、权重统计、属性面板与起终点选路均已交付,M1 交付物 `docs/拓扑验证报告.md` 已提交。**作业二(转向限制与多模态路网)的接口契约已冻结**,功能实现按目录所有权分派给 B/C/E,详见对应交接 issue。
 
 **作业二的四个 REST 接口已由 A 挂载上线**(issue #33):`GET /api/network?mode=`、`GET /api/transfer-points?mode=`、`GET/PUT /api/intersections/:nodeId/turns`。派生数据已按新格式重建(保留 POI 与 relations),禁转快照落 `data/derived/wuhan-turns.sqlite`。B 的禁转感知搜索(#28)与 E 的编辑器/模态切换(#29)可直接消费,交接说明见 `docs/plans/a-sprint2-rest-handoff.md`。
 
+**作业二的转向限制已端到端打通**(issue #38,PR #39/#40/#42 已合入 main):B 的 `(node, inEdge)` 边扩展 Dijkstra 使禁转真正影响路径,`/api/path` 新增 `mode` 参数——缺省走基础图不施加禁转(与作业一一致),显式给模态时走该模态子图并施加该模态的禁转;编辑器保存禁转后路径立即绕行(实测武汉五路口 500.18 m/7 节点 → 751.07 m/23 节点,清空后恢复一致),编辑器与路径计算共用同一份禁转服务、无内存分叉。C 的接驳表(`buildTransferAttachments` / `computeTransferPenalty`)已交付,**跨模态搜索仍待 B 实现**(#34 保持开放)。另新增 `GET /api/intersections/nearest` 把点击坐标反查为可编辑路口(#43),路口判定在服务端完成:当前模态内邻接节点数 ≥ 3、按球面距离、超阈值返回 404。派生数据已重建为 2930 个转换点(subway 659 / bus 1231 / parking 1040)。
+
 Sprint 1 的 B 图引擎、C 拓扑与 D 权重统计已接入服务启动链路:`server/src/index.ts` 依次执行 `loadNetwork → buildTopology → new Graph → computeTopologyStats`,再注册 REST/WS 与权重统计路由;`/api/health` 与 WS 的 `edgeCount` 为**有向边数**。topology 不做模态/车辆准入过滤,不能将输出解释为汽车可通行图;无法确定方向的道路跳过并在启动日志中列明。B 模块规则见 `docs/plans/b-sprint1-graph.md` 与 `docs/plans/b-sprint1-graph-interface.md`,C 模块见 `docs/plans/c-sprint1-topology.md`。
 
-D 的 `server/src/weights/` 提供 Haversine 距离、等级限速、可注入 `dijkstra` 的边权函数与网络统计;`web/src/charts/`、`web/src/panels/stats/`、`web/src/panels/weight/` 提供 ECharts 深色主题、统计仪表盘与权重配置面板,独立预览页见 `web/src/panels/stats/demo.html`。统计中的拓扑指标由 B 的 `computeTopologyStats` 填充(`topologySource='graph-engine'`),`/api/stats` 按权重配置缓存并预热默认配置;`WeightProfile`/`NetworkStats` 等契约已冻结进 `shared/src/index.ts`。主界面右侧栏挂载统计与权重面板,权重变化后重取统计。全仓 141 项测试通过。
+D 的 `server/src/weights/` 提供 Haversine 距离、等级限速、可注入 `dijkstra` 的边权函数与网络统计;`web/src/charts/`、`web/src/panels/stats/`、`web/src/panels/weight/` 提供 ECharts 深色主题、统计仪表盘与权重配置面板,独立预览页见 `web/src/panels/stats/demo.html`。统计中的拓扑指标由 B 的 `computeTopologyStats` 填充(`topologySource='graph-engine'`),`/api/stats` 按权重配置缓存并预热默认配置;`WeightProfile`/`NetworkStats` 等契约已冻结进 `shared/src/index.ts`。主界面右侧栏挂载统计与权重面板,权重变化后重取统计。全仓 296 项测试通过。
 
 前端交互(E):`web/src/map/path-selection.ts` 提供起终点选路(点击地图取点 → 服务端吸附到最近节点 → 高亮路径,切换权重目标后自动重算);`web/src/panels/property/` 为道路属性面板组件(视图模型与 DOM 解耦,可在 Node 环境单测)。`/api/path` 的服务端坐标吸附由 issue #18 采纳**方案 A**:62.8 万节点不必下发浏览器,前端只传点击位置。
 
@@ -113,9 +115,11 @@ data/derived/wuhan-roads.json (~30MB, 不入库)
 | GET | `/api/network` | 全量路网 GeoJSON(每 way 一条 LineString,属性含 id/name/highway/tags) |
 | GET | `/api/network?mode=car\|walk\|bike\|bus` | 指定模态的路网 GeoJSON:只含该模态准入且真正产生有向边的道路;不带 `mode` 时行为不变 |
 | GET | `/api/transfer-points?mode=car\|walk\|bike\|bus` | 模态转换点(`TransferPoint[]`,位置为 `[lon, lat]`),按模态筛选站点类型 |
+| GET | `/api/intersections/nearest?lon=&lat=&mode=&maxDistanceM=` | 点击坐标反查**可编辑路口**(`NearestIntersectionResponse`):只在当前模态中判定、邻接节点数 ≥ 3(排除道路折点与中间节点)、按球面距离计算;超出阈值返回 404,不返回"最近但很远"的节点 |
 | GET | `/api/intersections/:nodeId/turns?mode=` | 某路口的全部转向动作(`IntersectionTurns`):`turnKind`/`angleDelta` 仅供展示,`forbidden` 为当前禁转状态,`fromOsm` 区分 OSM 导入与手动设置;`mode` 缺省 `car` |
 | PUT | `/api/intersections/:nodeId/turns?mode=` | **整体覆盖**该路口禁转集合,body `{ forbidden: [{ fromEdge, toEdge }] }`,返回 `{ ok, restrictionCount }`;写盘优先,写盘失败时旧规则不变 |
 | GET | `/api/path` | 起终点选路:`from=lon,lat&to=lon,lat&metric=distance\|time`,服务端吸附到最近节点后跑 Dijkstra,返回 `PathResult` + 吸附坐标 + 路径折线;不可达返回 404 |
+| GET | `/api/path?mode=car\|walk\|bike\|bus` | 同上,但走**该模态子图**并施加该模态的禁转(编辑器保存的禁转会立即改变路径);**不带 `mode` 时走基础图、不施加禁转**,与作业一行为一致 |
 | GET | `/api/weights/profile` | 权重基线:默认 `WeightProfile` + 各等级默认限速表 |
 | GET | `/api/stats` | 网络统计:里程/等级分布/边长分布/通行时间/拓扑指标;支持 `metric`、`speedFactor`、`speedKmh=等级:限速,…`;结果按配置缓存 |
 | WS | `/ws` | 消息信封 `{ type, payload }`;连接即推 `hello`(有向边数),支持 `ping`/`pong` |
