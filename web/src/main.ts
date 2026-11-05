@@ -4,23 +4,41 @@ import { Map as MaplibreMap, NavigationControl } from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PathLayer } from '@deck.gl/layers';
 import type { Layer } from '@deck.gl/core';
-import type { RoadFeature, WSMessage } from '@gisalgo/shared';
-import { connectWebSocket, fetchHealth, fetchNetwork, type WsStatus } from './api-client';
+import type { RoadFeature, RoadFeatureCollection, TransferPoint, WSMessage } from '@gisalgo/shared';
+import {
+  connectWebSocket,
+  fetchHealth,
+  fetchNetwork,
+  fetchNetworkByMode,
+  fetchTransferPoints,
+  type WsStatus,
+} from './api-client';
 import {
   BASEMAP_STYLE_URL,
   WUHAN_CENTER,
   WUHAN_ZOOM,
   buildFallbackStyle,
+  createModeControl,
   createPathSelection,
   createRoadsLayer,
+  createTransferPointsLayers,
   isBasemapReachable,
+  travelModeLabel,
+  type DisplayMode,
   type PathSelectionHandle,
 } from './map/index.js';
 import { createStatsPanel, fetchStats } from './panels/stats/index.js';
 import { createPropertyPanel } from './panels/property/index.js';
+import {
+  createTurnEditor,
+  createTurnRestrictionLayers,
+  type TurnEditorHandle,
+} from './panels/editor/index.js';
 
 /** 选路模块句柄；在 main() 中创建后供面板回调使用。 */
 let pathSelection: PathSelectionHandle | null = null;
+/** 当前成功显示的交通模式；全量基础图降级时为 null。 */
+let currentMode: DisplayMode | null = null;
 
 function $(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -123,6 +141,12 @@ async function main(): Promise<void> {
   propertyPanel.element.classList.add('gis-property--floating');
   (document.getElementById('app') ?? document.body).append(propertyPanel.element);
 
+  const modeControl = createModeControl({
+    initialMode: 'car',
+    onChange: (mode) => void activateMode(mode),
+  });
+  (document.getElementById('app') ?? document.body).append(modeControl.element);
+
   function showProperty(feature: RoadFeature, x: number, y: number): void {
     propertyPanel.show(feature);
     const panel = propertyPanel.element;
@@ -141,11 +165,19 @@ async function main(): Promise<void> {
   const hideProperty = (): void => propertyPanel.hide();
 
   let roadsLayer: PathLayer<RoadFeature> | null = null;
+  let transferPoints: TransferPoint[] = [];
+  let transferPointLayers: Layer[] = [];
+  let restrictionLayers: Layer[] = [];
+  const currentRoadNames = new Map<number, string>();
+  let turnEditor: TurnEditorHandle | null = null;
+  let modeRequestToken = 0;
 
   /** 把路网图层与选路图层合成一次，统一交给 deck.gl。 */
   const refreshLayers = (): void => {
     const layers: Layer[] = [];
     if (roadsLayer !== null) layers.push(roadsLayer);
+    layers.push(...transferPointLayers);
+    layers.push(...restrictionLayers);
     if (pathSelection !== null) layers.push(...pathSelection.getLayers());
     overlay.setProps({ layers });
   };
@@ -182,6 +214,111 @@ async function main(): Promise<void> {
     },
   });
 
+  turnEditor = createTurnEditor({
+    getMode: () => currentMode,
+    getRoadName: (wayId) => currentRoadNames.get(wayId) ?? `Way ${wayId}`,
+    onIntersectionFocus: (intersection) => {
+      map.easeTo({
+        center: intersection.position,
+        zoom: Math.max(map.getZoom(), 16),
+        duration: 450,
+      });
+    },
+    onRestrictionChange: (intersection) => {
+      restrictionLayers = createTurnRestrictionLayers(intersection);
+      refreshLayers();
+    },
+  });
+  (document.getElementById('app') ?? document.body).append(turnEditor.element);
+
+  const refreshTransferPoints = (): void => {
+    if (transferPoints.length === 0) {
+      transferPointLayers = [];
+    } else {
+      transferPointLayers = createTransferPointsLayers(transferPoints, map.getZoom());
+    }
+    refreshLayers();
+  };
+
+  async function activateMode(mode: DisplayMode, initial = false): Promise<void> {
+    if (!initial && currentMode === mode) return;
+
+    const token = ++modeRequestToken;
+    const label = travelModeLabel(mode);
+    hideProperty();
+    turnEditor?.setMode(null);
+    pathSelection?.setActive(false);
+    pathSelection?.clear();
+    modeControl.setBusy(true);
+    modeControl.setStatus(`${label}路网加载中…`, 'pending');
+
+    try {
+      let network: RoadFeatureCollection;
+      let points: TransferPoint[];
+      if (mode === 'all') {
+        network = await fetchNetwork();
+        points = [];
+      } else {
+        [network, points] = await Promise.all([
+          fetchNetworkByMode(mode),
+          fetchTransferPoints(mode),
+        ]);
+      }
+      if (token !== modeRequestToken) return;
+
+      roadsLayer = createRoadsLayer(network.features);
+      transferPoints = points;
+      transferPointLayers = createTransferPointsLayers(points, map.getZoom());
+      currentRoadNames.clear();
+      for (const feature of network.features) {
+        currentRoadNames.set(
+          feature.properties.id,
+          feature.properties.name ?? `Way ${feature.properties.id}`,
+        );
+      }
+      refreshLayers();
+      currentMode = mode;
+      modeControl.setMode(mode);
+      turnEditor?.setMode(mode === 'all' ? null : mode);
+      modeControl.setStatus(
+        mode === 'all'
+          ? `${label}基础路网 · ${network.features.length.toLocaleString()} 条道路`
+          : `${label} · ${network.features.length.toLocaleString()} 条道路 · ${points.length.toLocaleString()} 个转换点`,
+        'ok',
+      );
+    } catch (error) {
+      if (token !== modeRequestToken) return;
+
+      if (initial) {
+        try {
+          const baseNetwork = await fetchNetwork();
+          if (token !== modeRequestToken) return;
+          roadsLayer = createRoadsLayer(baseNetwork.features);
+          transferPoints = [];
+          transferPointLayers = [];
+          refreshLayers();
+          currentMode = 'all';
+          modeControl.setMode('all');
+          turnEditor?.setMode(null);
+          modeControl.setStatus('多模态数据不可用，已切换到全量基础路网', 'error');
+          return;
+        } catch (fallbackError) {
+          throw fallbackError instanceof Error ? fallbackError : error;
+        }
+      }
+
+      modeControl.setMode(currentMode);
+      turnEditor?.setMode(currentMode === 'all' ? null : currentMode);
+      modeControl.setStatus(
+        `${label}切换失败：${error instanceof Error ? error.message : '接口不可用'}`,
+        'error',
+      );
+    } finally {
+      if (token === modeRequestToken) modeControl.setBusy(false);
+    }
+  }
+
+  map.on('zoomend', refreshTransferPoints);
   map.on('movestart', hideProperty);
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') hideProperty();
@@ -212,9 +349,7 @@ async function main(): Promise<void> {
   );
 
   try {
-    const gj = await fetchNetwork();
-    roadsLayer = createRoadsLayer(gj.features);
-    refreshLayers();
+    await activateMode('car', true);
   } catch (err) {
     console.error('路网数据加载失败', err);
     $('loading').textContent = '路网数据加载失败,请确认服务端已启动(/api/network)';
