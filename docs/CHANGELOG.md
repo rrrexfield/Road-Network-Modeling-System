@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### Added(Sprint 2 · A /api/path 接入禁转判定,issue #38)
+
+- `/api/path` 新增 `mode` 查询参数(car / walk / bike / bus):缺省仍走基础图(无禁转,与作业一一致);显式给 `mode` 时走该模态子图,注入 `PersistentTurnService.isForbidden` 作为禁转谓词并用 `dijkstraWithTurnRestrictions` 计算——禁转边对与边 ID 只在所属模态内有效,故必须用同一模态的图 + 禁转服务。
+- `ModalRuntime` 由接口改为类,新增**惰性** `graph` / `wayHighway` getter:图仅在路径查询首次访问时构建(62.8 万节点 / ~100 万边),转向读写只依赖拓扑与禁转服务,不白白承担构造成本。
+- 新增 3 项测试:`/api/path?mode=car` 禁左转后绕行且代价变长、非法 mode 返回 400、显式 mode 但未启用多模态返回 501。
+- 全仓 237 项测试通过;server typecheck 与全仓 lint 全绿。
+
 ### Added(Sprint 2 · B 转向限制搜索,issue #28)
 
 - 新增 `server/src/graph/turn-restricted-dijkstra.ts`:`TurnRestrictionPredicate`(只读判定 `(via, from, to) => boolean`)与 `dijkstraWithTurnRestrictions`,实现立项文档 §3.3.2 的边扩展状态空间 `(node, inEdge)`——入边唯一确定当前节点,松弛出边前查一次禁转表,不预建展开图。
