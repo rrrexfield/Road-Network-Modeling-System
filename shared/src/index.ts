@@ -314,6 +314,34 @@ export interface SetIntersectionTurnsResponse {
   restrictionCount: number;
 }
 
+/**
+ * `GET /api/intersections/nearest` 响应：点击地图后命中的最近可编辑路口。
+ *
+ * 用途：转向限制编辑器需要 OSM Node ID 才能查询转向，而路网 GeoJSON 按 Way 组织、
+ * 不含节点 ID，故需要一个「坐标 → 路口」的查询接口。
+ *
+ * 路口判定口径（由服务端负责，前端不得自行推断）：
+ * - 只在**当前模态的拓扑**中判定，不同模态可返回不同的路口集合；
+ * - 该节点在当前模态下至少连接 3 个不同邻接节点（排除 degree = 2 的道路折点、
+ *   普通中间节点、悬挂端点与孤立节点）；
+ * - 按球面距离（haversine）计算命中距离，不用经纬度欧氏距离；
+ * - **超出 `maxDistanceM` 阈值一律返回 404**，不返回"最近但很远"的节点，
+ *   避免前端误选到画面外的路口。
+ */
+export interface NearestIntersectionResponse {
+  nodeId: number;
+  /** 路口位置 [lon, lat]。 */
+  position: [number, number];
+  /** 点击位置到路口的球面距离，单位：米。 */
+  distanceMeters: number;
+  /** 该路口在当前模态下的关联道路数（不同邻接节点数）。 */
+  degree: number;
+  /** 与该路口相连的 Way ID。 */
+  connectedWayIds: number[];
+  /** 可解析的道路名称；无名道路不计入。 */
+  roadNames: string[];
+}
+
 /** 模态转换点（地铁站 / 公交站 / 停车场）。 */
 export interface TransferPoint {
   id: number;

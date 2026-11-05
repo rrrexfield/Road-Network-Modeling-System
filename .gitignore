@@ -6,3 +6,4 @@ data/hubei.json
 *.log
 .claude/
 wuhan.json
+scripts/tmp-*.ts

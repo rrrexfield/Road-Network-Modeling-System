@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+### Added(Sprint 2 · A 路口就近查询,issue #43)
+
+- 契约冻结:`NearestIntersectionResponse` 进入 `shared/src/index.ts`,含 `nodeId`、`position`、`distanceMeters`、`degree`、`connectedWayIds`、`roadNames` 六个字段。
+- 新增 `GET /api/intersections/nearest?lon=&lat=&mode=&maxDistanceM=`:把点击经纬度映射为可编辑路口。**路口判定口径**(服务端负责,前端不得自行推断):只在当前模态拓扑中判定、邻接节点数 >= 3(排除 degree=2 的道路折点与中间节点、悬挂端点与孤立节点)、按球面距离(haversine)计算、**超出阈值一律 404 而不返回"最近但很远"的节点**。
+- 邻接节点数按**去重后的邻接节点**统计而非按边数统计——一条双向道路在路口贡献入边与出边两条边但只有一个邻接节点,用边数会把两臂路口误判成交叉路口。
+- 新增 `server/src/api/intersection-index.ts`:经纬度网格索引把候选集缩小到点击位置附近(模态拓扑有 62.8 万节点,线性扫描不可接受)。索引挂在 `ModalRuntime` 上惰性构建,与既有的 graph / wayHighway 惰性策略一致。
+- 错误映射:非法 mode / 非法经纬度 / 非法半径返回 400,派生数据不可用返回 503,阈值内无路口返回 404。
+- 前端 `api-client` 新增 `fetchNearestIntersection`:阈值内无路口返回 `null`(点到了普通道路是正常结果,不是接口故障),接口故障才抛错。
+- **真实数据验证**(武汉五路口 1881981626):命中 `degree=5`、相连 3 条 Way、真实路名「胜利街 / 一元路」;用返回的 nodeId 查转向得到 12 个转向动作且位置一致;道路中段点击返回 404;连续 20 次查询均值 0.7 ms。
+
 ### Added(Sprint 2 · A 前端接入模态,禁转端到端影响路径,issue #38)
 
 - `web/src/api-client.ts` 的 `fetchPath` 新增可选 `mode` 参数,缺省不下发(服务端走基础图、不施加禁转,与作业一一致),显式给模态时随查询下发,供服务端按该模态的禁转表判定转向。
