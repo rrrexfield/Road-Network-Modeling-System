@@ -1,6 +1,6 @@
 # C → B：逐模式接驳接口（2026-11-05）
 
-分支feature/transfer-attachments已合入main 5c0d194（含A的REST与PathSegment契约）。本次实现只在C的topology中；尚未推送或创建PR。文档与协作同步区随实现更新，待A评审。
+已将main 5c0d194（含A的REST与PathSegment契约）合入feature/transfer-attachments功能分支。本次实现只在C的topology中；代码已推送并创建PR #42，尚未合入main，待A评审。2026-11-05远端CI通过；入口核查及权限边界见c-pr42-selfcheck.md。
 
 ## 公开入口
 
