@@ -4,7 +4,9 @@ import { join, resolve, sep } from 'node:path';
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { IntersectionTurns, RoadFeatureCollection } from '@gisalgo/shared';
+import { Graph } from '../graph/index.js';
 import type { LoadedNetwork } from '../io/loader.js';
+import { buildTopology } from '../topology/index.js';
 import { registerRoutes } from './routes.js';
 import { mapTurnError, parseMode, parseNodeId, parseSetTurnsRequest } from './modal-routes.js';
 import {
@@ -125,12 +127,16 @@ function makeRegistry(capacity?: number): ModalRuntimeRegistry {
 }
 
 async function buildApp(registry?: ModalRuntimeRegistry) {
+  const network = makeNetwork();
+  const topology = buildTopology(network.nodes, network.ways);
+  const graph = new Graph(topology.nodes, topology.edges);
+  const wayHighway = new Map([...topology.ways].map(([id, way]) => [id, way.highway]));
   const app = Fastify();
   await registerRoutes(
     app,
-    makeNetwork(),
-    { nodeCount: NODES.size, edgeCount: 6, wayCount: WAYS.length },
-    undefined,
+    network,
+    { nodeCount: NODES.size, edgeCount: topology.edges.length, wayCount: WAYS.length },
+    { graph, wayHighway },
     registry,
   );
   return app;
@@ -301,6 +307,58 @@ describe('PUT /api/intersections/:nodeId/turns', () => {
       payload: { forbidden: [{ fromEdge: 'a', toEdge: 1 }] },
     });
     expect(invalidBody.statusCode).toBe(400);
+    await app.close();
+  });
+});
+
+/* ---------- /api/path?mode= ---------- */
+
+describe('GET /api/path?mode=', () => {
+  it('禁转后路径绕行且代价变长', async () => {
+    const app = await buildApp(makeRegistry());
+
+    // 直连 1 → 2 → 3
+    const free = await app.inject({
+      method: 'GET',
+      url: '/api/path?mode=car&from=114.300,30.500&to=114.310,30.510',
+    });
+    expect(free.statusCode).toBe(200);
+    const freeBody = free.json() as { nodeIds: number[]; distance: number };
+    expect(freeBody.nodeIds).toEqual([1, 2, 3]);
+
+    // 禁止「way100(1→2) 转 way200(2→3)」
+    const turns = (
+      await app.inject({ method: 'GET', url: '/api/intersections/2/turns?mode=car' })
+    ).json() as IntersectionTurns;
+    const leftTurn = turns.turns.find((t) => t.fromWayId === 100 && t.toWayId === 200)!;
+    expect(leftTurn).toBeDefined();
+    const put = await app.inject({
+      method: 'PUT',
+      url: '/api/intersections/2/turns?mode=car',
+      payload: { forbidden: [{ fromEdge: leftTurn.fromEdge, toEdge: leftTurn.toEdge }] },
+    });
+    expect(put.statusCode).toBe(200);
+
+    // 绕行：1 → 2 → 4 → 2 → 3，中心节点访问两次，代价变长
+    const restricted = await app.inject({
+      method: 'GET',
+      url: '/api/path?mode=car&from=114.300,30.500&to=114.310,30.510',
+    });
+    expect(restricted.statusCode).toBe(200);
+    const restrictedBody = restricted.json() as { nodeIds: number[]; distance: number };
+    expect(restrictedBody.nodeIds).toEqual([1, 2, 4, 2, 3]);
+    expect(restrictedBody.distance).toBeGreaterThan(freeBody.distance);
+
+    await app.close();
+  });
+
+  it('非法 mode 返回 400', async () => {
+    const app = await buildApp(makeRegistry());
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/path?mode=plane&from=114.300,30.500&to=114.310,30.510',
+    });
+    expect(res.statusCode).toBe(400);
     await app.close();
   });
 });

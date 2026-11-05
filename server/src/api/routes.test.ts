@@ -118,4 +118,14 @@ describe('GET /api/path', () => {
     expect(res.statusCode).toBe(404);
     await app.close();
   });
+
+  it('显式 mode 但未启用多模态返回 501', async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/path?mode=car&from=114.300,30.500&to=114.320,30.500',
+    });
+    expect(res.statusCode).toBe(501);
+    await app.close();
+  });
 });

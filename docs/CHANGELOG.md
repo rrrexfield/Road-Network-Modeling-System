@@ -34,6 +34,33 @@
 - 统计图去掉多余坐标轴数字与嵌套卡片边框,改用细金色数据条、背景刻度和统一点状标题;起终点选路卡增加金色“Dijkstra最短路径”标题。
 - 统一主界面、统计分区、属性卡、起终点选路控件和 MapLibre 导航控件的深色透明毛玻璃视觉:主要容器改为低存在感描边与直角布局,统计卡片使用统一金色,并补充窄屏布局。
 
+### Added(2026-11-05 · C给B的接驳表)
+
+- topology公开buildTransferAttachments与相关类型，返回逐模式可用性、节点、实际接驳路径长度、入出方向和核验记录；未经核验、超距/失配/无入口证据均不可用。
+- computeTransferPenalty显式接收步行距离、速度和等待秒数，不混入距离。同步main 5c0d194的REST及PathSegment约定；259项测试、完整typecheck/lint/build通过。真实停车楼入口核验仍待完成，#34不关闭。
+
+### Added(Sprint 2 · 接驳证据，feature/transfer-attachments 未合并)
+
+- 补识别地铁出入口subway_entrance，武汉标记由2596增至2930，仍属walk，旧派生文件须重建。
+- 公开逐模式的共享节点/近邻候选匹配及原way入口证据核查，报告距离、并列、权限、屏障和失配，不自动生成转换边。
+- 武汉35节点/5条way固定片段验证car/walk分段有向可达与断路负例，停车共享边界仍需核验，未完成跨模态搜索。
+- 清理OSM导入重复条件判断并补foot回归，修正近等距歧义对遍历顺序的依赖；232项测试、全仓typecheck/lint及生产构建通过，交接和限制见docs/plans/c-transfer-connections.md。
+
+### Added(Sprint 2 · A /api/path 接入禁转判定,issue #38)
+
+- `/api/path` 新增 `mode` 查询参数(car / walk / bike / bus):缺省仍走基础图(无禁转,与作业一一致);显式给 `mode` 时走该模态子图,注入 `PersistentTurnService.isForbidden` 作为禁转谓词并用 `dijkstraWithTurnRestrictions` 计算——禁转边对与边 ID 只在所属模态内有效,故必须用同一模态的图 + 禁转服务。
+- `ModalRuntime` 由接口改为类,新增**惰性** `graph` / `wayHighway` getter:图仅在路径查询首次访问时构建(62.8 万节点 / ~100 万边),转向读写只依赖拓扑与禁转服务,不白白承担构造成本。
+- 新增 3 项测试:`/api/path?mode=car` 禁左转后绕行且代价变长、非法 mode 返回 400、显式 mode 但未启用多模态返回 501。
+- 全仓 237 项测试通过;server typecheck 与全仓 lint 全绿。
+
+### Added(Sprint 2 · B 转向限制搜索,issue #28)
+
+- 新增 `server/src/graph/turn-restricted-dijkstra.ts`:`TurnRestrictionPredicate`(只读判定 `(via, from, to) => boolean`)与 `dijkstraWithTurnRestrictions`,实现立项文档 §3.3.2 的边扩展状态空间 `(node, inEdge)`——入边唯一确定当前节点,松弛出边前查一次禁转表,不预建展开图。
+- `dijkstraWithTurnRestrictions` 为独立入口,不改变现有 `dijkstra` 的签名与行为;未提供谓词时等价于“全部允许”。谓词形态与 C 的 `TurnRestrictionTable.isForbidden` / A 的 `PersistentTurnService.isForbidden` 一致,graph 不依赖 topology/io 具体类型;作业四 A* 复用同一谓词。
+- `Graph` 新增只读访问器 `edge(id)`,供边扩展状态按边 id O(1) 取边,避免逐次查询重建全图边映射,保证 62.8 万节点 / 119 万有向边规模性能不退化。
+- 新增 6 项测试:空限制与普通 dijkstra 一致、禁左转生效且同路口其他转向不受影响、同一路口不同入边禁转互不影响(节点级标签做不到的关键用例)、禁转使路径改道且代价变长、不可达约定,以及武汉五路口固定夹具(禁左转后绕行、中心节点访问两次证明未错误剪枝)。
+- 全仓 234 项测试通过;server typecheck 与全仓 lint 全绿。设计说明见 `docs/plans/b-sprint2-turn-restricted-dijkstra.md`。
+
 ### Added(Sprint 2 · A 跨模态路径契约冻结,issue #34)
 
 - 契约冻结:`PathSegment` 进入 `shared/src/index.ts`,`PathResult` 增加**可选**字段 `segments?: PathSegment[]`(非破坏性扩展,单模态路径缺省)。跨模态路径由若干段组成,段间以转换点 id 相接;段内边 id 只在所属模态内有效,`distance` 为各段距离之和(换乘惩罚属时间/成本口径,不计入距离)。A 决策与理由见 `docs/多模态路网设计.md`。
