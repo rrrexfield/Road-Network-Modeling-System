@@ -67,6 +67,11 @@ export class Graph {
     return this.edgeLen.get(id) ?? Infinity;
   }
 
+  /** 按边 id 取边；未装载的边返回 undefined。 */
+  edge(id: number): RoadEdge | undefined {
+    return this.edgesById.get(id);
+  }
+
   coordinates(id: number): readonly [number, number] | undefined {
     const i = this.nodeIndex.get(id);
     if (i === undefined) return undefined;

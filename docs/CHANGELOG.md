@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### Added(Sprint 2 · B 转向限制搜索,issue #28)
+
+- 新增 `server/src/graph/turn-restricted-dijkstra.ts`:`TurnRestrictionPredicate`(只读判定 `(via, from, to) => boolean`)与 `dijkstraWithTurnRestrictions`,实现立项文档 §3.3.2 的边扩展状态空间 `(node, inEdge)`——入边唯一确定当前节点,松弛出边前查一次禁转表,不预建展开图。
+- `dijkstraWithTurnRestrictions` 为独立入口,不改变现有 `dijkstra` 的签名与行为;未提供谓词时等价于“全部允许”。谓词形态与 C 的 `TurnRestrictionTable.isForbidden` / A 的 `PersistentTurnService.isForbidden` 一致,graph 不依赖 topology/io 具体类型;作业四 A* 复用同一谓词。
+- `Graph` 新增只读访问器 `edge(id)`,供边扩展状态按边 id O(1) 取边,避免逐次查询重建全图边映射,保证 62.8 万节点 / 119 万有向边规模性能不退化。
+- 新增 6 项测试:空限制与普通 dijkstra 一致、禁左转生效且同路口其他转向不受影响、同一路口不同入边禁转互不影响(节点级标签做不到的关键用例)、禁转使路径改道且代价变长、不可达约定,以及武汉五路口固定夹具(禁左转后绕行、中心节点访问两次证明未错误剪枝)。
+- 全仓 234 项测试通过;server typecheck 与全仓 lint 全绿。设计说明见 `docs/plans/b-sprint2-turn-restricted-dijkstra.md`。
+
 ### Added(Sprint 2 · A 跨模态路径契约冻结,issue #34)
 
 - 契约冻结:`PathSegment` 进入 `shared/src/index.ts`,`PathResult` 增加**可选**字段 `segments?: PathSegment[]`(非破坏性扩展,单模态路径缺省)。跨模态路径由若干段组成,段间以转换点 id 相接;段内边 id 只在所属模态内有效,`distance` 为各段距离之和(换乘惩罚属时间/成本口径,不计入距离)。A 决策与理由见 `docs/多模态路网设计.md`。

@@ -17,6 +17,7 @@
 
 | 日期 | 工具 | 用途与 Prompt 摘要 | 采纳程度 | 修改说明 | 理解自评 (1–5) | 关联提交 |
 |---|---|---|---|---|---|---|
+| 2026-11-05 | Claude | 角色 B 执行 issue #28:在 server/src/graph 实现 (node, inEdge) 边扩展状态空间的带禁转 Dijkstra，预留 A* 接口，并按 CLAUDE.md 在 B 目录内交付 | 待用户填写 | 新增 turn-restricted-dijkstra.ts（TurnRestrictionPredicate + dijkstraWithTurnRestrictions），Graph 加 edge(id) 只读访问器；边扩展状态用入边 id 编码（node = inEdge.to），松弛出边前查禁转谓词，起点出边直接入队、终点首条到达边即停；未提供谓词等价“全部允许”，不破坏现有 dijkstra 签名；谓词形态与 C 的 isForbidden / A 的 PersistentTurnService.isForbidden 一致，graph 不依赖 topology/io 具体类型；A* 属作业四、仅文档预留。新增 6 项测试（含武汉五路口固定夹具：禁左转后绕行、中心节点访问两次证明未错误剪枝）；全仓 234 项测试、server typecheck、全仓 lint 全绿；本地全仓 typecheck 因 web 未装 echarts 依赖在 web 包报错（与本模块无关）。设计文档 docs/plans/b-sprint2-turn-restricted-dijkstra.md，另向 A 提 issue 接入 /api/path | 待用户填写 | (提交后填写) |
 | 2026-11-03 | Codex | 核对截图缺陷并交付SQLite运行时 | 待用户审核 | 核实main缺失POI/relations/OSM导入和结构诊断；修复预处理与loader、加入source=osm解析、报告结构疑点；提供磁盘优先更新与恢复门面；全仓212测试及shared/server类型、全仓lint通过；武汉汽车72条禁转保存恢复通过，32条关系诊断；截图5节点未按当前诊断规则复现，实际26疑点；脚本需A评审，未改REST | 待用户填写 | fix/sprint2-data-persistence；待补提交 |
 | 2026-10-30 | Codex | Sprint 2 开发与验证 | 待用户填写 | 同步 main 至 39e1531，核对 Issue #27–#29 与冻结契约，整理 C 的 Sprint 2 实施草案（docs/plans/c-sprint2-topology.md）。仅规划，尚未实现或测试 Sprint 2 功能；采纳程度与理解自评待用户填写，关联提交待提交后补充。 | 待用户填写 | 未提交；feature/turn-restrictions |
 | 2026-10-30 | Codex | Sprint 2 开发与验证 | 待用户填写 | 按 Sprint 2 计划实现禁转稀疏表第一步，支持边对查询、原子覆盖、去重与清空，新增 5 项测试通过。尚未实现转向几何、持久化与多模态，未提交；采纳评价与理解自评待用户填写。 | 待用户填写 | 未提交；feature/turn-restrictions |
