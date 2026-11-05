@@ -15,6 +15,7 @@ import type {
   TravelMode,
   WayProperties,
 } from '@gisalgo/shared';
+import { Graph } from '../graph/index.js';
 import { getTransferPoints, PersistentTurnService, type LoadedNetwork } from '../io/index.js';
 import { buildModalTopology, type TopologyResult } from '../topology/index.js';
 
@@ -26,15 +27,43 @@ export function isTravelMode(value: unknown): value is TravelMode {
   return typeof value === 'string' && (TRAVEL_MODES as readonly string[]).includes(value);
 }
 
-/** 单个模态的运行时产物。 */
-export interface ModalRuntime {
-  mode: TravelMode;
-  /** 该模态独立构建的拓扑。边 ID 只在本模态内有效,不能跨模态复用。 */
-  topology: TopologyResult;
-  /** 禁转门面:禁转表 + OSM 导入 + SQLite 持久化。 */
-  service: PersistentTurnService;
-  /** 准入排除清单(等级 / 权限 / 方向)。 */
-  excludedWays: { wayId: number; reason: string }[];
+/**
+ * 单个模态的运行时产物。
+ *
+ * 图与 way→等级表**惰性构建**：只有路径查询才需要（62.8 万节点 / ~100 万边），
+ * 转向读写只依赖拓扑与禁转服务，不应白白承担构造成本。
+ */
+export class ModalRuntime {
+  private graphCache: Graph | null = null;
+  private wayHighwayCache: ReadonlyMap<number, string> | null = null;
+
+  constructor(
+    readonly mode: TravelMode,
+    /** 该模态独立构建的拓扑。边 ID 只在本模态内有效，不能跨模态复用。 */
+    readonly topology: TopologyResult,
+    /** 禁转门面：禁转表 + OSM 导入 + SQLite 持久化。 */
+    readonly service: PersistentTurnService,
+    /** 准入排除清单（等级 / 权限 / 方向）。 */
+    readonly excludedWays: { wayId: number; reason: string }[],
+  ) {}
+
+  /** 该模态的图；首次访问才构建。 */
+  get graph(): Graph {
+    if (this.graphCache === null) {
+      this.graphCache = new Graph(this.topology.nodes, this.topology.edges);
+    }
+    return this.graphCache;
+  }
+
+  /** 该模态的 wayId → highway 表，供里程/时间权重查表。 */
+  get wayHighway(): ReadonlyMap<number, string> {
+    if (this.wayHighwayCache === null) {
+      this.wayHighwayCache = new Map(
+        [...this.topology.ways].map(([wayId, way]) => [wayId, way.highway]),
+      );
+    }
+    return this.wayHighwayCache;
+  }
 }
 
 export interface ModalRuntimeOptions {
@@ -128,12 +157,7 @@ export class ModalRuntimeRegistry {
       mode,
       relations: this.network.relations,
     });
-    return {
-      mode,
-      topology: modal.topology,
-      service,
-      excludedWays: modal.excludedWays,
-    };
+    return new ModalRuntime(mode, modal.topology, service, modal.excludedWays);
   }
 
   /**

@@ -4,7 +4,13 @@
 import type { FastifyInstance } from 'fastify';
 import type { HealthResponse, PathResponse, WSMessage } from '@gisalgo/shared';
 import type { LoadedNetwork } from '../io/loader.js';
-import { dijkstra, type EdgeWeightFn, type Graph } from '../graph/index.js';
+import {
+  dijkstra,
+  dijkstraWithTurnRestrictions,
+  type EdgeWeightFn,
+  type Graph,
+  type TurnRestrictionPredicate,
+} from '../graph/index.js';
 import { DEFAULT_WEIGHT_PROFILE, createEdgeWeight } from '../weights/index.js';
 import { registerModalRoutes, parseMode } from './modal-routes.js';
 import type { ModalRuntimeRegistry } from './modal-runtime.js';
@@ -118,10 +124,15 @@ export async function registerRoutes(
   });
 
   if (pathDeps !== undefined) {
-    const { graph, wayHighway } = pathDeps;
+    const { graph: baseGraph, wayHighway: baseWayHighway } = pathDeps;
 
     app.get('/api/path', (request, reply) => {
-      const query = request.query as { from?: string; to?: string; metric?: string };
+      const query = request.query as {
+        from?: string;
+        to?: string;
+        metric?: string;
+        mode?: unknown;
+      };
 
       const fromPoint = parseLonLat(query.from);
       const toPoint = parseLonLat(query.to);
@@ -131,37 +142,66 @@ export async function registerRoutes(
         });
       }
 
-      const startId = snapToNode(graph, fromPoint[0], fromPoint[1]);
-      const endId = snapToNode(graph, toPoint[0], toPoint[1]);
+      // 缺省走基础图（无禁转，与作业一一致）；显式给 mode 走该模态子图并应用禁转判定。
+      // 禁转边对与边 ID 都只在所属模态内有效，故必须用同一模态的图 + 禁转服务（issue #38）。
+      let activeGraph = baseGraph;
+      let activeWayHighway = baseWayHighway;
+      let isTurnForbidden: TurnRestrictionPredicate | undefined;
+      if (query.mode !== undefined) {
+        const mode = parseMode(query.mode);
+        if (mode === null) {
+          return reply
+            .code(400)
+            .send({ error: { message: 'mode 必须是 car / walk / bike / bus 之一' } });
+        }
+        if (modal === undefined) {
+          return reply.code(501).send({ error: { message: '多模态路网未启用' } });
+        }
+        if (!modal.ready) {
+          return reply
+            .code(503)
+            .send({ error: { message: modal.unavailableReason ?? '派生数据不可用' } });
+        }
+        const runtime = modal.runtime(mode);
+        activeGraph = runtime.graph;
+        activeWayHighway = runtime.wayHighway;
+        isTurnForbidden = (via, from, to) => runtime.service.isForbidden(via, from, to);
+      }
+
+      const startId = snapToNode(activeGraph, fromPoint[0], fromPoint[1]);
+      const endId = snapToNode(activeGraph, toPoint[0], toPoint[1]);
       if (startId === null || endId === null) {
         return reply.code(404).send({ error: { message: '路网中没有可吸附的节点' } });
       }
 
-      // metric=time 走 D 的时间权重(里程/有效限速),distance 走预计算边长
+      // metric=time 走 D 的时间权重(里程/有效限速),distance 走里程
       const profile = {
         ...DEFAULT_WEIGHT_PROFILE,
         metric: query.metric === 'time' ? ('time' as const) : ('distance' as const),
       };
       const weight: EdgeWeightFn = createEdgeWeight(
-        { nodes: network.nodes, wayHighway },
+        { nodes: network.nodes, wayHighway: activeWayHighway },
         profile,
       );
 
-      const result = dijkstra(graph, startId, endId, weight);
+      const result =
+        isTurnForbidden === undefined
+          ? dijkstra(activeGraph, startId, endId, weight)
+          : dijkstraWithTurnRestrictions(activeGraph, startId, endId, isTurnForbidden, weight);
 
-      // 不可达时 dijkstra 返回 Infinity + 空序列;REST 层转成 404 而不是下发 Infinity
+      // 不可达时返回 Infinity + 空序列;REST 层转成 404 而不是下发 Infinity
       if (result.nodeIds.length === 0) {
         return reply.code(404).send({ error: { message: '起点与终点之间不可达' } });
       }
 
       const coordinates: [number, number][] = [];
       for (const nodeId of result.nodeIds) {
-        const c = graph.coordinates(nodeId);
+        const c = activeGraph.coordinates(nodeId);
         if (c !== undefined) coordinates.push([c[1], c[0]]);
       }
 
-      const start = graph.coordinates(startId);
-      const end = graph.coordinates(endId);
+      const start = activeGraph.coordinates(startId);
+      const end = activeGraph.coordinates(endId);
       if (start === undefined || end === undefined) {
         return reply.code(500).send({ error: { message: '节点坐标缺失' } });
       }
