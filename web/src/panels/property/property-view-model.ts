@@ -20,7 +20,7 @@ export interface PropertyViewModel {
   highway: string;
   /** Way ID（字符串形式，便于直接写入 DOM）。 */
   wayId: string;
-  /** 固定字段：Way ID / 类型。 */
+  /** 固定字段：Way ID。道路等级单独用于标题旁的轻量标识。 */
   fields: PropertyField[];
   /** 除 highway / name 之外的全部标签，不截断。 */
   tags: PropertyField[];
@@ -42,10 +42,7 @@ export function toPropertyViewModel(feature: RoadFeature): PropertyViewModel {
     name: trimmedName === '' ? '未命名道路' : trimmedName,
     highway: p.highway,
     wayId,
-    fields: [
-      { label: 'Way ID', value: wayId },
-      { label: '类型', value: p.highway },
-    ],
+    fields: [{ label: 'Way ID', value: wayId }],
     tags,
     hasTags: tags.length > 0,
   };

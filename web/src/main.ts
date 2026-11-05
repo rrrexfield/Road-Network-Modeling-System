@@ -1,10 +1,10 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './style.css';
-import { Map as MaplibreMap, NavigationControl, Popup } from 'maplibre-gl';
+import { Map as MaplibreMap, NavigationControl } from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PathLayer } from '@deck.gl/layers';
 import type { Layer } from '@deck.gl/core';
-import type { RoadFeature, WeightProfile, WSMessage } from '@gisalgo/shared';
+import type { RoadFeature, WSMessage } from '@gisalgo/shared';
 import { connectWebSocket, fetchHealth, fetchNetwork, type WsStatus } from './api-client';
 import {
   BASEMAP_STYLE_URL,
@@ -16,11 +16,9 @@ import {
   isBasemapReachable,
   type PathSelectionHandle,
 } from './map/index.js';
-import { createStatsPanel, fetchStats, fetchWeightProfile } from './panels/stats/index.js';
-import { createWeightPanel } from './panels/weight/index.js';
+import { createStatsPanel, fetchStats } from './panels/stats/index.js';
+import { createPropertyPanel } from './panels/property/index.js';
 
-/** 当前权重目标；权重面板变化时更新，选路模块通过它读取。 */
-let currentMetric: 'distance' | 'time' = 'distance';
 /** 选路模块句柄；在 main() 中创建后供面板回调使用。 */
 let pathSelection: PathSelectionHandle | null = null;
 
@@ -37,51 +35,30 @@ function setChip(el: HTMLElement, label: string, ok: boolean | null): void {
   el.classList.toggle('chip-wait', ok === null);
 }
 
-const tooltip = new Popup({ closeButton: false, closeOnClick: false, offset: 14 });
-
-function roadFeatureHtml(feature: RoadFeature): string {
-  const p = feature.properties;
-  const rows: string[] = [];
-  if (p.name !== undefined) rows.push(`<div class="tt-name">${escapeHtml(p.name)}</div>`);
-  rows.push(`<div>类型:${escapeHtml(p.highway)}</div>`);
-  rows.push(`<div>Way ID:${p.id}</div>`);
-  const extra = Object.entries(p.tags)
-    .filter(([k]) => k !== 'highway' && k !== 'name')
-    .slice(0, 6);
-  if (extra.length > 0) {
-    rows.push(
-      `<div class="tt-tags">${extra
-        .map(([k, v]) => `<span>${escapeHtml(k)}=${escapeHtml(v)}</span>`)
-        .join(' ')}</div>`,
-    );
-  }
-  return rows.join('');
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
+interface CollapsibleSection {
+  element: HTMLElement;
 }
 
 /** 把面板包成可收起的独立分区：固定的标题条 + 可独立滚动的内容区。 */
-function createCollapsibleSection(title: string, content: HTMLElement): HTMLElement {
+function createCollapsibleSection(
+  title: string,
+  content: HTMLElement,
+  defaultCollapsed = false,
+): CollapsibleSection {
   const section = document.createElement('section');
   section.className = 'side-section';
 
   const toggle = document.createElement('button');
   toggle.type = 'button';
   toggle.className = 'side-section__toggle';
-  toggle.setAttribute('aria-expanded', 'true');
 
   const label = document.createElement('span');
   label.textContent = title;
+  label.className = 'side-section__label';
 
   const chevron = document.createElement('span');
   chevron.className = 'side-section__chevron';
-  chevron.textContent = '▾';
+  chevron.setAttribute('aria-hidden', 'true');
 
   toggle.append(label, chevron);
 
@@ -89,82 +66,40 @@ function createCollapsibleSection(title: string, content: HTMLElement): HTMLElem
   body.className = 'side-section__body';
   body.append(content);
 
-  toggle.addEventListener('click', () => {
-    const collapsed = section.classList.toggle('is-collapsed');
+  function setCollapsed(collapsed: boolean): void {
+    section.classList.toggle('is-collapsed', collapsed);
     toggle.setAttribute('aria-expanded', String(!collapsed));
     chevron.textContent = collapsed ? '▸' : '▾';
+  }
+
+  toggle.addEventListener('click', () => {
+    setCollapsed(!section.classList.contains('is-collapsed'));
   });
 
   section.append(toggle, body);
-  return section;
+  setCollapsed(defaultCollapsed);
+
+  return { element: section };
 }
 
 /**
- * 把统计/权重面板挂载到右侧栏,并接上实时接口。
+ * 把统计与拓扑面板挂载到右侧栏,并接上实时接口。
  * 面板只在路网加载成功后初始化(此时服务端已完成拓扑组装)。
  */
-async function initPanels(): Promise<void> {
+async function initStatsPanel(): Promise<void> {
   const host = document.getElementById('side-panels');
   if (host === null) return;
 
   const statsPanel = createStatsPanel();
-  let hasStats = false;
-  const weightPanel = createWeightPanel({
-    onChange: (profile) => {
-      currentMetric = profile.metric;
-      void reloadStats(profile);
-      // 权重目标变了，已显示的路径要按新目标重算
-      pathSelection?.recompute();
-    },
-  });
+  host.append(createCollapsibleSection('路网与拓扑', statsPanel.element, true).element);
 
-  host.append(
-    createCollapsibleSection('网络统计', statsPanel.element),
-    createCollapsibleSection('权重配置', weightPanel.element),
-  );
-
-  const panelState: { speedTable?: Readonly<Record<string, number>> } = {};
-  let requestToken = 0;
-
-  /** 按(可选的)权重配置重取统计;旧响应由 token 丢弃。 */
-  async function reloadStats(profile?: WeightProfile): Promise<void> {
-    const token = ++requestToken;
-    const stats = await fetchStats(
-      profile === undefined
-        ? undefined
-        : {
-            metric: profile.metric,
-            speedFactor: profile.speedFactor,
-            speedOverridesKmh: profile.speedOverridesKmh,
-          },
-    );
-    if (token !== requestToken) return;
-    if (stats === null) {
-      statsPanel.setSource('接口不可用', false);
-      return;
-    }
-    statsPanel.render(stats);
-    statsPanel.setSource('实时接口', true);
-    // 首次拿到数据后填充权重面板的等级行;之后不再 update,避免输入框失焦
-    if (!hasStats) {
-      weightPanel.update(stats, panelState.speedTable);
-      hasStats = true;
-    }
-  }
-
-  const [profileResponse, initialStats] = await Promise.all([fetchWeightProfile(), fetchStats()]);
-  panelState.speedTable = profileResponse?.speedTable;
-
-  if (initialStats !== null) {
-    statsPanel.render(initialStats);
-    statsPanel.setSource('实时接口', true);
-    weightPanel.update(initialStats, panelState.speedTable);
-    hasStats = true;
-  } else {
+  const stats = await fetchStats();
+  if (stats === null) {
     statsPanel.setSource('接口不可用', false);
+    return;
   }
-
-  currentMetric = weightPanel.getProfile().metric;
+  statsPanel.render(stats);
+  statsPanel.setSource('实时接口', true);
 }
 
 async function main(): Promise<void> {
@@ -183,6 +118,27 @@ async function main(): Promise<void> {
     attributionControl: { compact: true },
   });
   map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right');
+
+  const propertyPanel = createPropertyPanel();
+  propertyPanel.element.classList.add('gis-property--floating');
+  (document.getElementById('app') ?? document.body).append(propertyPanel.element);
+
+  function showProperty(feature: RoadFeature, x: number, y: number): void {
+    propertyPanel.show(feature);
+    const panel = propertyPanel.element;
+    const margin = 12;
+    const offset = 14;
+    const width = panel.offsetWidth;
+    const height = panel.offsetHeight;
+    let left = x + offset;
+    let top = y + offset;
+    if (left + width > window.innerWidth - margin) left = x - width - offset;
+    if (top + height > window.innerHeight - margin) top = y - height - offset;
+    panel.style.left = `${Math.max(margin, left)}px`;
+    panel.style.top = `${Math.max(margin, top)}px`;
+  }
+
+  const hideProperty = (): void => propertyPanel.hide();
 
   let roadsLayer: PathLayer<RoadFeature> | null = null;
 
@@ -208,13 +164,10 @@ async function main(): Promise<void> {
     onClick: (info) => {
       if (pathSelection?.isActive() === true) return true; // 选点模式下不弹道路属性
       if (info.object && info.coordinate) {
-        tooltip
-          .setLngLat(info.coordinate as [number, number])
-          .setHTML(roadFeatureHtml(info.object as RoadFeature))
-          .addTo(map);
+        showProperty(info.object as RoadFeature, info.x, info.y);
         lastShowAt = performance.now();
       } else if (performance.now() - lastShowAt > 150) {
-        tooltip.remove();
+        hideProperty();
       }
       return true;
     },
@@ -223,13 +176,15 @@ async function main(): Promise<void> {
 
   pathSelection = createPathSelection({
     map,
-    getMetric: () => currentMetric,
     onLayersChange: refreshLayers,
+    onActiveChange: (active) => {
+      if (active) hideProperty();
+    },
   });
 
-  map.on('movestart', () => tooltip.remove());
+  map.on('movestart', hideProperty);
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') tooltip.remove();
+    if (e.key === 'Escape') hideProperty();
   });
 
   fetchHealth()
@@ -267,7 +222,7 @@ async function main(): Promise<void> {
   }
 
   $('loading').remove();
-  void initPanels();
+  void initStatsPanel();
 }
 
 main().catch((err) => {
