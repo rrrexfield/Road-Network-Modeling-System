@@ -212,6 +212,9 @@ async function main(): Promise<void> {
     onActiveChange: (active) => {
       if (active) hideProperty();
     },
+    // 路径按当前显示的交通模态计算：具体模态走该模态子图并应用该模态的禁转表，
+    // 'all'（全量基础路网）不下发 mode，服务端走基础图、不施加禁转。
+    getMode: () => currentMode ?? 'all',
   });
 
   turnEditor = createTurnEditor({
@@ -227,6 +230,10 @@ async function main(): Promise<void> {
     onRestrictionChange: (intersection) => {
       restrictionLayers = createTurnRestrictionLayers(intersection);
       refreshLayers();
+    },
+    // 禁转已落盘：重算当前路径，使新禁转立即体现在路径结果上（绕行或变为不可达）。
+    onRestrictionsSaved: () => {
+      pathSelection?.recompute();
     },
   });
   (document.getElementById('app') ?? document.body).append(turnEditor.element);

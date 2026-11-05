@@ -3,11 +3,18 @@
  *
  * 与道路属性弹窗互斥：宿主应在 isActive() 为 true 时跳过属性点选。
  * 坐标吸附在服务端完成，前端只负责传点击位置与画结果。
+ *
+ * 模态口径：路径按**当前显示的交通模态**请求。`'all'`（全量基础路网）时不下发 mode，
+ * 服务端走基础图、不施加转向限制——与作业一行为一致；选定具体模态时下发该 mode，
+ * 服务端走该模态子图并按该模态的禁转表判定转向，故编辑器保存的禁转会立即反映到路径上。
  */
 import type { Layer } from '@deck.gl/core';
 import { PathLayer, ScatterplotLayer } from '@deck.gl/layers';
 import type { Map as MaplibreMap, MapMouseEvent } from 'maplibre-gl';
+import type { TravelMode } from '@gisalgo/shared';
 import { fetchPath } from '../api-client.js';
+import { travelModeLabel, type DisplayMode } from './mode-control-model.js';
+import { resolvePathMode } from './path-mode.js';
 import './path-selection.css';
 
 type LngLat = [number, number];
@@ -31,6 +38,8 @@ export interface PathSelectionOptions {
   onLayersChange: () => void;
   /** 激活状态变化时通知宿主收起与选点互斥的面板。 */
   onActiveChange?: (active: boolean) => void;
+  /** 读取当前交通模态；缺省视为 'all'（基础图，不施加禁转）。 */
+  getMode?: () => DisplayMode;
 }
 
 const START_COLOR: [number, number, number, number] = [127, 214, 160, 255];
@@ -54,7 +63,7 @@ function formatCost(value: number, metric: Metric): string {
 }
 
 export function createPathSelection(options: PathSelectionOptions): PathSelectionHandle {
-  const { map, onLayersChange, onActiveChange } = options;
+  const { map, onLayersChange, onActiveChange, getMode } = options;
 
   let active = false;
   let metric: Metric = 'time';
@@ -62,6 +71,14 @@ export function createPathSelection(options: PathSelectionOptions): PathSelectio
   let end: LngLat | null = null;
   let pathCoordinates: LngLat[] | null = null;
   let requestToken = 0;
+
+  /**
+   * 当前应下发的交通模态。
+   * 'all' 表示全量基础路网——此时不下发 mode，服务端走基础图、不施加禁转（作业一口径）。
+   */
+  function currentTravelMode(): TravelMode | undefined {
+    return resolvePathMode(getMode?.());
+  }
 
   // ---------------- 控制条 ----------------
   const root = document.createElement('section');
@@ -171,9 +188,10 @@ export function createPathSelection(options: PathSelectionOptions): PathSelectio
     if (start === null || end === null) return;
     const token = ++requestToken;
     const requestedMetric = metric;
+    const requestedMode = currentTravelMode();
     updateStatus('正在计算路径…', 'pending');
 
-    const result = await fetchPath(start, end, requestedMetric);
+    const result = await fetchPath(start, end, requestedMetric, requestedMode);
     if (token !== requestToken) return; // 期间被清除或重算覆盖
 
     if (!result.ok) {
@@ -187,8 +205,10 @@ export function createPathSelection(options: PathSelectionOptions): PathSelectio
     }
 
     pathCoordinates = result.path.coordinates;
+    // 状态栏标注模态，便于确认当前路径是在哪套路网与禁转规则下算出的。
+    const modeText = requestedMode === undefined ? '' : `·${travelModeLabel(requestedMode)}`;
     updateStatus(
-      `路径 ${formatCost(result.path.distance, requestedMetric)}（${requestedMetric === 'time' ? '最快' : '最短'}）`,
+      `路径 ${formatCost(result.path.distance, requestedMetric)}（${requestedMetric === 'time' ? '最快' : '最短'}${modeText}）`,
       'ok',
     );
     emit();

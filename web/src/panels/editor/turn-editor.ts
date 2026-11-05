@@ -22,6 +22,14 @@ export interface TurnEditorOptions {
   getRoadName: (wayId: number) => string;
   onIntersectionFocus: (intersection: IntersectionTurns) => void;
   onRestrictionChange: (intersection: IntersectionTurns | null) => void;
+  /**
+   * 禁转**已成功落盘**后回调（保存失败时触发）。
+   *
+   * 与 `onRestrictionChange` 区分开：后者在勾选预览、加载、清空等每次变动时都会触发，
+   * 此时禁转尚未写入服务端，路径还不会绕行；只有本回调表示服务端禁转表已更新，
+   * 此时重算路径才能得到真正绕开禁转的结果。
+   */
+  onRestrictionsSaved?: (intersection: IntersectionTurns) => void;
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -239,6 +247,8 @@ export function createTurnEditor(options: TurnEditorOptions): TurnEditorHandle {
     current = updated;
     baseline = new Set(pending);
     options.onRestrictionChange(updated);
+    // 服务端禁转表已更新：通知宿主重算当前路径，使禁转真正反映到路径结果上。
+    options.onRestrictionsSaved?.(updated);
     summary.textContent = `${updated.turns.length} 个转向 · ${pending.size} 条禁转`;
     setStatus(`已保存 ${result.restrictionCount} 条禁转`, 'ok');
     syncDirty();

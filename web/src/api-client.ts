@@ -86,20 +86,26 @@ export type PathFetchResult =
 
 /**
  * 请求最短 / 最快路径。
+ *
  * @param from 起点 [经度, 纬度]；服务端会吸附到最近的图节点
  * @param to 终点 [经度, 纬度]
  * @param metric distance = 里程最短；time = 用时最短
+ * @param mode 交通模态。**缺省（undefined）走基础图、不施加转向限制**，与作业一行为一致；
+ *   显式给 mode 则走该模态子图，并由服务端按该模态的禁转表判定转向——禁转边对与边 ID
+ *   只在所属模态内有效，故 mode 必须与编辑禁转时使用的模态相同。
  */
 export async function fetchPath(
   from: [number, number],
   to: [number, number],
   metric: 'distance' | 'time' = 'distance',
+  mode?: TravelMode,
 ): Promise<PathFetchResult> {
   const query = new URLSearchParams({
     from: `${from[0]},${from[1]}`,
     to: `${to[0]},${to[1]}`,
     metric,
   });
+  if (mode !== undefined) query.set('mode', mode);
   try {
     const res = await fetch(`/api/path?${query.toString()}`);
     if (res.status === 404) return { ok: false, reason: 'unreachable' };
