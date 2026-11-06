@@ -84,29 +84,9 @@ export function createWeightPanel(options: WeightPanelOptions = {}): WeightPanel
   head.append(summaryBadge);
   root.append(head);
 
-  // ---- 优化目标 ----
-  const metricGroup = element('div', 'gis-field');
-  metricGroup.append(element('span', 'gis-field__label', '优化目标'));
-  const metricToggle = element('div', 'gis-segmented');
-  const metricButtons = new Map<WeightProfile['metric'], HTMLButtonElement>();
-  for (const [value, label] of [
-    ['time', '最快时间'],
-    ['distance', '最短距离'],
-  ] as [WeightProfile['metric'], string][]) {
-    const button = element('button', 'gis-segmented__item', label);
-    button.type = 'button';
-    button.addEventListener('click', () => {
-      profile = { ...profile, metric: value };
-      syncControls();
-      scheduleEmit();
-    });
-    metricButtons.set(value, button);
-    metricToggle.append(button);
-  }
-  metricGroup.append(metricToggle);
-  root.append(metricGroup);
-
-  // ---- 全局速度系数 ----
+  // 面板只管**全局权重配置**(速度系数与等级限速覆盖)。
+  // 「最快时间 / 最短距离」这一优化目标由起终点选路卡负责(issue #45 的职责划分),
+  // 此处不再重复提供,避免两个入口改同一个值导致状态不一致。
   const factorGroup = element('div', 'gis-field');
   factorGroup.append(element('span', 'gis-field__label', '全局速度系数'));
   const factorInput = document.createElement('input');
@@ -126,7 +106,8 @@ export function createWeightPanel(options: WeightPanelOptions = {}): WeightPanel
   const factorHint = element(
     'p',
     'gis-note',
-    '系数 >1 表示整体提速(通行时间同比缩短);选择"最短距离"时该系数不参与计算。',
+    '系数 >1 表示整体提速(通行时间同比缩短)。该系数只作用于**用时最短**口径,' +
+      '优化目标由起终点选路卡选择;选"最短距离"时本面板的参数不参与路径计算。',
   );
   root.append(factorGroup, factorHint);
 
@@ -234,16 +215,9 @@ export function createWeightPanel(options: WeightPanelOptions = {}): WeightPanel
 
   /** 按当前配置刷新全部输入控件与只读展示。 */
   function syncControls(): void {
-    for (const [value, button] of metricButtons) {
-      button.classList.toggle('gis-segmented__item--active', value === profile.metric);
-      button.setAttribute('aria-pressed', String(value === profile.metric));
-    }
-    summaryBadge.textContent = profile.metric === 'time' ? '按时间' : '按距离';
+    summaryBadge.textContent = `×${profile.speedFactor.toFixed(2)}`;
     summaryBadge.className = 'gis-badge gis-badge--ok';
     factorValue.textContent = `×${profile.speedFactor.toFixed(2)}`;
-    const timeMode = profile.metric === 'time';
-    factorInput.disabled = !timeMode;
-    factorGroup.classList.toggle('gis-field--muted', !timeMode);
 
     let total = 0;
     for (const entry of highwayRows) {
@@ -252,13 +226,12 @@ export function createWeightPanel(options: WeightPanelOptions = {}): WeightPanel
       if (document.activeElement !== entry.speedInput) {
         entry.speedInput.value = String(Math.round(override ?? base));
       }
-      entry.speedInput.disabled = !timeMode;
       const seconds = secondsFor(entry.lengthMeters, effectiveSpeed(entry.highway));
-      entry.timeCell.textContent = timeMode ? formatDuration(seconds) : '—';
+      entry.timeCell.textContent = Number.isFinite(seconds) ? formatDuration(seconds) : '—';
       entry.row.classList.toggle('gis-table__row--overridden', override !== undefined);
-      if (timeMode && Number.isFinite(seconds)) total += seconds;
+      if (Number.isFinite(seconds)) total += seconds;
     }
-    totalValue.textContent = timeMode ? formatDuration(total) : '按里程最短,不计时间';
+    totalValue.textContent = formatDuration(total);
   }
 
   function emit(): void {

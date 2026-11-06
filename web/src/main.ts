@@ -4,7 +4,7 @@ import { Map as MaplibreMap, NavigationControl } from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PathLayer } from '@deck.gl/layers';
 import type { Layer } from '@deck.gl/core';
-import type { RoadFeature, RoadFeatureCollection, TransferPoint, WSMessage } from '@gisalgo/shared';
+import type { RoadFeature, RoadFeatureCollection, TransferPoint, WeightProfile, WSMessage } from '@gisalgo/shared';
 import {
   connectWebSocket,
   fetchHealth,
@@ -27,8 +27,9 @@ import {
   type DisplayMode,
   type PathSelectionHandle,
 } from './map/index.js';
-import { createStatsPanel, fetchStats } from './panels/stats/index.js';
+import { createStatsPanel, fetchStats, type StatsPanelHandle } from './panels/stats/index.js';
 import { createPropertyPanel } from './panels/property/index.js';
+import { createWeightPanel, type WeightPanelHandle } from './panels/weight/index.js';
 import {
   createTurnEditor,
   createTurnRestrictionLayers,
@@ -39,6 +40,17 @@ import {
 let pathSelection: PathSelectionHandle | null = null;
 /** 当前成功显示的交通模式；全量基础图降级时为 null。 */
 let currentMode: DisplayMode | null = null;
+/**
+ * 全局权重配置(速度系数与等级限速覆盖),由权重面板维护。
+ *
+ * 职责划分(issue #45):优化目标(time / distance)归起终点选路卡,
+ * 权重面板只管全局权重参数,两者不重复提供同一入口。
+ */
+let weightProfile: WeightProfile = {
+  metric: 'time',
+  speedFactor: 1,
+  speedOverridesKmh: {},
+};
 
 function $(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -101,7 +113,7 @@ function createCollapsibleSection(
 }
 
 /**
- * 把统计与拓扑面板挂载到右侧栏,并接上实时接口。
+ * 把统计与权重面板挂载到右侧栏,并接上实时接口。
  * 面板只在路网加载成功后初始化(此时服务端已完成拓扑组装)。
  */
 async function initStatsPanel(): Promise<void> {
@@ -111,13 +123,42 @@ async function initStatsPanel(): Promise<void> {
   const statsPanel = createStatsPanel();
   host.append(createCollapsibleSection('路网与拓扑', statsPanel.element, true).element);
 
-  const stats = await fetchStats();
+  // 权重配置面板(issue #45):与统计面板并列,可独立收起。
+  const weightPanel = createWeightPanel({
+    onChange: (profile) => {
+      weightProfile = { ...weightProfile, ...profile };
+      void refreshStats(statsPanel, weightPanel);
+      // 权重参数影响"用时最短"口径的路径,配置变化后重算当前路径。
+      pathSelection?.recompute();
+    },
+  });
+  host.append(createCollapsibleSection('权重配置', weightPanel.element, true).element);
+
+  await refreshStats(statsPanel, weightPanel);
+}
+
+/**
+ * 按当前权重配置重新拉取统计,并回填统计面板与权重面板。
+ *
+ * @param statsPanel 统计面板句柄。
+ * @param weightPanel 权重面板句柄。
+ */
+async function refreshStats(
+  statsPanel: StatsPanelHandle,
+  weightPanel: WeightPanelHandle,
+): Promise<void> {
+  const stats = await fetchStats({
+    metric: weightProfile.metric,
+    speedFactor: weightProfile.speedFactor,
+    speedOverridesKmh: weightProfile.speedOverridesKmh,
+  });
   if (stats === null) {
     statsPanel.setSource('接口不可用', false);
     return;
   }
   statsPanel.render(stats);
   statsPanel.setSource('实时接口', true);
+  weightPanel.update(stats);
 }
 
 async function main(): Promise<void> {
@@ -215,11 +256,28 @@ async function main(): Promise<void> {
     // 路径按当前显示的交通模态计算：具体模态走该模态子图并应用该模态的禁转表，
     // 'all'（全量基础路网）不下发 mode，服务端走基础图、不施加禁转。
     getMode: () => currentMode ?? 'all',
+    // 全局权重参数(issue #45):权重面板调整速度系数/限速覆盖后,路径按新配置重算。
+    getWeightParams: () => ({
+      speedFactor: weightProfile.speedFactor,
+      speedOverridesKmh: weightProfile.speedOverridesKmh,
+    }),
   });
 
   turnEditor = createTurnEditor({
     getMode: () => currentMode,
     getRoadName: (wayId) => currentRoadNames.get(wayId) ?? `Way ${wayId}`,
+    // 转向限制栏展开时，点击地图可拾取最近的路口(issue #43)；
+    // 收起时不注册任何地图监听，点击地图仍是道路属性卡的原有行为。
+    map,
+    onIntersectionSelected: (intersection) => {
+      // 拾取路口与道路属性卡互斥:命中路口后收起属性卡,避免两套信息同时占屏。
+      hideProperty();
+      map.easeTo({
+        center: intersection.position,
+        zoom: Math.max(map.getZoom(), 16),
+        duration: 450,
+      });
+    },
     onIntersectionFocus: (intersection) => {
       map.easeTo({
         center: intersection.position,

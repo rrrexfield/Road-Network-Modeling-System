@@ -98,6 +98,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
+**最后更新:2026-11-06(A 接线路口拾取与权重面板,issue #43 / #45)**
+
+2026-11-06 A 接线(issue #43 + #45):**#43 前端**——转向限制栏**展开时**才注册地图 click 监听(收起时移除,道路属性卡行为完全不变),点击后按当前模态调 `GET /api/intersections/nearest`(命中半径 15 m、缩放级别 ≥ 15 才拾取),命中则自动填充 Node ID、加载全部转向并展示最小路口属性(路口 Node / 关联道路数 / 相连 Way / 路名),未命中只提示且**不伪造 Node ID**;切换交通模态清空已选路口(旧模态的 nodeId 在新模态无效)。主界面接线时把真实地图传入,并在命中路口时收起道路属性卡(两套信息互斥)。**#45**——权重配置面板接回右侧栏(可折叠分区「权重配置」),并按 issue 的职责划分**移除面板内的优化目标选择**:「最快时间 / 最短距离」只留在起终点选路卡,避免双入口改同一个值;面板的速度系数与等级限速覆盖通过 `/api/path` 与 `/api/stats` 同一套参数(`speedFactor` / `speedKmh=等级:限速,…`)生效,服务端抽出 `parseWeightProfileParams` 供两条链路共用,避免解析逻辑各写一份。
+
 **最后更新:2026-11-06(A 打通跨模态路径,issue #34;契约新增 PathResponse.transferPenaltySeconds)**
 
 2026-11-06 A 跨模态路径(issue #34 闭环):新增 `GET /api/path?modes=car,walk`(`modes` 为**有序**模态序列,至少两个,与单模态 `mode` 互斥,混用 400),按冻结契约 `PathResult.segments` 分段返回,段间以 `TransferPoint.id` 相接。**跨模态时顶层 `edgeIds` 留空**(边 id 只在所属模态内有效,跨段的边序列由 `segments[i].edgeIds` 承担),顶层 `nodeIds` 是各段节点序列的拼接(OSM 节点 id 跨模态通用)。**契约新增可选字段 `PathResponse.transferPenaltySeconds`**(换乘罚时秒数):按 issue #34 的决策,换乘惩罚属时间/成本口径、**不计入 `distance`**,故单独下发,前端在"最快时间"口径下才能把等待与接驳显示出来。
