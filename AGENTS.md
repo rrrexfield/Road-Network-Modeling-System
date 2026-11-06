@@ -102,6 +102,10 @@ topology的buildModalTopology增加可选第四参数NodeTags，返回nodeAccess
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
+**最后更新:2026-11-07(A 接入节点准入过滤,PR #56 的 A 侧集成;网页端口径与 CLI 对齐)**
+
+2026-11-07 A 接入节点准入(PR #56 已合入 main):`ModalRuntimeRegistry` 的**两处构图调用**改为四参数形式,传入 `network.nodeTags`——此前 C 的 `createTurnRuntime`(CLI)已按节点标签过滤,而**网页端仍用未过滤的图**,两端口径不一致;现已对齐。`ModalRuntime` 新增 `nodeAccess` 诊断字段,`ModalRuntimeOptions` 新增 `onRuntimeReady` 回调,`server/src/index.ts` 在某模态**首次构建**时把诊断记进日志(不额外构图、不拖慢启动)。实测武汉全量 walk 模态:排除 **1493 个受限节点 / 5198 条相邻边**(`node-access-denied` 717、`node-barrier-permission-unresolved:gate` 512、`node-permit-required` 47 即扬波门等、`lift_gate` 133、`toll_booth` 46,另有条件准入与未知屏障);car→walk 跨模态路径与换乘连接表**过滤前后结果不变**(两段合计 1050.3 s、换乘罚时 326.5 s)。口径提醒:该过滤是**保守排除**,不等于判定这些闸机现实中禁止公众通行;未传标签表时 `checked=false`,不宣称权限已核验。
+
 **最后更新:2026-11-06(作业二全部 issue 收口:#23/#29/#34/#43/#45 已关闭,PR #48/#49/#50/#51 全部合入 main)**
 
 2026-11-06 作业二收口:五个开放 issue(#23 属性完整率、#29 转向编辑器与多模态切换、#34 跨模态路径、#43 路口拾取、#45 权重面板)全部关闭,四个 PR(#48 D 的权重/统计、#49 A 的接线与契约收紧、#50 跨模态路径、#51 前端拾取与权重面板)全部合入 main。新增 **`docs/作业二验收清单.md`**:逐条对照任务书 G2 第 2 次作业的任务内容 / 产出物 / 评分维度,含答辩演示分步脚本(带真实坐标与预期数值)、提交材料清单、已知边界的如实口径与抽问准备。合并过程中发现并修复两处实质缺陷:①换乘连接表把 C 的匹配器返回的**全部模态**匹配按当前模态打标,导致 bus 的匹配被 walk 覆盖(修复后真实连接数 2262 → 2447);②`/api/path` 的权重参数解析与 `/api/stats` 各写一份,现提取 `parseWeightProfileParams` 共用。另补上 `jsdom` 开发依赖——DOM 单测此前只在本地有该包、CI 上缺包导致测试无法启动。全仓 48 个测试文件、371 项通过;真实 HTTP 实测:`/api/stats` 下发属性完整率(name 18.77% / maxspeed 0.93%,与 issue #23 的本地统计一致)、`/api/path?mode=walk` 时间口径按步行速度(1284 s vs 汽车 506 s)、`speedFactor=2` 使路径时间折半(455.8 s → 227.9 s)、`/api/path?modes=car,walk` 返回两段跨模态路径(驾车 102 节点 → 换乘 → 步行 11 节点,罚时 326 s,首查 18 s)。
