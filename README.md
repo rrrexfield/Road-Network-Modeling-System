@@ -1,5 +1,7 @@
 # GISAlgo · 路网建模与拓扑构建系统(G2 组)
 
+2026-11-06 `fix/node-access` 分支提供C节点准入修复（待评审）：`buildModalTopology(nodes,ways,mode,nodeTags?)` 返回 `nodeAccess` 诊断，C的 `createTurnRuntime` 已接入。A的网页模式运行时仍需传节点标签才能生效；未传时兼容旧图且标记未检查。规则、399项验证及保守排除局限见 `docs/plans/c-node-access-ready.md`。
+
 面向 GIS 算法课程的 B/S 架构路网建模系统:Node.js 服务端持有路网图模型与全部算法,浏览器端负责可视化与交互编辑。
 
 2026-11-05 C分支已同步A的REST与PathSegment冻结契约，另提供 `buildTransferAttachments`（逐模式节点/入出方向/核验诊断）与 `computeTransferPenalty`（显式参数计算秒数）。B调用示例见 `docs/plans/c-b-attachments-ready.md`；未经核验的候选不可用于实际连接，武汉停车楼入口仍待核验。本分支尚待PR评审。

@@ -1,0 +1,75 @@
+{
+  "source": "data/wuhan.json",
+  "sourceSha256": "0d23735b19f5d7f311b7f2c5f243620860970fbb86f9e4853d52b6a904214a3d",
+  "scope": "原始way在闸门相邻段的裁剪片段，不代表整个停车场至地铁路线",
+  "gateNodeId": 1358787382,
+  "nodes": [
+    {
+      "id": 1358787402,
+      "lat": 30.5374778,
+      "lon": 114.3719431,
+      "tags": []
+    },
+    {
+      "id": 13565585882,
+      "lat": 30.5374442,
+      "lon": 114.3715697,
+      "tags": []
+    },
+    {
+      "id": 1358787382,
+      "lat": 30.537472,
+      "lon": 114.3718686,
+      "tags": [
+        {
+          "k": "access",
+          "v": "permit"
+        },
+        {
+          "k": "alt_name",
+          "v": "东门"
+        },
+        {
+          "k": "barrier",
+          "v": "gate"
+        },
+        {
+          "k": "bicycle",
+          "v": "private"
+        },
+        {
+          "k": "foot",
+          "v": "permit"
+        },
+        {
+          "k": "motor_vehicle",
+          "v": "permit"
+        },
+        {
+          "k": "name",
+          "v": "扬波门"
+        },
+        {
+          "k": "old_name",
+          "v": "烟波门"
+        }
+      ]
+    }
+  ],
+  "ways": [
+    {
+      "id": 488587938,
+      "highway": "residential",
+      "nds": [13565585882, 1358787382, 1358787402],
+      "tags": {
+        "highway": "residential",
+        "name": "扬波路"
+      },
+      "sourceRange": {
+        "start": 37,
+        "endExclusive": 40,
+        "originalNodeCount": 40
+      }
+    }
+  ]
+}
