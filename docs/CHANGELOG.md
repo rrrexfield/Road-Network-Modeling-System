@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### Fixed(前端启动竞态与面板遮挡,作业二演示阻塞项)
+
+- **「多模态数据不可用」**:根因是 `npm run dev` 的启动竞态——服务端要载入 38 MB 派生数据并重建拓扑(冷启动约 3–5 s),前端往往先加载完;那几秒内 `/api/network?mode=` 与 `/api/transfer-points?mode=` 全部连接被拒,而 `/api/path` 与 `/api/network` 之外的接口**没有重试**,于是界面永久降级成"多模态数据不可用,已切换到全量基础路网"。修复:新增 `ApiHttpError`(服务端已应答的错误)与 `retryWhenServerNotReady`(只对**网络层**失败重试,服务端已应答的 4xx/5xx 不重试),模态路网/转换点/统计三条链路统一走它。
+- **「属性完整性不可用」**:根因**不是**服务端没给数据——`GET /api/stats` 一直带着 `attributeCompleteness`(name 18.77% / maxspeed 0.93% / lanes 7.90% / surface 3.33% / oneway 26.88%),图表其实也画出来了;问题是 `hidden` 属性被组件自身的 `display` 规则压过(类选择器优先级高于浏览器默认的 `[hidden] { display: none }`),「待接入」占位层一直盖在图表上,看起来像统计不可用。修复:`web/src/charts/ui.css` 补 `[hidden] { display: none !important; }`,占位层不再遮挡图表。
+- **转向编辑器与 Dijkstra 卡片重叠**:两者原本各自写死 `top`(92px / 312px),选路卡加了跨模态行后更高,转向编辑器一展开就压上去。修复:改为左栏堆叠容器 `.left-stack`(选路卡与转向编辑器常规流纵向排布、容器统一约束高度与滚动),不再依赖硬编码偏移。
+- 新增 4 项测试(网络层失败重试后成功、服务端已应答的错误不重试、`ApiHttpError` 语义、重试透传非网络错误),全仓 48 个测试文件、375 项通过。
+
 ### Added(Sprint 2 · E 地图点击拾取路口 + A 权重面板接回,issue #43 / #45)
 
 - **地图点击拾取路口**(issue #43 的前端部分):转向限制栏**展开时**才注册地图 click 监听,点击后按当前模态调 `GET /api/intersections/nearest`(命中半径 15 m、缩放级别 ≥ 15 才拾取);命中则自动填充 Node ID、加载该路口的全部转向,并在面板顶部展示最小路口属性(路口 Node、关联道路数、相连 Way、路名);未命中只提示"附近没有可编辑路口",**不伪造 Node ID**、也不动当前已加载的路口;收起时移除监听(道路属性卡行为完全不变),切换交通模态时清空已选路口。地图事件源用面板内定义的最小接口 `MapLibreLike`,不 import maplibre-gl 运行时。
