@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### Added(Sprint 2 · D 属性完整率与多模态权重,issue #23 / #47)
+
+- `server/src/weights/stats.ts`:`StatsInput` 新增可选 `ways`(way 标签表,`StatWay = { highway, tags }`,与 `TopologyResult.ways` 的 `WayProperties` 结构兼容);新增 `computeAttributeCompleteness`,按 issue #23 冻结口径**按 way 统计** name/maxspeed/lanes/surface/oneway 的 filled/total/ratio(0–1),只计原始标注、不把按等级推断的限速算进 filled;空串/纯空白视为未填写,空表返回 total=0 不除零。`computeNetworkStats` 在提供 ways 时填充 `attributeCompleteness`,未提供时保持缺省(契约语义:服务端尚未提供该统计)。
+- `web/src/panels/stats/`:新增「属性完整性」横向条形图(0–100%);字段缺省时显示「待接入」占位覆盖层,不以 0% 冒充完整率。
+- 新增 `server/src/weights/mode-weight.ts`(Sprint 2 多模态权重):`createModeEdgeWeight(context, mode, profile)` 模态边权——car 委托既有 `createEdgeWeight`(零行为变化),walk/bike/bus 用模态速度表;time 口径按模态换算(修复 `/api/path?mode=walk` 用汽车 fallback 30 km/h 算步行时间的口径失真),distance 口径与模态无关(跨模态共用同一 Haversine 里程);`effectiveModeSpeedKmh` 与汽车模型保持同一覆盖合成顺序;`transferPenaltySeconds` 换乘罚时为**占位值**(地铁 5 分/公交 3 分/停车 5 分),标定依赖 issue #34 的核验换乘连接。设计说明与占位值声明见 `docs/plans/d-sprint2-weights-stats.md`。
+- 新增 22 项测试(模态速度表、时间换算、覆盖合成顺序、car 模型逐边一致、罚时正有限、完整率口径与缺省语义),全仓 289 项通过;三包 typecheck、全仓 ESLint、Prettier 全绿。
+- 评审 PR #41(E 改动 D 目录 3 个展示文件)并批准:占比环形图与总通行时间 KPI 的删除不影响作业三数据能力,契约字段保留;`/api/path` 模态权重注入与统计 ways 接线请 A 处理(issue #47)。
+
 ### Added(2026-11-05 · C给B的接驳表)
 
 - topology公开buildTransferAttachments与相关类型，返回逐模式可用性、节点、实际接驳路径长度、入出方向和核验记录；未经核验、超距/失配/无入口证据均不可用。

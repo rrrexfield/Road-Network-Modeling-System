@@ -98,7 +98,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
-**最后更新:2026-11-05(C完成B接驳输入；A的REST及PathSegment冻结约定保留)**
+**最后更新:2026-11-06(D交付属性完整率与多模态权重;A 接线待办见 #47)**
+
+2026-11-06 D:`server/src/weights/mode-weight.ts`(新文件,经 index.ts 公开)提供 `createModeEdgeWeight(context, mode, profile)` / `effectiveModeSpeedKmh` / `transferPenaltySeconds`:car 委托既有汽车模型(零行为变化),walk/bike/bus 用模态速度表,time 口径按模态换算、distance 口径与模态无关(共用同一 Haversine);换乘罚时为占位值(地铁 5 分/公交 3 分/停车 5 分钟),标定依赖 issue #34,声明见 docs/plans/d-sprint2-weights-stats.md §2。stats 按 issue #23 冻结口径实现 `computeAttributeCompleteness`(按 way 统计、只计原始标注、空表不除零),`StatsInput` 新增可选 `ways`(`TopologyResult.ways` 的 `WayProperties` 结构兼容)——A 在 `registerWeightRoutes` 的 network 入参补 `ways: topology.ways` 即启用,并把 `NetworkStats.attributeCompleteness` 收紧为必填;`/api/path` 的 mode 分支仍用汽车权重,请 A 改注入 `createModeEdgeWeight`(issue #47)。统计面板新增「属性完整性」卡片,契约字段缺省时显示「待接入」占位、不以 0% 冒充。全仓 289 项测试通过。
 
 2026-11-05 C分支补充：topology公开buildTransferAttachments/TransferAttachmentIndex/TransferAttachmentReview与computeTransferPenalty，供B直接查询转换点的逐模式节点、路径距离、入出方向及不可用原因。核验路径须显式提供来源记录，未经核验不建立实际连接；罚时显式输入步行距离、速度与等待秒数，不计入PathResult.distance。已同步main 5c0d194；A的REST与PathSegment契约已落地，武汉停车楼真实入口核验、B跨模态搜索和E渲染仍待联合完成。见docs/plans/c-b-attachments-ready.md；本批尚待PR评审。
 
