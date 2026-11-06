@@ -25,6 +25,15 @@
   color: var(--gis-gold);
 }
 
+/* 属性完整性占位覆盖层:契约字段缺省(服务端未提供)时盖住图表区,防止显示 0%。 */
+.gis-stats .gis-placeholder--overlay {
+  position: absolute;
+  inset: 0;
+  justify-content: center;
+  background: rgba(16, 20, 24, 0.9);
+  z-index: 1;
+}
+
 @media (max-width: 720px) {
   .gis-stats .gis-grid {
     grid-template-columns: minmax(0, 1fr);
