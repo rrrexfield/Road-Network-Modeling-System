@@ -1,6 +1,7 @@
 import type {
   HealthResponse,
   IntersectionTurns,
+  NearestIntersectionResponse,
   PathResponse,
   RoadFeatureCollection,
   SetIntersectionTurnsResponse,
@@ -86,20 +87,26 @@ export type PathFetchResult =
 
 /**
  * 请求最短 / 最快路径。
+ *
  * @param from 起点 [经度, 纬度]；服务端会吸附到最近的图节点
  * @param to 终点 [经度, 纬度]
  * @param metric distance = 里程最短；time = 用时最短
+ * @param mode 交通模态。**缺省（undefined）走基础图、不施加转向限制**，与作业一行为一致；
+ *   显式给 mode 则走该模态子图，并由服务端按该模态的禁转表判定转向——禁转边对与边 ID
+ *   只在所属模态内有效，故 mode 必须与编辑禁转时使用的模态相同。
  */
 export async function fetchPath(
   from: [number, number],
   to: [number, number],
   metric: 'distance' | 'time' = 'distance',
+  mode?: TravelMode,
 ): Promise<PathFetchResult> {
   const query = new URLSearchParams({
     from: `${from[0]},${from[1]}`,
     to: `${to[0]},${to[1]}`,
     metric,
   });
+  if (mode !== undefined) query.set('mode', mode);
   try {
     const res = await fetch(`/api/path?${query.toString()}`);
     if (res.status === 404) return { ok: false, reason: 'unreachable' };
@@ -154,6 +161,34 @@ export async function fetchIntersectionTurns(
   const res = await fetch(`/api/intersections/${nodeId}/turns?mode=${mode}`);
   if (!res.ok) throw new Error(await readErrorMessage(res, `获取路口 ${nodeId} 转向失败`));
   return (await res.json()) as IntersectionTurns;
+}
+
+/**
+ * 查询点击位置附近的可编辑路口。
+ *
+ * 转向限制编辑器需要 OSM Node ID，而路网 GeoJSON 按 Way 组织、不含节点 ID，
+ * 故用坐标反查路口。服务端只返回**当前模态**中邻接节点数 >= 3 的真实交叉路口，
+ * 道路折点与中间节点不会被误判。
+ *
+ * @param lon 点击经度
+ * @param lat 点击纬度
+ * @param mode 交通模态；缺省为 car
+ * @param maxDistanceM 命中半径（米），服务端默认 15
+ * @returns 命中的路口；阈值内没有可编辑路口时返回 null（服务端返回 404）
+ */
+export async function fetchNearestIntersection(
+  lon: number,
+  lat: number,
+  mode: TravelMode = 'car',
+  maxDistanceM?: number,
+): Promise<NearestIntersectionResponse | null> {
+  const query = new URLSearchParams({ lon: String(lon), lat: String(lat), mode });
+  if (maxDistanceM !== undefined) query.set('maxDistanceM', String(maxDistanceM));
+  const res = await fetch(`/api/intersections/nearest?${query.toString()}`);
+  // 阈值内没有路口是正常结果（用户点到了普通道路或点得太远），不是接口故障。
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(await readErrorMessage(res, '查询附近路口失败'));
+  return (await res.json()) as NearestIntersectionResponse;
 }
 
 /** 禁转快照恢复失配的明细。 */

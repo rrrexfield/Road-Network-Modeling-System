@@ -31,33 +31,42 @@ export function horizontalBarOption(input: {
   axisName: string;
 }): EChartsOption {
   return {
-    grid: { left: 4, right: 56, top: 8, bottom: 4, containLabel: true },
+    grid: { left: 4, right: 62, top: 2, bottom: 2, containLabel: true },
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     xAxis: {
       type: 'value',
+      show: false,
       name: input.axisName,
-      nameTextStyle: { color: CHART_COLORS.muted },
-      nameGap: 6,
     },
     yAxis: {
       type: 'category',
       inverse: true,
       data: input.categories,
-      axisLabel: { color: CHART_COLORS.text },
+      axisLabel: { color: CHART_COLORS.muted, fontSize: 10.5, margin: 9 },
     },
     series: [
       {
         type: 'bar',
-        barMaxWidth: 16,
+        barMaxWidth: 9,
+        barCategoryGap: '42%',
+        showBackground: true,
+        backgroundStyle: { color: 'rgba(242, 198, 109, 0.055)' },
         data: input.values.map((value, index) => ({
           value,
           itemStyle: {
             color: input.colors[index % input.colors.length]!,
-            borderRadius: [0, 4, 4, 0],
+            borderRadius: 0,
           },
         })),
         // 用字符串模板而非回调,避免绑定 echarts 内部回调类型
-        label: { show: true, position: 'right', color: CHART_COLORS.muted, formatter: '{c}' },
+        label: {
+          show: true,
+          position: 'right',
+          distance: 5,
+          color: CHART_COLORS.muted,
+          fontSize: 10,
+          formatter: '{c}',
+        },
       },
     ],
   };
@@ -111,21 +120,27 @@ export function histogramOption(input: {
   axisName: string;
 }): EChartsOption {
   return {
-    grid: { left: 4, right: 12, top: 28, bottom: 4, containLabel: true },
+    grid: { left: 4, right: 8, top: 12, bottom: 2, containLabel: true },
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    xAxis: { type: 'category', data: input.labels, axisLabel: { fontSize: 11 } },
+    xAxis: {
+      type: 'category',
+      data: input.labels,
+      axisLabel: { fontSize: 10, interval: 0, hideOverlap: true },
+    },
     yAxis: {
       type: 'value',
       name: input.axisName,
-      nameTextStyle: { color: CHART_COLORS.muted },
-      nameGap: 6,
+      axisLabel: { show: false },
+      splitNumber: 4,
     },
     series: [
       {
         type: 'bar',
-        barMaxWidth: 36,
+        barMaxWidth: 24,
         data: input.values,
-        itemStyle: { color: '#8fb6ff', borderRadius: [4, 4, 0, 0] },
+        showBackground: true,
+        backgroundStyle: { color: 'rgba(242, 198, 109, 0.04)' },
+        itemStyle: { color: CHART_COLORS.accent, borderRadius: 0 },
       },
     ],
   };

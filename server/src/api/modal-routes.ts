@@ -1,8 +1,9 @@
 /**
- * 作业二的模态路由:转换点查询与路口转向限制读写。
+ * 作业二的模态路由:转换点查询、路口就近查询与路口转向限制读写。
  *
  * 契约(issue #24 已冻结,定义在 @gisalgo/shared):
  * - GET  /api/transfer-points?mode=car|walk|bike|bus → TransferPoint[]
+ * - GET  /api/intersections/nearest?lon=&lat=&mode=&maxDistanceM= → NearestIntersectionResponse
  * - GET  /api/intersections/:nodeId/turns?mode=         → IntersectionTurns
  * - PUT  /api/intersections/:nodeId/turns?mode=         → SetIntersectionTurnsResponse
  *
@@ -17,6 +18,7 @@ import type {
   TravelMode,
 } from '@gisalgo/shared';
 import { isTravelMode, type ModalRuntimeRegistry } from './modal-runtime.js';
+import { DEFAULT_MAX_DISTANCE_M, MAX_MAX_DISTANCE_M } from './intersection-index.js';
 
 /** 转向限制路由缺省的交通模态。 */
 const DEFAULT_MODE: TravelMode = 'car';
@@ -70,6 +72,29 @@ export function parseNodeId(raw: unknown): number | null {
   return Number.isSafeInteger(id) ? id : null;
 }
 
+/**
+ * 解析经纬度参数;非有限数或超出合法范围返回 null。
+ * 纬度上限 ±90、经度上限 ±180，越界值一律拒绝而非静默裁剪。
+ */
+export function parseCoordinate(raw: unknown, limit: number): number | null {
+  if (typeof raw !== 'string') return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || Math.abs(value) > limit) return null;
+  return value;
+}
+
+/**
+ * 解析命中半径（米）；缺省为 DEFAULT_MAX_DISTANCE_M。
+ * 超出上限返回 null——防止过大的阈值退化成全图扫描。
+ */
+export function parseMaxDistance(raw: unknown): number | null {
+  if (raw === undefined) return DEFAULT_MAX_DISTANCE_M;
+  if (typeof raw !== 'string') return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0 || value > MAX_MAX_DISTANCE_M) return null;
+  return value;
+}
+
 /** 校验 PUT 请求体是否为冻结契约的 SetIntersectionTurnsRequest。 */
 export function parseSetTurnsRequest(body: unknown): SetIntersectionTurnsRequest | null {
   if (typeof body !== 'object' || body === null) return null;
@@ -97,6 +122,57 @@ export async function registerModalRoutes(
       return fail(reply, { status: 503, message: registry.unavailableReason ?? '派生数据不可用' });
     }
     return registry.transferPoints(mode);
+  });
+
+  app.get('/api/intersections/nearest', (request, reply) => {
+    const query = request.query as {
+      lon?: unknown;
+      lat?: unknown;
+      mode?: unknown;
+      maxDistanceM?: unknown;
+    };
+    const mode = parseMode(query.mode);
+    if (mode === null) {
+      return fail(reply, { status: 400, message: 'mode 必须是 car / walk / bike / bus 之一' });
+    }
+    const lon = parseCoordinate(query.lon, 180);
+    const lat = parseCoordinate(query.lat, 90);
+    if (lon === null || lat === null) {
+      return fail(reply, { status: 400, message: 'lon / lat 必须是合法经纬度(经度 ±180、纬度 ±90)' });
+    }
+    const maxDistance = parseMaxDistance(query.maxDistanceM);
+    if (maxDistance === null) {
+      return fail(reply, {
+        status: 400,
+        message: `maxDistanceM 必须是 0 到 ${MAX_MAX_DISTANCE_M} 之间的正数`,
+      });
+    }
+    if (!registry.ready) {
+      return fail(reply, { status: 503, message: registry.unavailableReason ?? '派生数据不可用' });
+    }
+
+    let runtime;
+    try {
+      runtime = registry.runtime(mode);
+    } catch (error) {
+      return fail(reply, mapTurnError(error));
+    }
+
+    // 阈值内没有可编辑路口时返回 404,不返回"最近但很远"的节点——
+    // 否则前端会误选画面外的路口。
+    const found = runtime.intersectionIndex.findNearest(
+      lat,
+      lon,
+      maxDistance,
+      runtime.wayNames,
+    );
+    if (found === null) {
+      return fail(reply, {
+        status: 404,
+        message: `附近 ${maxDistance} 米内没有可编辑路口,请放大后重试`,
+      });
+    }
+    return found;
   });
 
   app.get('/api/intersections/:nodeId/turns', (request, reply) => {

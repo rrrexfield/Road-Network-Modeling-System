@@ -3,11 +3,18 @@
  *
  * 与道路属性弹窗互斥：宿主应在 isActive() 为 true 时跳过属性点选。
  * 坐标吸附在服务端完成，前端只负责传点击位置与画结果。
+ *
+ * 模态口径：路径按**当前显示的交通模态**请求。`'all'`（全量基础路网）时不下发 mode，
+ * 服务端走基础图、不施加转向限制——与作业一行为一致；选定具体模态时下发该 mode，
+ * 服务端走该模态子图并按该模态的禁转表判定转向，故编辑器保存的禁转会立即反映到路径上。
  */
 import type { Layer } from '@deck.gl/core';
 import { PathLayer, ScatterplotLayer } from '@deck.gl/layers';
 import type { Map as MaplibreMap, MapMouseEvent } from 'maplibre-gl';
+import type { TravelMode } from '@gisalgo/shared';
 import { fetchPath } from '../api-client.js';
+import { travelModeLabel, type DisplayMode } from './mode-control-model.js';
+import { resolvePathMode } from './path-mode.js';
 import './path-selection.css';
 
 type LngLat = [number, number];
@@ -27,10 +34,12 @@ export interface PathSelectionHandle {
 
 export interface PathSelectionOptions {
   map: MaplibreMap;
-  /** 读取当前权重目标（来自权重面板）。 */
-  getMetric: () => Metric;
   /** 图层变化时通知宿主刷新 overlay。 */
   onLayersChange: () => void;
+  /** 激活状态变化时通知宿主收起与选点互斥的面板。 */
+  onActiveChange?: (active: boolean) => void;
+  /** 读取当前交通模态；缺省视为 'all'（基础图，不施加禁转）。 */
+  getMode?: () => DisplayMode;
 }
 
 const START_COLOR: [number, number, number, number] = [127, 214, 160, 255];
@@ -54,17 +63,30 @@ function formatCost(value: number, metric: Metric): string {
 }
 
 export function createPathSelection(options: PathSelectionOptions): PathSelectionHandle {
-  const { map, getMetric, onLayersChange } = options;
+  const { map, onLayersChange, onActiveChange, getMode } = options;
 
   let active = false;
+  let metric: Metric = 'time';
   let start: LngLat | null = null;
   let end: LngLat | null = null;
   let pathCoordinates: LngLat[] | null = null;
   let requestToken = 0;
 
+  /**
+   * 当前应下发的交通模态。
+   * 'all' 表示全量基础路网——此时不下发 mode，服务端走基础图、不施加禁转（作业一口径）。
+   */
+  function currentTravelMode(): TravelMode | undefined {
+    return resolvePathMode(getMode?.());
+  }
+
   // ---------------- 控制条 ----------------
   const root = document.createElement('section');
   root.className = 'path-select';
+
+  const title = document.createElement('h2');
+  title.className = 'path-select__title';
+  title.textContent = 'Dijkstra最短路径';
 
   const head = document.createElement('div');
   head.className = 'path-select__head';
@@ -81,12 +103,39 @@ export function createPathSelection(options: PathSelectionOptions): PathSelectio
   clearBtn.textContent = '清除';
   clearBtn.disabled = true;
 
+  const metricGroup = document.createElement('div');
+  metricGroup.className = 'path-select__metric';
+  const metricLabel = document.createElement('span');
+  metricLabel.className = 'path-select__metric-label';
+  metricLabel.textContent = '优化目标';
+  const metricButtons = document.createElement('div');
+  metricButtons.className = 'path-select__metric-buttons';
+  const metricButtonMap = new Map<Metric, HTMLButtonElement>();
+  for (const [value, label] of [
+    ['time', '最快时间'],
+    ['distance', '最短距离'],
+  ] as [Metric, string][]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'path-select__metric-button';
+    button.textContent = label;
+    button.addEventListener('click', () => {
+      if (!active || metric === value) return;
+      metric = value;
+      syncMetricControls();
+      if (start !== null && end !== null) void requestRoute();
+    });
+    metricButtonMap.set(value, button);
+    metricButtons.append(button);
+  }
+  metricGroup.append(metricLabel, metricButtons);
+
   const status = document.createElement('p');
   status.className = 'path-select__status';
   status.textContent = '点击「起终点选路」开始';
 
   head.append(toggle, clearBtn);
-  root.append(head, status);
+  root.append(title, head, metricGroup, status);
   (document.getElementById('app') ?? document.body).append(root);
 
   function updateStatus(text: string, state?: 'ok' | 'error' | 'pending'): void {
@@ -97,6 +146,15 @@ export function createPathSelection(options: PathSelectionOptions): PathSelectio
 
   function emit(): void {
     onLayersChange();
+  }
+
+  function syncMetricControls(): void {
+    for (const [value, button] of metricButtonMap) {
+      button.disabled = !active;
+      button.classList.toggle('is-active', value === metric);
+      button.setAttribute('aria-pressed', String(value === metric));
+    }
+    metricGroup.classList.toggle('is-disabled', !active);
   }
 
   function clear(): void {
@@ -114,6 +172,8 @@ export function createPathSelection(options: PathSelectionOptions): PathSelectio
     toggle.setAttribute('aria-pressed', String(next));
     toggle.classList.toggle('is-active', next);
     map.getCanvas().style.cursor = next ? 'crosshair' : '';
+    onActiveChange?.(next);
+    syncMetricControls();
     if (!next) {
       updateStatus('选点已暂停');
     } else if (start === null) {
@@ -127,10 +187,11 @@ export function createPathSelection(options: PathSelectionOptions): PathSelectio
   async function requestRoute(): Promise<void> {
     if (start === null || end === null) return;
     const token = ++requestToken;
-    const metric = getMetric();
+    const requestedMetric = metric;
+    const requestedMode = currentTravelMode();
     updateStatus('正在计算路径…', 'pending');
 
-    const result = await fetchPath(start, end, metric);
+    const result = await fetchPath(start, end, requestedMetric, requestedMode);
     if (token !== requestToken) return; // 期间被清除或重算覆盖
 
     if (!result.ok) {
@@ -144,8 +205,10 @@ export function createPathSelection(options: PathSelectionOptions): PathSelectio
     }
 
     pathCoordinates = result.path.coordinates;
+    // 状态栏标注模态，便于确认当前路径是在哪套路网与禁转规则下算出的。
+    const modeText = requestedMode === undefined ? '' : `·${travelModeLabel(requestedMode)}`;
     updateStatus(
-      `路径 ${formatCost(result.path.distance, metric)}（${metric === 'time' ? '最快' : '最短'}）`,
+      `路径 ${formatCost(result.path.distance, requestedMetric)}（${requestedMetric === 'time' ? '最快' : '最短'}${modeText}）`,
       'ok',
     );
     emit();
@@ -238,6 +301,7 @@ export function createPathSelection(options: PathSelectionOptions): PathSelectio
   toggle.addEventListener('click', () => setActive(!active));
   clearBtn.addEventListener('click', () => clear());
   map.on('click', onMapClick);
+  syncMetricControls();
 
   return {
     element: root,

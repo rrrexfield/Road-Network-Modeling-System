@@ -101,8 +101,17 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 **最后更新:2026-11-06(D交付属性完整率与多模态权重;A 接线待办见 #47)**
 
 2026-11-06 D:`server/src/weights/mode-weight.ts`(新文件,经 index.ts 公开)提供 `createModeEdgeWeight(context, mode, profile)` / `effectiveModeSpeedKmh` / `transferPenaltySeconds`:car 委托既有汽车模型(零行为变化),walk/bike/bus 用模态速度表,time 口径按模态换算、distance 口径与模态无关(共用同一 Haversine);换乘罚时为占位值(地铁 5 分/公交 3 分/停车 5 分钟),标定依赖 issue #34,声明见 docs/plans/d-sprint2-weights-stats.md §2。stats 按 issue #23 冻结口径实现 `computeAttributeCompleteness`(按 way 统计、只计原始标注、空表不除零),`StatsInput` 新增可选 `ways`(`TopologyResult.ways` 的 `WayProperties` 结构兼容)——A 在 `registerWeightRoutes` 的 network 入参补 `ways: topology.ways` 即启用,并把 `NetworkStats.attributeCompleteness` 收紧为必填;`/api/path` 的 mode 分支仍用汽车权重,请 A 改注入 `createModeEdgeWeight`(issue #47)。统计面板新增「属性完整性」卡片,契约字段缺省时显示「待接入」占位、不以 0% 冒充。全仓 289 项测试通过。
+2026-11-05 A 集成快照:**PR #39/#40/#42 已合入 main、派生数据已重建、前端禁转端到端已打通、新增路口就近查询接口;issue #34 仍开放**
 
-2026-11-05 C分支补充：topology公开buildTransferAttachments/TransferAttachmentIndex/TransferAttachmentReview与computeTransferPenalty，供B直接查询转换点的逐模式节点、路径距离、入出方向及不可用原因。核验路径须显式提供来源记录，未经核验不建立实际连接；罚时显式输入步行距离、速度与等待秒数，不计入PathResult.distance。已同步main 5c0d194；A的REST与PathSegment契约已落地，武汉停车楼真实入口核验、B跨模态搜索和E渲染仍待联合完成。见docs/plans/c-b-attachments-ready.md；本批尚待PR评审。
+2026-11-05 A 集成(issue #38 闭环):**PR #39(B 边扩展 Dijkstra)、#40(/api/path 接入禁转)、#42(C 接驳表)已合入 main**,三者代码零冲突,本地组合验证 268 项测试全绿。`/api/path` 新增 `mode` 查询参数:**缺省走基础图、不施加禁转**(与作业一一致),显式给 mode 走该模态子图并注入 `PersistentTurnService.isForbidden` 谓词——禁转边对与边 ID 只在所属模态内有效,故必须同模态的图 + 禁转服务。`ModalRuntime` 由接口改为类,`graph` / `wayHighway` 走 getter 惰性构建(转向读写不承担 62.8 万节点 / ~100 万边的构造成本)。错误码:非法 mode 400、未启用多模态 501、派生数据不可用 503。
+
+前端端到端(A 改 `web/src/api-client/` 与 `web/src/map/path-selection.ts`,`web/src/panels/editor/turn-editor.ts` 新增回调,均经用户明确授权):`fetchPath` 新增可选 `mode`,缺省不下发;`path-selection` 新增 `getMode` 选项,路径按**当前显示的交通模态**请求,`'all'`(全量基础路网)不下发 mode;`turn-editor` 新增 `onRestrictionsSaved` 回调,**与勾选预览用的 `onRestrictionChange` 严格区分**——后者每次勾选变动都触发(此时禁转尚未落盘),只有前者表示服务端禁转表已更新,此时才重算路径。真实武汉五路口(节点 1881981626)实测:禁掉路径正在使用的直行边对后路径由 500.18 m / 7 节点变为 751.07 m / 23 节点(绕行),清空禁转后恢复 500.18 m,与初始完全一致——证明"编辑器保存禁转 → 服务端落盘 → 路径立即绕行"闭环成立且无内存分叉。
+
+派生数据已重建:转换点 **2596 → 2930**(subway 659 / bus 1231 / parking 1040),nodeTags 6995 / relations 353,已实测核对一致;`data/derived/` 是 gitignore 生成物,不入库。PR #41(E 前端编辑器)因改动 D 的目录,**A 已请求 D 评审后再合**,D 未批准前不合并。
+
+2026-11-05 A 契约冻结(issue #43,E 提出的路口拾取需求):`NearestIntersectionResponse` 进入 `shared/src/index.ts`,新增 `GET /api/intersections/nearest?lon=&lat=&mode=&maxDistanceM=`。**路口判定口径由服务端负责**:只在当前模态拓扑中判定、邻接节点数 >= 3(排除 degree=2 的道路折点与中间节点、悬挂端点与孤立节点)、按球面距离(haversine)计算、超出阈值一律 404 而不返回"最近但很远"的节点。邻接节点数按**去重后的邻接节点**统计而非按边数统计(一条双向道路在路口贡献两条边但只有一个邻接节点,用边数会把两臂路口误判成交叉路口)。实现用经纬度网格索引(`server/src/api/intersection-index.ts`,挂在 `ModalRuntime` 上惰性构建),实测 20 次查询均值 0.7 ms。真实武汉五路口验证:命中 degree=5、相连 3 条 Way、路名「胜利街/一元路」,道路中段点击 404。
+
+2026-11-05 C分支补充：topology公开buildTransferAttachments/TransferAttachmentIndex/TransferAttachmentReview与computeTransferPenalty，供B直接查询转换点的逐模式节点、路径距离、入出方向及不可用原因。核验路径须显式提供来源记录，未经核验不建立实际连接；罚时显式输入步行距离、速度与等待秒数，不计入PathResult.distance。见docs/plans/c-b-attachments-ready.md。**B 的跨模态搜索、E 的分段渲染、武汉停车楼真实入口核验仍待联合完成，issue #34 保持开放。**
 
 2026-11-03 C后续分支 `feature/transfer-attachments`（未合并）：topology公开matchTransferConnections/inspectTransferEntrances，分别返回逐模式节点匹配证据及原way入口候选，均不自动建立转换边；全部入口候选须核验，边界共享不能证明楼层/屏障可通行。io补识别subway_entrance，武汉标记2930（bus1231/subway659/parking1040），合并后需A重建派生文件；以下2596为旧main基线。真实片段只验证car/walk分段有向可达；A多段路径契约已冻结，B搜索与E页面尚待对接，#34保持开放。交接见docs/plans/c-transfer-connections.md。
 
@@ -138,7 +147,7 @@ PR #19–#22 合入(2026-10-29):`/api/path` 采用 issue #18 的**方案 A(服�
 ### API 格式
 
 - REST 统一前缀 `/api`,资源名 kebab-case(如 `/api/health`);响应 JSON、字段 camelCase;错误响应 `{ "error": { "message": "..." } }`。
-- 当前已注册端点:`GET /api/health`、`GET /api/network`(带 `?mode=car|walk|bike|bus` 返回该模态路网,不带 mode 行为不变)、`GET /api/transfer-points?mode=`、`GET /api/intersections/:nodeId/turns?mode=`、`PUT /api/intersections/:nodeId/turns?mode=`、`GET /api/path`、`GET /api/weights/profile`、`GET /api/stats`、WS `/ws`。转向限制的 `mode` 缺省为 `car`。
+- 当前已注册端点:`GET /api/health`、`GET /api/network`(带 `?mode=car|walk|bike|bus` 返回该模态路网,不带 mode 行为不变)、`GET /api/transfer-points?mode=`、**`GET /api/intersections/nearest?lon=&lat=&mode=&maxDistanceM=`**(坐标反查可编辑路口)、`GET /api/intersections/:nodeId/turns?mode=`、`PUT /api/intersections/:nodeId/turns?mode=`、`GET /api/path`(**带 `?mode=` 时走该模态子图并施加该模态的禁转;缺省走基础图、不施加禁转**)、`GET /api/weights/profile`、`GET /api/stats`、WS `/ws`。转向限制的 `mode` 缺省为 `car`。
 - WebSocket 消息信封 `{ "type": "...", "payload": { ... } }`,`type` 为判别字段(见 `WSMessage`)。
 - 跨端契约类型(领域模型、API 出入参、WS 消息)统一定义于 `shared/src/index.ts`,前后端禁止重复定义;契约变更须评审。
 

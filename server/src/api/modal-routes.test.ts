@@ -3,12 +3,23 @@ import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { IntersectionTurns, RoadFeatureCollection } from '@gisalgo/shared';
+import type {
+  IntersectionTurns,
+  NearestIntersectionResponse,
+  RoadFeatureCollection,
+} from '@gisalgo/shared';
 import { Graph } from '../graph/index.js';
 import type { LoadedNetwork } from '../io/loader.js';
 import { buildTopology } from '../topology/index.js';
 import { registerRoutes } from './routes.js';
-import { mapTurnError, parseMode, parseNodeId, parseSetTurnsRequest } from './modal-routes.js';
+import {
+  mapTurnError,
+  parseCoordinate,
+  parseMaxDistance,
+  parseMode,
+  parseNodeId,
+  parseSetTurnsRequest,
+} from './modal-routes.js';
 import {
   createModalRuntimeRegistry,
   isTravelMode,
@@ -166,6 +177,97 @@ describe('模态与参数解析', () => {
     expect(parseSetTurnsRequest({ forbidden: [{ fromEdge: 1.5, toEdge: 2 }] })).toBeNull();
     expect(parseSetTurnsRequest({ forbidden: 'x' })).toBeNull();
     expect(parseSetTurnsRequest(undefined)).toBeNull();
+  });
+
+  it('经纬度必须合法,半径必须在 0 到上限之间', () => {
+    expect(parseCoordinate('114.3', 180)).toBe(114.3);
+    expect(parseCoordinate('30.5', 90)).toBe(30.5);
+    expect(parseCoordinate('181', 180)).toBeNull();
+    expect(parseCoordinate('91', 90)).toBeNull();
+    expect(parseCoordinate('abc', 180)).toBeNull();
+    expect(parseCoordinate(undefined, 180)).toBeNull();
+
+    expect(parseMaxDistance(undefined)).toBe(15);
+    expect(parseMaxDistance('30')).toBe(30);
+    expect(parseMaxDistance('0')).toBeNull();
+    expect(parseMaxDistance('-5')).toBeNull();
+    expect(parseMaxDistance('1000')).toBeNull();
+  });
+});
+
+/* ---------- /api/intersections/nearest ---------- */
+
+describe('GET /api/intersections/nearest', () => {
+  it('命中丁字路口中心节点', async () => {
+    const app = await buildApp(makeRegistry());
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/intersections/nearest?lon=114.31&lat=30.5&mode=car',
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as NearestIntersectionResponse;
+    expect(body.nodeId).toBe(2);
+    expect(body.degree).toBe(3);
+    expect(body.distanceMeters).toBeCloseTo(0, 3);
+    expect(body.connectedWayIds).toEqual([100, 200, 300]);
+    await app.close();
+  });
+
+  it('阈值外不命中,返回 404', async () => {
+    const app = await buildApp(makeRegistry());
+    // 距路口约 1.1 km，超过默认 15 米
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/intersections/nearest?lon=114.3&lat=30.5&mode=car',
+    });
+    expect(res.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it('非法参数返回 400', async () => {
+    const app = await buildApp(makeRegistry());
+
+    const badMode = await app.inject({
+      method: 'GET',
+      url: '/api/intersections/nearest?lon=114.31&lat=30.5&mode=plane',
+    });
+    expect(badMode.statusCode).toBe(400);
+
+    const badLon = await app.inject({
+      method: 'GET',
+      url: '/api/intersections/nearest?lon=999&lat=30.5&mode=car',
+    });
+    expect(badLon.statusCode).toBe(400);
+
+    const badDistance = await app.inject({
+      method: 'GET',
+      url: '/api/intersections/nearest?lon=114.31&lat=30.5&mode=car&maxDistanceM=9999',
+    });
+    expect(badDistance.statusCode).toBe(400);
+
+    await app.close();
+  });
+
+  it('路口判定按模态进行,相连 Way 随模态变化', async () => {
+    const app = await buildApp(makeRegistry());
+
+    // car 模态：节点 2 的相邻道路只有 way 100/200/300
+    const car = await app.inject({
+      method: 'GET',
+      url: '/api/intersections/nearest?lon=114.31&lat=30.5&mode=car',
+    });
+    expect(car.statusCode).toBe(200);
+    expect((car.json() as NearestIntersectionResponse).connectedWayIds).toEqual([100, 200, 300]);
+
+    // walk 模态：way 400 为步行专属，节点 2 的相邻道路集合不变，
+    // 但节点 3 的邻接节点数由 1 升为 2 —— 仍不是路口，不应被误判。
+    const walk = await app.inject({
+      method: 'GET',
+      url: '/api/intersections/nearest?lon=114.31&lat=30.51&mode=walk&maxDistanceM=50',
+    });
+    expect(walk.statusCode).toBe(404);
+
+    await app.close();
   });
 });
 

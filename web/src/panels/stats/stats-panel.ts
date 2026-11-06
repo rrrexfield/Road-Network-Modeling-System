@@ -1,17 +1,13 @@
 /**
- * 统计仪表盘面板:网络规模 KPI + 等级里程分布 / 占比 / 边长分布 / 属性完整性四张图 + 拓扑指标区。
+ * 统计仪表盘面板:网络规模 KPI + 等级里程分布 / 边长分布 / 属性完整性三张图 + 拓扑指标区。
  * 面板只负责把 NetworkStats 映射到图表选项,DOM 与样式留在本目录。
  */
 import {
-  CHART_PALETTE,
+  CHART_COLORS,
   autoResize,
   createChart,
-  donutOption,
   formatCount,
-  formatDuration,
   formatKilometers,
-  formatPercent,
-  formatSpeed,
   histogramOption,
   horizontalBarOption,
   roundKilometers,
@@ -29,9 +25,6 @@ export interface StatsPanelHandle {
   setSource(label: string, ok: boolean): void;
   dispose(): void;
 }
-
-/** 占比环形图最多单独展示的等级数,其余归入"其他"。 */
-const DONUT_TOP_N = 7;
 
 /** 属性完整性图的展示顺序,与契约 AttributeCompletenessReport 的键一致。 */
 const COMPLETENESS_KEYS = ['name', 'maxspeed', 'lanes', 'surface', 'oneway'] as const;
@@ -74,33 +67,33 @@ export function createStatsPanel(): StatsPanelHandle {
   const head = element('header', 'gis-panel__head');
   head.append(element('h2', 'gis-panel__title', '网络统计'));
   const sourceBadge = element('span', 'gis-badge gis-badge--wait', '尚未加载');
+  sourceBadge.hidden = true;
   head.append(sourceBadge);
+  head.hidden = true;
 
   const kpis = element('div', 'gis-kpis');
+  const summaryCard = element('section', 'gis-card gis-summary');
+  summaryCard.append(element('h3', 'gis-card__title', '路网规模'), kpis);
+
   const charts = element('div', 'gis-grid');
   const lengthCard = createChartCard('等级里程分布', '按 highway 聚合');
-  const shareCard = createChartCard('等级里程占比');
   const histogramCard = createChartCard('边长分布');
   const completenessCard = createChartCard('属性完整性', '按 way 统计 · 原始标注');
-  charts.append(lengthCard.card, shareCard.card, histogramCard.card, completenessCard.card);
+  charts.append(lengthCard.card, histogramCard.card, completenessCard.card);
 
   const topologyCard = element('section', 'gis-card gis-topology');
   topologyCard.append(element('h3', 'gis-card__title', '拓扑指标'));
 
-  // 口径说明:把当前权重配置与占比口径摊开,避免"数字好看但说不清口径"
-  const summaryNote = element('p', 'gis-note gis-note--summary');
+  // 先展示规模与拓扑摘要,三张分布图放在最后上下排列。
+  root.append(head, summaryCard, topologyCard, charts);
 
-  root.append(head, kpis, charts, topologyCard, summaryNote);
-
-  const charts_: Record<'length' | 'share' | 'histogram' | 'completeness', ChartInstance> = {
+  const charts_: Record<'length' | 'histogram' | 'completeness', ChartInstance> = {
     length: createChart(lengthCard.body),
-    share: createChart(shareCard.body),
     histogram: createChart(histogramCard.body),
     completeness: createChart(completenessCard.body),
   };
   const stopResize = [
     autoResize(charts_.length, lengthCard.body),
-    autoResize(charts_.share, shareCard.body),
     autoResize(charts_.histogram, histogramCard.body),
     autoResize(charts_.completeness, completenessCard.body),
   ];
@@ -150,69 +143,6 @@ export function createStatsPanel(): StatsPanelHandle {
     topologyCard.append(element('p', 'gis-note', `来源：${stats.topologySource}`));
   }
 
-  function render(stats: NetworkStats): void {
-    const topological = stats.topology !== null;
-
-    kpis.replaceChildren(
-      createTile('节点数', formatCount(stats.nodeCount)),
-      createTile('有向边数', formatCount(stats.edgeCount)),
-      createTile('道路数', formatCount(stats.wayCount), '按 way 去重'),
-      createTile('总里程', formatKilometers(stats.totalLengthMeters)),
-      createTile('总通行时间', formatDuration(stats.totalTravelSeconds), '按当前限速'),
-      createTile(
-        '平均 / 中位边长',
-        `${stats.meanEdgeMeters.toFixed(0)} / ${stats.medianEdgeMeters.toFixed(0)} m`,
-      ),
-    );
-
-    const topHighways = stats.byHighway.slice(0, 10);
-    charts_.length.setOption(
-      horizontalBarOption({
-        categories: topHighways.map((row) => row.highway),
-        values: topHighways.map((row) => roundKilometers(row.lengthMeters)),
-        colors: [...CHART_PALETTE],
-        axisName: '里程 (km)',
-      }),
-      true,
-    );
-
-    const mainHighways = stats.byHighway.slice(0, DONUT_TOP_N);
-    const rest = stats.byHighway.slice(DONUT_TOP_N);
-    const donutItems = mainHighways.map((row) => ({
-      name: row.highway,
-      value: roundKilometers(row.lengthMeters),
-    }));
-    if (rest.length > 0) {
-      donutItems.push({
-        name: `其他 ${rest.length} 类`,
-        value: roundKilometers(rest.reduce((sum, row) => sum + row.lengthMeters, 0)),
-      });
-    }
-    charts_.share.setOption(donutOption({ items: donutItems }), true);
-
-    charts_.histogram.setOption(
-      histogramOption({
-        labels: stats.lengthHistogram.map((bucket) => bucket.label),
-        values: stats.lengthHistogram.map((bucket) => bucket.edgeCount),
-        axisName: '边数',
-      }),
-      true,
-    );
-
-    renderTopology(stats);
-    renderCompleteness(stats);
-
-    const speedFactor = stats.profile.speedFactor;
-    const factorText = speedFactor === 1 ? '默认限速' : `速度系数 ×${speedFactor}`;
-    const leading = stats.byHighway[0];
-    summaryNote.textContent =
-      `口径：${factorText}` +
-      (leading === undefined
-        ? ''
-        : `；里程最多的等级为 ${leading.highway}（${formatPercent(leading.lengthShare)}，平均 ${formatSpeed(leading.averageSpeedKmh)}）`) +
-      (topological ? '。' : '；拓扑指标尚未接入，见上方说明。');
-  }
-
   /** 属性完整性:契约字段缺省时切换占位态,提供时画 0–100% 横向条形图。 */
   function renderCompleteness(stats: NetworkStats): void {
     const report = stats.attributeCompleteness;
@@ -226,16 +156,56 @@ export function createStatsPanel(): StatsPanelHandle {
       horizontalBarOption({
         categories: [...COMPLETENESS_KEYS],
         values: COMPLETENESS_KEYS.map((key) => Math.round(report[key].ratio * 1000) / 10),
-        colors: [...CHART_PALETTE],
+        colors: [CHART_COLORS.accent],
         axisName: '完整率 (%)',
       }),
       true,
     );
   }
 
+  function render(stats: NetworkStats): void {
+    kpis.replaceChildren(
+      createTile('节点数', formatCount(stats.nodeCount)),
+      createTile('有向边数', formatCount(stats.edgeCount)),
+      createTile('道路数', formatCount(stats.wayCount), '按 way 去重'),
+      createTile('总里程', formatKilometers(stats.totalLengthMeters)),
+      createTile(
+        '平均 / 中位边长',
+        `${stats.meanEdgeMeters.toFixed(0)} / ${stats.medianEdgeMeters.toFixed(0)} m`,
+      ),
+    );
+
+    const topHighways = stats.byHighway.slice(0, 10);
+    charts_.length.setOption(
+      horizontalBarOption({
+        categories: topHighways.map((row) => row.highway),
+        values: topHighways.map((row) => roundKilometers(row.lengthMeters)),
+        colors: [CHART_COLORS.accent],
+        axisName: '里程 (km)',
+      }),
+      true,
+    );
+
+    charts_.histogram.setOption(
+      histogramOption({
+        labels: stats.lengthHistogram.map((bucket) => bucket.label),
+        values: stats.lengthHistogram.map((bucket) => bucket.edgeCount),
+        axisName: '边数',
+      }),
+      true,
+    );
+
+    renderTopology(stats);
+    renderCompleteness(stats);
+  }
+
   function setSource(label: string, ok: boolean): void {
-    sourceBadge.textContent = label;
-    sourceBadge.className = `gis-badge ${ok ? 'gis-badge--ok' : 'gis-badge--wait'}`;
+    sourceBadge.hidden = ok;
+    head.hidden = ok;
+    if (!ok) {
+      sourceBadge.textContent = label;
+      sourceBadge.className = 'gis-badge gis-badge--wait';
+    }
   }
 
   return {

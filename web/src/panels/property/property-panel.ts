@@ -39,26 +39,27 @@ export function createPropertyPanel(): PropertyPanelHandle {
   root.hidden = true;
   root.setAttribute('aria-live', 'polite');
 
-  const head = node('header', 'gis-panel__head');
-  const badge = node('span', 'gis-badge gis-badge--wait', '未选择');
-  head.append(node('h2', 'gis-panel__title', '道路属性'), badge);
+  const accessibleTitle = node('h2', 'gis-property__sr-title', '道路属性');
 
   const empty = node('p', 'gis-property__empty', '点击地图上的道路查看属性');
+  const nameRow = node('div', 'gis-property__name-row');
   const name = node('div', 'gis-property__name');
+  const kind = node('span', 'gis-property__kind');
+  nameRow.append(name, kind);
   const meta = node('dl', 'gis-property__meta');
   const tagsTitle = node('h3', 'gis-property__subtitle', '标签');
   const tags = node('div', 'gis-property__tags');
+  const watermark = node('div', 'gis-property__watermark', '道路属性');
 
-  root.append(head, empty, name, meta, tagsTitle, tags);
+  root.append(accessibleTitle, empty, nameRow, meta, tagsTitle, tags, watermark);
 
   function clear(): void {
     name.textContent = '';
+    kind.textContent = '';
     meta.replaceChildren();
     tags.replaceChildren();
-    badge.textContent = '未选择';
-    badge.className = 'gis-badge gis-badge--wait';
     empty.hidden = false;
-    name.hidden = true;
+    nameRow.hidden = true;
     meta.hidden = true;
     tagsTitle.hidden = true;
     tags.hidden = true;
@@ -73,12 +74,10 @@ export function createPropertyPanel(): PropertyPanelHandle {
     const vm = toPropertyViewModel(feature);
 
     empty.hidden = true;
-    name.hidden = false;
+    nameRow.hidden = false;
     meta.hidden = false;
     name.textContent = vm.name;
-
-    badge.textContent = vm.highway;
-    badge.className = 'gis-badge gis-badge--ok';
+    kind.textContent = vm.highway;
 
     const fieldNodes = vm.fields.flatMap((f) => [
       node('dt', 'gis-property__label', f.label),

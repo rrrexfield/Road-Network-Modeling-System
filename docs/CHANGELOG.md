@@ -11,6 +11,80 @@
 - 新增 `server/src/weights/mode-weight.ts`(Sprint 2 多模态权重):`createModeEdgeWeight(context, mode, profile)` 模态边权——car 委托既有 `createEdgeWeight`(零行为变化),walk/bike/bus 用模态速度表;time 口径按模态换算(修复 `/api/path?mode=walk` 用汽车 fallback 30 km/h 算步行时间的口径失真),distance 口径与模态无关(跨模态共用同一 Haversine 里程);`effectiveModeSpeedKmh` 与汽车模型保持同一覆盖合成顺序;`transferPenaltySeconds` 换乘罚时为**占位值**(地铁 5 分/公交 3 分/停车 5 分),标定依赖 issue #34 的核验换乘连接。设计说明与占位值声明见 `docs/plans/d-sprint2-weights-stats.md`。
 - 新增 22 项测试(模态速度表、时间换算、覆盖合成顺序、car 模型逐边一致、罚时正有限、完整率口径与缺省语义),全仓 289 项通过;三包 typecheck、全仓 ESLint、Prettier 全绿。
 - 评审 PR #41(E 改动 D 目录 3 个展示文件)并批准:占比环形图与总通行时间 KPI 的删除不影响作业三数据能力,契约字段保留;`/api/path` 模态权重注入与统计 ways 接线请 A 处理(issue #47)。
+### Added(Sprint 2 · A 路口就近查询,issue #43)
+
+- 契约冻结:`NearestIntersectionResponse` 进入 `shared/src/index.ts`,含 `nodeId`、`position`、`distanceMeters`、`degree`、`connectedWayIds`、`roadNames` 六个字段。
+- 新增 `GET /api/intersections/nearest?lon=&lat=&mode=&maxDistanceM=`:把点击经纬度映射为可编辑路口。**路口判定口径**(服务端负责,前端不得自行推断):只在当前模态拓扑中判定、邻接节点数 >= 3(排除 degree=2 的道路折点与中间节点、悬挂端点与孤立节点)、按球面距离(haversine)计算、**超出阈值一律 404 而不返回"最近但很远"的节点**。
+- 邻接节点数按**去重后的邻接节点**统计而非按边数统计——一条双向道路在路口贡献入边与出边两条边但只有一个邻接节点,用边数会把两臂路口误判成交叉路口。
+- 新增 `server/src/api/intersection-index.ts`:经纬度网格索引把候选集缩小到点击位置附近(模态拓扑有 62.8 万节点,线性扫描不可接受)。索引挂在 `ModalRuntime` 上惰性构建,与既有的 graph / wayHighway 惰性策略一致。
+- 错误映射:非法 mode / 非法经纬度 / 非法半径返回 400,派生数据不可用返回 503,阈值内无路口返回 404。
+- 前端 `api-client` 新增 `fetchNearestIntersection`:阈值内无路口返回 `null`(点到了普通道路是正常结果,不是接口故障),接口故障才抛错。
+- **真实数据验证**(武汉五路口 1881981626):命中 `degree=5`、相连 3 条 Way、真实路名「胜利街 / 一元路」;用返回的 nodeId 查转向得到 12 个转向动作且位置一致;道路中段点击返回 404;连续 20 次查询均值 0.7 ms。
+
+### Added(Sprint 2 · A 前端接入模态,禁转端到端影响路径,issue #38)
+
+- `web/src/api-client.ts` 的 `fetchPath` 新增可选 `mode` 参数,缺省不下发(服务端走基础图、不施加禁转,与作业一一致),显式给模态时随查询下发,供服务端按该模态的禁转表判定转向。
+- `web/src/map/path-selection.ts` 新增 `getMode` 选项,路径按**当前显示的交通模态**请求;`'all'`(全量基础路网)不下发 mode,选定具体模态时下发该模态。状态栏标注模态,便于确认路径是在哪套路网与禁转规则下算出的。
+- `web/src/panels/editor/turn-editor.ts` 新增 `onRestrictionsSaved` 回调,与既有 `onRestrictionChange` 区分开:后者在勾选预览等每次变动时触发(此时禁转尚未落盘),只有前者表示服务端禁转表已更新,此时重算路径才能得到真正绕开禁转的结果。
+- 新增 `web/src/map/path-mode.ts`(显示模态 → 请求 mode 的纯映射)与两项测试文件,覆盖 mode 缺省不下发、指定模态下发、全量与未就绪态的处理。
+- **真实数据验证**:武汉五路口(节点 1881981626)实测——禁掉路径正在使用的直行边对后,`/api/path?mode=car` 路径由 500.18 m / 7 节点变为 751.07 m / 23 节点(被迫绕行),清空禁转后恢复 500.18 m,与初始完全一致。证明"编辑器保存禁转 → 服务端落盘 → 路径立即绕行"闭环成立且无内存分叉。
+
+### Added(2026-11-05 · C给B的接驳表)
+
+- topology公开buildTransferAttachments与相关类型，返回逐模式可用性、节点、实际接驳路径长度、入出方向和核验记录；未经核验、超距/失配/无入口证据均不可用。
+- computeTransferPenalty显式接收步行距离、速度和等待秒数，不混入距离。同步main 5c0d194的REST及PathSegment约定；259项测试、完整typecheck/lint/build通过。真实停车楼入口核验仍待完成，#34不关闭。
+
+### Added(Sprint 2 · 接驳证据，feature/transfer-attachments 未合并)
+
+- 补识别地铁出入口subway_entrance，武汉标记由2596增至2930，仍属walk，旧派生文件须重建。
+- 公开逐模式的共享节点/近邻候选匹配及原way入口证据核查，报告距离、并列、权限、屏障和失配，不自动生成转换边。
+- 武汉35节点/5条way固定片段验证car/walk分段有向可达与断路负例，停车共享边界仍需核验，未完成跨模态搜索。
+- 清理OSM导入重复条件判断并补foot回归，修正近等距歧义对遍历顺序的依赖；232项测试、全仓typecheck/lint及生产构建通过，交接和限制见docs/plans/c-transfer-connections.md。
+
+### Added(Sprint 2 · A /api/path 接入禁转判定,issue #38)
+
+- `/api/path` 新增 `mode` 查询参数(car / walk / bike / bus):缺省仍走基础图(无禁转,与作业一一致);显式给 `mode` 时走该模态子图,注入 `PersistentTurnService.isForbidden` 作为禁转谓词并用 `dijkstraWithTurnRestrictions` 计算——禁转边对与边 ID 只在所属模态内有效,故必须用同一模态的图 + 禁转服务。
+- `ModalRuntime` 由接口改为类,新增**惰性** `graph` / `wayHighway` getter:图仅在路径查询首次访问时构建(62.8 万节点 / ~100 万边),转向读写只依赖拓扑与禁转服务,不白白承担构造成本。
+- 新增 3 项测试:`/api/path?mode=car` 禁左转后绕行且代价变长、非法 mode 返回 400、显式 mode 但未启用多模态返回 501。
+- 全仓 237 项测试通过;server typecheck 与全仓 lint 全绿。
+
+### Added(Sprint 2 · B 转向限制搜索,issue #28)
+
+- 新增 `server/src/graph/turn-restricted-dijkstra.ts`:`TurnRestrictionPredicate`(只读判定 `(via, from, to) => boolean`)与 `dijkstraWithTurnRestrictions`,实现立项文档 §3.3.2 的边扩展状态空间 `(node, inEdge)`——入边唯一确定当前节点,松弛出边前查一次禁转表,不预建展开图。
+- `dijkstraWithTurnRestrictions` 为独立入口,不改变现有 `dijkstra` 的签名与行为;未提供谓词时等价于“全部允许”。谓词形态与 C 的 `TurnRestrictionTable.isForbidden` / A 的 `PersistentTurnService.isForbidden` 一致,graph 不依赖 topology/io 具体类型;作业四 A* 复用同一谓词。
+- `Graph` 新增只读访问器 `edge(id)`,供边扩展状态按边 id O(1) 取边,避免逐次查询重建全图边映射,保证 62.8 万节点 / 119 万有向边规模性能不退化。
+- 新增 6 项测试:空限制与普通 dijkstra 一致、禁左转生效且同路口其他转向不受影响、同一路口不同入边禁转互不影响(节点级标签做不到的关键用例)、禁转使路径改道且代价变长、不可达约定,以及武汉五路口固定夹具(禁左转后绕行、中心节点访问两次证明未错误剪枝)。
+- 全仓 234 项测试通过;server typecheck 与全仓 lint 全绿。设计说明见 `docs/plans/b-sprint2-turn-restricted-dijkstra.md`。
+
+### Added(Sprint 2 · E 多模态切换与转换点展示)
+
+- 新增左下角交通模式控制条,可在全量、汽车、步行、骑行、公交之间切换;“全量”用于退出模态过滤并恢复基础路网。首次进入模式和每次切换均显示加载状态,请求失败时保留已有路网并显示错误。
+- 切换模式时并行请求 `GET /api/network?mode=` 与 `GET /api/transfer-points?mode=`,重建路网图层和转换点图层,同时清除旧路径、退出选点并隐藏道路属性卡。
+- 新增地铁站 `M`、公交站 `B`、停车场 `P` 标记;城市级缩放只显示低透明度小点,放大到 12.5 级后才显示字母,避免大量站点遮挡路网。转换点图层不可拾取,不干扰道路属性交互。
+- 使用请求 token 丢弃快速切换产生的过期响应;多模态派生数据未准备时降级显示全量基础路网,不把基础图冒充当前模态。
+- 明确标注路径与统计暂按全量基础路网口径,待 `/api/path` 支持 `mode` 后再接入模态路径。
+- 新增模式顺序、中文名称、转换点字母映射与缩放阈值测试。
+
+### Added(Sprint 2 · E 转向限制编辑器)
+
+- 新增默认收起的路口转向限制面板,按当前交通模式读取 `/api/intersections/:nodeId/turns`;支持 Node ID 输入和武汉五路口样例 `1881981626`。
+- 面板列出路口全部转向动作,显示普通左右直掉头、模糊转向偏角、入口/出口道路、OSM/手动来源和禁转勾选状态。
+- 面板下移与 Dijkstra 卡拉开距离,并新增“清空选择”按钮:一次取消当前路口全部勾选,保存后整体清除禁转。
+- 保存时按整路口覆盖语义提交 `PUT /api/intersections/:nodeId/turns`,覆盖 OSM 与手动规则;处理保存中、接口错误和 409 禁转快照失配,失败时保留原状态。
+- 加载路口后自动将地图聚焦到该位置,以金色环标出当前路口;禁转动作在路口附近绘制红色示意弧线并显示“禁 N”数量,勾选时即时预览,保存失败恢复已保存状态。当前冻结契约不提供入口/出口精确几何,弧线只作状态提示,不作为精确车道几何。
+- 地图点击取得最近 `nodeId` 仍缺接口,本版不把 Node ID 输入冒充“地图点击路口”;待 A 提供最近路口查询后再补齐。
+- 新增转向文字、边对集合和示意弧线测试;全仓 236 项测试通过。
+
+### Added(Sprint 2 · E 道路属性面板接线与界面对齐)
+
+- 主界面接入已有 `createPropertyPanel()` 组件,删除旧 MapLibre `Popup`、HTML 字符串拼装与手工转义逻辑;点击道路后在鼠标附近悬浮展示完整名称、Way ID、等级和全部 OSM 标签,并自动避开视口边缘。
+- 属性悬浮卡进一步收窄,移除与标题旁等级标识重复的“类型”字段;道路等级改为道路名右侧纯文字,“道路属性”转为卡片右下角低对比灰色标识。
+- 属性卡在点击空白地图、按 `Esc` 或地图开始移动时收起;进入起终点选点时也会主动收起,保持两种交互互斥。
+- 删除主界面的“权重配置”分区及其全局速度、等级限速表、总通行时间预估;将“最快时间 / 最短距离”移入左侧起终点选路卡,未启用选路时显示为不可用,切换目标后自动重算当前路径。
+- 右侧统计区更名为“路网与拓扑”,移除实时接口徽标、等级里程占比图和总通行时间 KPI;网络规模与拓扑指标分别使用“路网规模”“拓扑指标”标题并按单行五列排版,等级里程分布和边长分布移至底部上下排列,图表统一使用金色。
+- 统计侧栏收窄并默认收起;收起后只保留右侧 300px 标题条,其余区域启用鼠标穿透,不再遮挡地图点击、悬停和起终点选点。
+- 统计图去掉多余坐标轴数字与嵌套卡片边框,改用细金色数据条、背景刻度和统一点状标题;起终点选路卡增加金色“Dijkstra最短路径”标题。
+- 统一主界面、统计分区、属性卡、起终点选路控件和 MapLibre 导航控件的深色透明毛玻璃视觉:主要容器改为低存在感描边与直角布局,统计卡片使用统一金色,并补充窄屏布局。
 
 ### Added(2026-11-05 · C给B的接驳表)
 

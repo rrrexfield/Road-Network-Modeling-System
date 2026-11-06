@@ -3,6 +3,9 @@
  * 跨模块只经此入口引用（见 AGENTS.md 目录所有权）。
  */
 export * from './basemap';
+export * from './mode-control';
+export * from './mode-control-model';
 export * from './roads-layer';
+export * from './transfer-points-layer';
 export { createPathSelection } from './path-selection.js';
 export type { PathSelectionHandle, PathSelectionOptions } from './path-selection.js';
