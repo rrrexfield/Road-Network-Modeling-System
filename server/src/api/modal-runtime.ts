@@ -18,6 +18,7 @@ import type {
 import { Graph } from '../graph/index.js';
 import { getTransferPoints, PersistentTurnService, type LoadedNetwork } from '../io/index.js';
 import { buildModalTopology, type TopologyResult } from '../topology/index.js';
+import { IntersectionIndex } from './intersection-index.js';
 
 /** 服务端支持的交通模态,与 shared 的 TravelMode 取值一致。 */
 export const TRAVEL_MODES: readonly TravelMode[] = ['car', 'walk', 'bike', 'bus'];
@@ -36,6 +37,8 @@ export function isTravelMode(value: unknown): value is TravelMode {
 export class ModalRuntime {
   private graphCache: Graph | null = null;
   private wayHighwayCache: ReadonlyMap<number, string> | null = null;
+  private intersectionIndexCache: IntersectionIndex | null = null;
+  private wayNamesCache: ReadonlyMap<number, string> | null = null;
 
   constructor(
     readonly mode: TravelMode,
@@ -63,6 +66,26 @@ export class ModalRuntime {
       );
     }
     return this.wayHighwayCache;
+  }
+
+  /** 该模态的 wayId → 道路名；无名道路不在表中。 */
+  get wayNames(): ReadonlyMap<number, string> {
+    if (this.wayNamesCache === null) {
+      const names = new Map<number, string>();
+      for (const [wayId, way] of this.topology.ways) {
+        if (way.name !== undefined) names.set(wayId, way.name);
+      }
+      this.wayNamesCache = names;
+    }
+    return this.wayNamesCache;
+  }
+
+  /** 该模态的路口就近索引；首次访问才构建（issue #43）。 */
+  get intersectionIndex(): IntersectionIndex {
+    if (this.intersectionIndexCache === null) {
+      this.intersectionIndexCache = new IntersectionIndex(this.topology.nodes, this.topology.edges);
+    }
+    return this.intersectionIndexCache;
   }
 }
 
