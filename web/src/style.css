@@ -14,6 +14,17 @@
   --ui-bad: #e98d8d;
   --ui-wait: #e8c477;
   --ui-shadow: 0 14px 38px rgba(0, 0, 0, 0.24);
+  /*
+   * 圆角尺度（全站统一，只留这一套）：
+   * - 容器 / 面板 / 卡片：8px
+   * - 按钮 / 输入框 / 次级控件：4px
+   * - 徽标 / 胶囊：999px（见各处 999px）
+   * - 圆点：50%
+   * 以前容器是直角、控件是 1–2px、图表卡是 8–10px，三套混用；
+   * 统一后所有卡片与控件都是圆角，只有胶囊与圆点保留各自的形状语义。
+   */
+  --ui-radius-lg: 8px;
+  --ui-radius-sm: 4px;
 }
 
 * {
@@ -69,7 +80,7 @@ body {
   overflow: hidden;
   background: linear-gradient(135deg, rgba(242, 198, 109, 0.08), transparent 42%), var(--ui-panel);
   border: 1px solid rgba(255, 255, 255, 0.055);
-  border-radius: 0;
+  border-radius: var(--ui-radius-lg);
   backdrop-filter: blur(16px) saturate(1.08);
   -webkit-backdrop-filter: blur(16px) saturate(1.08);
   box-shadow: var(--ui-shadow);
@@ -175,7 +186,7 @@ body {
   overflow: hidden;
   background: var(--ui-panel);
   border: 1px solid rgba(255, 255, 255, 0.055);
-  border-radius: 0;
+  border-radius: var(--ui-radius-lg);
   box-shadow: var(--ui-shadow);
   backdrop-filter: blur(16px) saturate(1.08);
   -webkit-backdrop-filter: blur(16px) saturate(1.08);
@@ -330,7 +341,7 @@ body {
 #side-panels .gis-stats .gis-kpi,
 #side-panels .gis-stats .gis-placeholder {
   border-color: rgba(255, 255, 255, 0.045);
-  border-radius: 0;
+  border-radius: var(--ui-radius-lg);
   background: rgba(8, 13, 17, 0.28);
   box-shadow: none;
   backdrop-filter: blur(5px);
@@ -377,7 +388,7 @@ body {
   gap: 6px;
   padding: 5px 10px;
   font-size: 12px;
-  border-radius: 1px;
+  border-radius: var(--ui-radius-sm);
   background: var(--ui-panel);
   border: 1px solid var(--ui-border);
   backdrop-filter: blur(10px);
@@ -416,7 +427,7 @@ body {
   overflow: hidden;
   background: var(--ui-panel) !important;
   border: 1px solid var(--ui-border) !important;
-  border-radius: 1px !important;
+  border-radius: var(--ui-radius-lg) !important;
   box-shadow: var(--ui-shadow) !important;
   backdrop-filter: blur(10px);
 }
@@ -437,10 +448,15 @@ body {
   filter: invert(0.86) sepia(0.12) saturate(0.8);
 }
 
+/* 右下角底图版权标签：文字改白色，避免在深色底图上灰得看不清。 */
 .maplibregl-ctrl-attrib {
-  color: var(--ui-muted) !important;
+  color: #ffffff !important;
   background: rgba(10, 15, 19, 0.7) !important;
-  border-radius: 1px 0 0 0;
+  border-radius: var(--ui-radius-lg);
+}
+
+.maplibregl-ctrl-attrib a {
+  color: #ffffff !important;
 }
 
 #loading {
@@ -456,7 +472,7 @@ body {
   font-size: 14px;
   background: var(--ui-panel-solid);
   border: 1px solid var(--ui-gold-soft);
-  border-radius: 0;
+  border-radius: var(--ui-radius-lg);
   box-shadow: var(--ui-shadow);
 }
 

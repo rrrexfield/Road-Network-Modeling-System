@@ -16,7 +16,7 @@
   --gis-ok: #7fd6a0;
   --gis-bad: #e88;
   --gis-wait: #e8c477;
-  --gis-radius: 10px;
+  --gis-radius: 8px;
   --gis-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
   color: var(--gis-text);
   font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;

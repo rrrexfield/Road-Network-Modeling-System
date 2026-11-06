@@ -21,7 +21,7 @@
   overflow-y: auto;
   background: rgba(11, 17, 22, 0.78);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 0;
+  border-radius: var(--ui-radius-lg);
   backdrop-filter: blur(18px) saturate(1.1);
   -webkit-backdrop-filter: blur(18px) saturate(1.1);
   box-shadow: 0 16px 44px rgba(0, 0, 0, 0.3);
@@ -106,7 +106,7 @@
   padding: 2px 7px;
   font-size: 11px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 5px;
+  border-radius: var(--ui-radius-sm);
   background: rgba(255, 255, 255, 0.06);
 }
 

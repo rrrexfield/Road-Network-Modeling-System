@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Changed(前端圆角统一 + 底图版权标签改白字)
+
+- **圆角尺度全站统一**:新增 `--ui-radius-lg: 8px`(容器/面板/卡片)与 `--ui-radius-sm: 4px`(按钮/输入框/次级控件)两个变量,图表侧的 `--gis-radius` 由 10px 收到 8px;原先混用的三套圆角(容器直角、控件 1–2px、图表卡 8–10px)统一为圆角,涉及 `style.css`(标题栏、右侧分区、状态徽标、地图控件组、加载框、统计卡片)、`map/mode-control.css`、`map/path-selection.css`、`panels/editor/turn-editor.css`、`panels/property/property-panel.css`、`panels/weight/weight-panel.css`、`charts/ui.css`。胶囊徽标(999px)与圆点(50%)保留各自的形状语义。
+- **右下角底图版权标签文字改为白色**(`.maplibregl-ctrl-attrib` 及其链接),此前是灰蓝的 `--ui-muted`,在深色底图上几乎看不清。
+
 ### Fixed(前端启动竞态与面板遮挡,作业二演示阻塞项)
 
 - **「多模态数据不可用」**:根因是 `npm run dev` 的启动竞态——服务端要载入 38 MB 派生数据并重建拓扑(冷启动约 3–5 s),前端往往先加载完;那几秒内 `/api/network?mode=` 与 `/api/transfer-points?mode=` 全部连接被拒,而 `/api/path` 与 `/api/network` 之外的接口**没有重试**,于是界面永久降级成"多模态数据不可用,已切换到全量基础路网"。修复:新增 `ApiHttpError`(服务端已应答的错误)与 `retryWhenServerNotReady`(只对**网络层**失败重试,服务端已应答的 4xx/5xx 不重试),模态路网/转换点/统计三条链路统一走它。
