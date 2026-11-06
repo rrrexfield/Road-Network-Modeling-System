@@ -19,6 +19,7 @@ import { Graph } from '../graph/index.js';
 import { getTransferPoints, PersistentTurnService, type LoadedNetwork } from '../io/index.js';
 import { buildModalTopology, type TopologyResult } from '../topology/index.js';
 import { IntersectionIndex } from './intersection-index.js';
+import { buildTransferLinks, type TransferLinkEntry } from './transfer-links.js';
 
 /** 服务端支持的交通模态,与 shared 的 TravelMode 取值一致。 */
 export const TRAVEL_MODES: readonly TravelMode[] = ['car', 'walk', 'bike', 'bus'];
@@ -105,8 +106,9 @@ export interface ModalRuntimeOptions {
  * 由调用方读取 `unavailableReason` 返回 503,其余接口不受影响。
  */
 export class ModalRuntimeRegistry {
-  private readonly runtimes = new Map<TravelMode, ModalRuntime>();
+  private readonly runtimeCache = new Map<TravelMode, ModalRuntime>();
   private readonly features = new Map<TravelMode, string>();
+  private readonly transferLinkCache = new Map<string, TransferLinkEntry[]>();
   private readonly capacity: number;
 
   constructor(
@@ -128,21 +130,35 @@ export class ModalRuntimeRegistry {
 
   /** 取指定模态的运行时;必要时构建,并按 LRU 淘汰旧模态。 */
   runtime(mode: TravelMode): ModalRuntime {
-    const cached = this.runtimes.get(mode);
+    const cached = this.runtimeCache.get(mode);
     if (cached !== undefined) {
       // 重新插入到队尾,实现 LRU:最近使用的模态最后被淘汰
-      this.runtimes.delete(mode);
-      this.runtimes.set(mode, cached);
+      this.runtimeCache.delete(mode);
+      this.runtimeCache.set(mode, cached);
       return cached;
     }
     const built = this.build(mode);
-    this.runtimes.set(mode, built);
-    while (this.runtimes.size > this.capacity) {
-      const oldest = this.runtimes.keys().next();
+    this.runtimeCache.set(mode, built);
+    while (this.runtimeCache.size > this.capacity) {
+      const oldest = this.runtimeCache.keys().next();
       if (oldest.done === true) break;
-      this.runtimes.delete(oldest.value);
+      this.runtimeCache.delete(oldest.value);
     }
     return built;
+  }
+
+  /**
+   * 取一组模态的运行时(跨模态路径需要**同时**持有多个模态的图)。
+   *
+   * @param modes 需要的模态序列,按给定顺序返回。
+   * @returns 各模态的运行时,顺序与入参一致。
+   * @remarks LRU 容量默认为 1,构建后一个模态会把先前的挤出缓存;本方法返回的引用
+   * 仍然有效(图已挂在运行时对象上),但**内存峰值是同时存在两套运行时**
+   * (武汉实测 car + walk 约 2.3 GB 堆),这是跨模态查询的已知代价。
+   * 每次调用只构建一次,不重复构图。
+   */
+  runtimes(modes: readonly TravelMode[]): ModalRuntime[] {
+    return modes.map((mode) => this.runtime(mode));
   }
 
   /**
@@ -154,7 +170,7 @@ export class ModalRuntimeRegistry {
   featuresJson(mode: TravelMode): string {
     const cached = this.features.get(mode);
     if (cached !== undefined) return cached;
-    const runtime = this.runtimes.get(mode);
+    const runtime = this.runtimeCache.get(mode);
     const topology = runtime !== undefined ? runtime.topology : this.buildModalTopology(mode);
     const json = JSON.stringify(this.buildFeatures(topology));
     this.features.set(mode, json);
@@ -164,6 +180,29 @@ export class ModalRuntimeRegistry {
   /** 转换点(按模态筛选);直接来自派生文件,不依赖模态图。 */
   transferPoints(mode?: TravelMode): TransferPoint[] {
     return getTransferPoints(this.network.transferPoints, mode);
+  }
+
+  /**
+   * 取指定模态集合的换乘连接表(issue #34),按模态集合缓存。
+   *
+   * @param modes 参与换乘的模态(通常 2 个,如 car + walk)。
+   * @param tables 各模态的节点表;调用方应传入**本次已构建好的**运行时节点表,
+   *   避免本方法再次向 LRU 要运行时而触发重复构图(LRU 容量为 1 时会来回淘汰)。
+   * @returns 换乘连接;同一模态集合只计算一次,后续直接命中缓存。
+   * @remarks 连接表只依赖各模态的**节点表**(OSM 节点 id 与坐标),不依赖边,
+   * 故即使某个模态的运行时被 LRU 淘汰,已缓存的连接表仍然有效。
+   * 实测武汉全量四模态构建约 4 s,故缓存是必要的。
+   */
+  transferLinks(
+    modes: readonly TravelMode[],
+    tables: Partial<Record<TravelMode, ReadonlyMap<number, readonly [number, number]>>>,
+  ): TransferLinkEntry[] {
+    const key = [...new Set(modes)].sort().join(',');
+    const cached = this.transferLinkCache.get(key);
+    if (cached !== undefined) return cached;
+    const links = buildTransferLinks(this.network.transferPoints, tables);
+    this.transferLinkCache.set(key, links);
+    return links;
   }
 
   private buildModalTopology(mode: TravelMode): TopologyResult {

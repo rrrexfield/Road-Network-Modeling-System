@@ -50,6 +50,28 @@ function profileCacheKey(profile: WeightProfile): string {
 }
 
 /**
+ * 从查询参数解析权重配置(优化目标、全局速度系数、等级限速覆盖)。
+ *
+ * @param query 查询参数对象(键名与 URL 查询串一致)。
+ * @returns 合法配置的片段;非法或缺省的键不出现在结果里。
+ * @remarks 非法值一律丢弃而不是报错——权重参数是展示型输入,宁可用默认值,
+ * 也不该让一个手滑的查询串打断整个接口。`/api/stats` 与 `/api/path` 共用本函数,
+ * 保证两条链路的权重口径完全一致。
+ */
+export function parseWeightProfileParams(
+  query: Record<string, unknown>,
+): Partial<WeightProfile> {
+  const profile: Partial<WeightProfile> = {};
+  const metric = query['metric'];
+  if (metric === 'distance' || metric === 'time') profile.metric = metric;
+  const speedFactor = parsePositiveNumber(query['speedFactor']);
+  if (speedFactor !== undefined) profile.speedFactor = speedFactor;
+  const speedOverridesKmh = parseSpeedOverrides(query['speedKmh']);
+  if (speedOverridesKmh !== undefined) profile.speedOverridesKmh = speedOverridesKmh;
+  return profile;
+}
+
+/**
  * 注册 `/api/weights/profile` 与 `/api/stats`。
  * @param app Fastify 实例。
  * @param options 统计输入与可选拓扑指标。
@@ -87,14 +109,6 @@ export async function registerWeightRoutes(
 
   app.get('/api/stats', (request): NetworkStats => {
     const query = (request.query ?? {}) as Record<string, unknown>;
-    const profile: Partial<WeightProfile> = {};
-    const metric = query['metric'];
-    if (metric === 'distance' || metric === 'time') profile.metric = metric;
-    const speedFactor = parsePositiveNumber(query['speedFactor']);
-    if (speedFactor !== undefined) profile.speedFactor = speedFactor;
-    const speedOverridesKmh = parseSpeedOverrides(query['speedKmh']);
-    if (speedOverridesKmh !== undefined) profile.speedOverridesKmh = speedOverridesKmh;
-
-    return statsFor(normalizeWeightProfile(profile));
+    return statsFor(normalizeWeightProfile(parseWeightProfileParams(query)));
   });
 }

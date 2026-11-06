@@ -37,7 +37,15 @@ export interface RoadFeatureCollection {
   features: RoadFeature[];
 }
 
-/** 路径结果（server 端 Dijkstra 输出，起点→终点）。 */
+/**
+ * 路径结果（server 端 Dijkstra 输出，起点→终点）。
+ *
+ * 跨模态路径（`segments` 提供时）的口径：
+ * - `distance` 为**各段代价之和**，换乘惩罚（等待 + 接驳步行）**不计入**；
+ * - `nodeIds` 是各段节点序列的拼接（节点 id 是 OSM 节点 id，跨模态通用）；
+ * - `edgeIds` 在跨模态时**为空**——边 id 只在所属模态内有效，
+ *   跨段的边序列由 `segments[i].edgeIds` 承担。
+ */
 export interface PathResult {
   /**
    * 总代价；不可达为 Infinity（此时两个序列为空）。
@@ -76,6 +84,14 @@ export interface PathResponse extends PathResult {
   to: [number, number];
   /** 路径折线 [lon, lat][]，长度等于 nodeIds 长度 */
   coordinates: [number, number][];
+  /**
+   * 跨模态路径的换乘罚时合计（秒）：等待 + 接驳步行。
+   *
+   * 按契约决策**不计入** `distance`（距离只表达各段里程/时间之和），
+   * 故单独下发，便于前端在"最快时间"口径下把等待与接驳显示出来。
+   * 单模态路径缺省。
+   */
+  transferPenaltySeconds?: number;
 }
 
 /** 拓扑统计报告（graph 模块 computeTopologyStats 输出）。度均为有向度（入度 + 出度）。 */

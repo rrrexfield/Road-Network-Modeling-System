@@ -14,7 +14,11 @@ C 的 Sprint 2 基础模块已合入 main：禁转表、路口转向枚举、SQL
 
 **作业二的四个 REST 接口已由 A 挂载上线**(issue #33):`GET /api/network?mode=`、`GET /api/transfer-points?mode=`、`GET/PUT /api/intersections/:nodeId/turns`。派生数据已按新格式重建(保留 POI 与 relations),禁转快照落 `data/derived/wuhan-turns.sqlite`。B 的禁转感知搜索(#28)与 E 的编辑器/模态切换(#29)可直接消费,交接说明见 `docs/plans/a-sprint2-rest-handoff.md`。
 
-**作业二的转向限制已端到端打通**(issue #38,PR #39/#40/#42 已合入 main):B 的 `(node, inEdge)` 边扩展 Dijkstra 使禁转真正影响路径,`/api/path` 新增 `mode` 参数——缺省走基础图不施加禁转(与作业一一致),显式给模态时走该模态子图并施加该模态的禁转;编辑器保存禁转后路径立即绕行(实测武汉五路口 500.18 m/7 节点 → 751.07 m/23 节点,清空后恢复一致),编辑器与路径计算共用同一份禁转服务、无内存分叉。C 的接驳表(`buildTransferAttachments` / `computeTransferPenalty`)已交付,**跨模态搜索仍待 B 实现**(#34 保持开放)。另新增 `GET /api/intersections/nearest` 把点击坐标反查为可编辑路口(#43),路口判定在服务端完成:当前模态内邻接节点数 ≥ 3、按球面距离、超阈值返回 404。派生数据已重建为 2930 个转换点(subway 659 / bus 1231 / parking 1040)。
+**作业二的转向限制已端到端打通**(issue #38,PR #39/#40/#42 已合入 main):B 的 `(node, inEdge)` 边扩展 Dijkstra 使禁转真正影响路径,`/api/path` 新增 `mode` 参数——缺省走基础图不施加禁转(与作业一一致),显式给模态时走该模态子图并施加该模态的禁转;编辑器保存禁转后路径立即绕行(实测武汉五路口 500.18 m/7 节点 → 751.07 m/23 节点,清空后恢复一致),编辑器与路径计算共用同一份禁转服务、无内存分叉。另新增 `GET /api/intersections/nearest` 把点击坐标反查为可编辑路口(#43),路口判定在服务端完成:当前模态内邻接节点数 ≥ 3、按球面距离、超阈值返回 404。派生数据已重建为 2930 个转换点(subway 659 / bus 1231 / parking 1040)。
+
+**作业二的权重与统计已补齐**(issue #23/#47,PR #48/#49):`/api/path` 的模态分支按模态速度表计算时间(步行 4 km/h,不再是汽车 fallback 30 km/h),`/api/stats` 传入全量 way 标签表启用**属性完整率**(按 way 统计、只计原始标注);`NetworkStats.attributeCompleteness` 已由可选收紧为**必填**。权重配置面板已接回主界面(#45):它只管全局权重参数(速度系数、等级限速覆盖),优化目标(最快时间/最短距离)留在起终点选路卡,避免两个入口改同一个值;面板改动后统计与路径按新配置重算。
+
+**跨模态路径已打通**(issue #34):`GET /api/path` 新增 `modes=car,walk` 形式的**有序模态序列**,服务端在模态子图之间按转换点换乘,按冻结契约 `PathResult.segments` 分段返回(段间以 `TransferPoint.id` 相接),换乘罚时(等待 + 接驳)单独下发、不计入距离。武汉实测:2930 个转换点可建立 **2447 条换乘连接**(452 条为设施自身节点即该模态节点的精确连接,1995 条为半径内近邻近似),模态对覆盖 bus↔walk 1103/1092、car↔walk 90/88、bike↔walk 37/37;真实场景已跑通「驾车 5.5 km → 停车场换乘 → 步行 774 m 到江汉路」。实现口径、阈值、代价模型与已知边界见 `docs/多模态路网设计.md`「跨模态路径的实现口径」一节。
 
 Sprint 1 的 B 图引擎、C 拓扑与 D 权重统计已接入服务启动链路:`server/src/index.ts` 依次执行 `loadNetwork → buildTopology → new Graph → computeTopologyStats`,再注册 REST/WS 与权重统计路由;`/api/health` 与 WS 的 `edgeCount` 为**有向边数**。topology 不做模态/车辆准入过滤,不能将输出解释为汽车可通行图;无法确定方向的道路跳过并在启动日志中列明。B 模块规则见 `docs/plans/b-sprint1-graph.md` 与 `docs/plans/b-sprint1-graph-interface.md`,C 模块见 `docs/plans/c-sprint1-topology.md`。
 
@@ -118,8 +122,9 @@ data/derived/wuhan-roads.json (~30MB, 不入库)
 | GET | `/api/intersections/nearest?lon=&lat=&mode=&maxDistanceM=` | 点击坐标反查**可编辑路口**(`NearestIntersectionResponse`):只在当前模态中判定、邻接节点数 ≥ 3(排除道路折点与中间节点)、按球面距离计算;超出阈值返回 404,不返回"最近但很远"的节点 |
 | GET | `/api/intersections/:nodeId/turns?mode=` | 某路口的全部转向动作(`IntersectionTurns`):`turnKind`/`angleDelta` 仅供展示,`forbidden` 为当前禁转状态,`fromOsm` 区分 OSM 导入与手动设置;`mode` 缺省 `car` |
 | PUT | `/api/intersections/:nodeId/turns?mode=` | **整体覆盖**该路口禁转集合,body `{ forbidden: [{ fromEdge, toEdge }] }`,返回 `{ ok, restrictionCount }`;写盘优先,写盘失败时旧规则不变 |
-| GET | `/api/path` | 起终点选路:`from=lon,lat&to=lon,lat&metric=distance\|time`,服务端吸附到最近节点后跑 Dijkstra,返回 `PathResult` + 吸附坐标 + 路径折线;不可达返回 404 |
-| GET | `/api/path?mode=car\|walk\|bike\|bus` | 同上,但走**该模态子图**并施加该模态的禁转(编辑器保存的禁转会立即改变路径);**不带 `mode` 时走基础图、不施加禁转**,与作业一行为一致 |
+| GET | `/api/path` | 起终点选路:`from=lon,lat&to=lon,lat&metric=distance\|time`,服务端吸附到最近节点后跑 Dijkstra,返回 `PathResult` + 吸附坐标 + 路径折线;不可达返回 404。支持 `speedFactor`、`speedKmh=等级:限速,…`(与 `/api/stats` 同口径) |
+| GET | `/api/path?mode=car\|walk\|bike\|bus` | 同上,但走**该模态子图**并施加该模态的禁转(编辑器保存的禁转会立即改变路径);时间口径按该模态速度表换算;**不带 `mode` 时走基础图、不施加禁转**,与作业一行为一致 |
+| GET | `/api/path?modes=car,walk` | **跨模态路径**(issue #34):`modes` 是逗号分隔的**有序**模态序列(至少两个),服务端在模态子图之间按转换点换乘,返回 `segments` 分段明细(段间以 `TransferPoint.id` 相接);`transferPenaltySeconds` 单独给出换乘罚时(不计入 `distance`);与 `mode` 互斥,无可用换乘连接或不可达返回 404 |
 | GET | `/api/weights/profile` | 权重基线:默认 `WeightProfile` + 各等级默认限速表 |
 | GET | `/api/stats` | 网络统计:里程/等级分布/边长分布/通行时间/拓扑指标;支持 `metric`、`speedFactor`、`speedKmh=等级:限速,…`;结果按配置缓存 |
 | WS | `/ws` | 消息信封 `{ type, payload }`;连接即推 `hello`(有向边数),支持 `ping`/`pong` |
@@ -141,5 +146,6 @@ data/derived/wuhan-roads.json (~30MB, 不入库)
 - Node 22.11 搭配 Vite 6;maplibre-gl v6 需在 `vite.config.ts` 中排除依赖预构建(`optimizeDeps.exclude`),已配置;
 - `node:sqlite`(禁转快照)在 22.13.0 起无需 `--experimental-sqlite` 标志,但仍会打印 `ExperimentalWarning`——这是上游 API 仍处实验阶段的事实,不做屏蔽;`engines` 已收紧为 `>=22.13.0`;
 - 多模态按需构建:首次请求某模态时现建该模态子图与禁转表(武汉全量约 5 秒),因此切换模态后第一次请求会明显变慢,属预期行为;内存策略见 `docs/多模态路网设计.md`;
+- **跨模态路径的内存代价**:一次跨模态查询要同时持有两个模态的图与禁转索引(武汉实测 car + walk 约 2.3 GB 堆),比单模态查询重得多;换乘连接表按模态集合缓存(全量四模态构建约 4 s),避免每次请求重算;
 - Carto 瓦片自 2025 年起需要 API key(带水印),底图已改用 OpenFreeMap Dark;
 - 端口占用:服务端 3000、前端 5173,启动前确保空闲。

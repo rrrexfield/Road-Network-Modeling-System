@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchNearestIntersection, fetchPath } from './api-client.js';
+import { buildPathQuery, fetchNearestIntersection, fetchPath } from './api-client.js';
 
 /**
  * 记录 fetch 收到的请求 URL，返回一个最小可用的 Response 替身。
@@ -35,6 +35,72 @@ describe('fetchPath 的模态参数', () => {
     await fetchPath([114.3, 30.5], [114.31, 30.51], 'time', 'car');
     expect(urls[0]).toContain('mode=car');
     expect(urls[0]).toContain('metric=time');
+  });
+
+  it('缺省不下发 modes（单模态行为不变）', async () => {
+    const { urls } = stubFetch();
+    await fetchPath([114.3, 30.5], [114.31, 30.51], 'time', 'car');
+    expect(urls[0]).not.toContain('modes=');
+  });
+
+  it('给出模态序列时下发 modes，并保持给定顺序', async () => {
+    const { urls } = stubFetch();
+    await fetchPath([114.3, 30.5], [114.31, 30.51], 'time', undefined, ['car', 'walk']);
+    expect(urls[0]).toContain('modes=car,walk');
+  });
+});
+
+describe('buildPathQuery', () => {
+  it('缺省只带起终点与度量', () => {
+    const query = buildPathQuery([114.3, 30.5], [114.31, 30.51]);
+    expect(query).toContain('from=114.3%2C30.5');
+    expect(query).toContain('to=114.31%2C30.51');
+    expect(query).toContain('metric=distance');
+    expect(query).not.toContain('mode=');
+    expect(query).not.toContain('modes=');
+  });
+
+  it('指定模态时下发 mode', () => {
+    const query = buildPathQuery([114.3, 30.5], [114.31, 30.51], 'time', 'walk');
+    expect(query).toContain('mode=walk');
+    expect(query).toContain('metric=time');
+  });
+
+  it('模态序列不足 2 个时不下发 modes（视为未启用跨模态）', () => {
+    expect(buildPathQuery([114.3, 30.5], [114.31, 30.51], 'time', undefined, [])).not.toContain(
+      'modes=',
+    );
+    expect(
+      buildPathQuery([114.3, 30.5], [114.31, 30.51], 'time', undefined, ['car']),
+    ).not.toContain('modes=');
+  });
+
+  it('模态序列以逗号分隔下发，顺序与给定一致', () => {
+    const query = buildPathQuery([114.3, 30.5], [114.31, 30.51], 'time', undefined, [
+      'bus',
+      'walk',
+      'car',
+    ]);
+    expect(query).toContain('modes=bus,walk,car');
+  });
+
+  it('全局权重参数与 /api/stats 同口径下发（issue #45）', () => {
+    const query = buildPathQuery(
+      [114.3, 30.5],
+      [114.31, 30.51],
+      'time',
+      'car',
+      undefined,
+      { speedFactor: 1.5, speedOverridesKmh: { primary: 45, residential: 25 } },
+    );
+    expect(query).toContain('speedFactor=1.5');
+    expect(query).toContain('speedKmh=primary%3A45%2Cresidential%3A25');
+  });
+
+  it('缺省权重参数时不下发相关参数（服务端用默认值）', () => {
+    const query = buildPathQuery([114.3, 30.5], [114.31, 30.51], 'time', 'car');
+    expect(query).not.toContain('speedFactor');
+    expect(query).not.toContain('speedKmh');
   });
 });
 

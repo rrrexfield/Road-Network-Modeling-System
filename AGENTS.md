@@ -98,6 +98,16 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
+**最后更新:2026-11-06(A 打通跨模态路径,issue #34;契约新增 PathResponse.transferPenaltySeconds)**
+
+2026-11-06 A 跨模态路径(issue #34 闭环):新增 `GET /api/path?modes=car,walk`(`modes` 为**有序**模态序列,至少两个,与单模态 `mode` 互斥,混用 400),按冻结契约 `PathResult.segments` 分段返回,段间以 `TransferPoint.id` 相接。**跨模态时顶层 `edgeIds` 留空**(边 id 只在所属模态内有效,跨段的边序列由 `segments[i].edgeIds` 承担),顶层 `nodeIds` 是各段节点序列的拼接(OSM 节点 id 跨模态通用)。**契约新增可选字段 `PathResponse.transferPenaltySeconds`**(换乘罚时秒数):按 issue #34 的决策,换乘惩罚属时间/成本口径、**不计入 `distance`**,故单独下发,前端在"最快时间"口径下才能把等待与接驳显示出来。
+
+换乘连接表(A 的 `server/src/api/transfer-links.ts`):用 C 的 `matchTransferConnections` 按模态匹配设施节点(步行候选半径 200 m,其余 100 m),接驳距离超限不连边,way 型设施因缺出入口证据一律不连;连接保留**证据类型**(`shared-osm-node` 精确同节点 / `nearby-candidate` 近邻近似,后者只是几何近似、未做实景核验);换乘罚时 = 接驳步行时间(距离 ÷ 1.3 m/s)+ 等待时间(D 的 `transferPenaltySeconds` 占位值)。**实测**:2930 个转换点可建 2447 条连接(452 精确 / 1995 近邻),模态对覆盖 bus↔walk 1103/1092、car↔walk 90/88、bike↔walk 37/37,最大接驳距离 190.8 m;真实场景跑通「驾车 5.5 km → 停车场换乘 → 步行 774 m 到江汉路」。
+
+搜索(B 的 `server/src/graph/multimodal-dijkstra.ts`):层内沿用 `(节点, 入边)` 边扩展状态空间,**禁转在跨模态路径里同样生效**;层间用动态规划推进(第 i 层算出到各候选换乘点的最小代价,再作为下一层多源),故多个候选换乘点时取全局最优而非贪心取第一个;支持多源与早停,回溯保证路径代价与 dist 自洽。
+
+**已知代价**:跨模态查询要同时持有两个模态的图与禁转索引(武汉实测 car + walk 约 2.3 GB 堆),单次查询(首次)实测约 15 s;换乘连接表按模态集合缓存(全量四模态约 1 s)。地铁乘车未被建模(`TravelMode` 无 rail,地铁站只归属 walk),故"驾车 → 地铁站 → 步行"在本模型里表现为"驾车 → 换乘点 → 步行(途经地铁站)",**不代表地铁线路级可达**,与"不做公交/地铁线路级建模"的决策一致。口径与阈值详见 `docs/多模态路网设计.md`「跨模态路径的实现口径」。
+
 **最后更新:2026-11-06(A 接线模态权重与属性完整率,issue #47 / #23;契约收紧 attributeCompleteness 为必填)**
 
 2026-11-06 A 接线(issue #47 + #23):`/api/path` 的 mode 分支改用 D 的 `createModeEdgeWeight`——**显式 mode 时**时间口径按该模态速度表换算(步行 4 km/bike 12-18 km/bus 折减 0.8),distance 口径与模态无关;**缺省(不带 mode)仍走基础图 + 汽车限速表**,行为与作业一完全一致。`/api/stats` 接线 `ways: topology.ways`(全量 69,382 条 way,不按参与构边的 way 过滤),启用属性完整率。**契约收紧(A 决策)**:兑现 issue #23 的承诺,`NetworkStats.attributeCompleteness` 由可选改为**必填**,`StatsInput.ways` 同步必填——服务端已恒定提供该统计,保留缺省态只会让前端长期挂待接入分支并留下"以 0 冒充完整率"的口子;前端示例数据与统计面板同步适配(面板保留运行期兜底占位)。新增 4 项测试,全仓 320 项通过。**PR #48(D 的权重/统计交付)已合入 main**,合并时按 PR #41 调整后的统计面板结构适配(保留 #41 结构 + D 的属性完整性卡片)。
