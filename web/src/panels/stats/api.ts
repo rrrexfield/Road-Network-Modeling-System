@@ -7,14 +7,21 @@ import type { NetworkStats, WeightProfileResponse } from '../../charts/index.js'
 
 const API_BASE = '/api';
 
+/**
+ * 拉取 JSON。
+ *
+ * 网络层失败(服务端尚未就绪)时**抛出**错误,让调用方重试;
+ * 服务端已应答但状态码为错误时返回 null(接口确实不可用,重试无意义)。
+ */
 async function getJson<T>(path: string): Promise<T | null> {
+  let res: Response;
   try {
-    const response = await fetch(`${API_BASE}${path}`);
-    if (!response.ok) return null;
-    return (await response.json()) as T;
-  } catch {
-    return null;
+    res = await fetch(`${API_BASE}${path}`);
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(String(error));
   }
+  if (!res.ok) return null;
+  return (await res.json()) as T;
 }
 
 /**

@@ -48,6 +48,11 @@ export interface PathSelectionHandle {
 
 export interface PathSelectionOptions {
   map: MaplibreMap;
+  /**
+   * 挂载容器;缺省挂到 `#app`(再退到 body)。
+   * 主界面把它放进左栏堆叠容器,与转向编辑器上下排布、互不遮挡。
+   */
+  container?: HTMLElement;
   /** 图层变化时通知宿主刷新 overlay。 */
   onLayersChange: () => void;
   /** 激活状态变化时通知宿主收起与选点互斥的面板。 */
@@ -247,7 +252,7 @@ export function createPathSelection(options: PathSelectionOptions): PathSelectio
 
   head.append(toggle, clearBtn);
   root.append(title, head, metricGroup, crossGroup, sequenceGroup, status);
-  (document.getElementById('app') ?? document.body).append(root);
+  (options.container ?? document.getElementById('app') ?? document.body).append(root);
 
   function updateStatus(text: string, state?: 'ok' | 'error' | 'pending'): void {
     status.textContent = text;

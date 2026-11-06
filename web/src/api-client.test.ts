@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildPathQuery, fetchNearestIntersection, fetchPath } from './api-client.js';
+import {
+  ApiHttpError,
+  buildPathQuery,
+  fetchNearestIntersection,
+  fetchNetworkByMode,
+  fetchPath,
+  fetchTransferPoints,
+  retryWhenServerNotReady,
+} from './api-client.js';
 
 /**
  * 记录 fetch 收到的请求 URL，返回一个最小可用的 Response 替身。
@@ -101,6 +109,58 @@ describe('buildPathQuery', () => {
     const query = buildPathQuery([114.3, 30.5], [114.31, 30.51], 'time', 'car');
     expect(query).not.toContain('speedFactor');
     expect(query).not.toContain('speedKmh');
+  });
+});
+
+describe('服务端未就绪时的重试', () => {
+  it('网络层失败时重试,直到服务端起来', async () => {
+    let attempts = 0;
+    vi.stubGlobal('fetch', () => {
+      attempts += 1;
+      if (attempts < 3) return Promise.reject(new Error('ECONNREFUSED'));
+      return Promise.resolve(
+        new Response(JSON.stringify({ features: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+    const network = await fetchNetworkByMode('car');
+    expect(network.features).toEqual([]);
+    expect(attempts).toBe(3);
+  });
+
+  it('服务端已应答的错误不重试(重试没有意义)', async () => {
+    let attempts = 0;
+    vi.stubGlobal('fetch', () => {
+      attempts += 1;
+      return Promise.resolve(
+        new Response(JSON.stringify({ error: { message: '派生数据不可用' } }), { status: 503 }),
+      );
+    });
+    await expect(fetchTransferPoints('car')).rejects.toThrow('派生数据不可用');
+    expect(attempts).toBe(1);
+  });
+
+  it('ApiHttpError 表示服务端已应答,不是网络故障', () => {
+    const error = new ApiHttpError(400, 'mode 非法');
+    expect(error.status).toBe(400);
+    expect(error).toBeInstanceOf(Error);
+  });
+
+  it('retryWhenServerNotReady 透传非网络错误', async () => {
+    let attempts = 0;
+    await expect(
+      retryWhenServerNotReady(
+        () => {
+          attempts += 1;
+          return Promise.reject(new ApiHttpError(500, '内部错误'));
+        },
+        3,
+        1,
+      ),
+    ).rejects.toThrow('内部错误');
+    expect(attempts).toBe(1);
   });
 });
 

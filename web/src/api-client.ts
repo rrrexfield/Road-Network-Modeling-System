@@ -10,6 +10,53 @@ import type {
   WSMessage,
 } from '@gisalgo/shared';
 
+/**
+ * 服务端**已应答**但状态码为错误。
+ *
+ * 与「网络层失败(连接被拒)」区分开:前者说明服务端已经就绪、只是拒绝了这次请求,
+ * 重试没有意义;后者多半是 `npm run dev` 的启动竞态(前端先加载、服务端还在载入
+ * 38 MB 派生数据),需要重试。两者混为一谈会让界面永久停在「多模态数据不可用」。
+ */
+export class ApiHttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ApiHttpError';
+  }
+}
+
+/**
+ * 网络层失败(服务端尚未就绪)时重试;服务端已应答的错误不重试。
+ *
+ * @param fn 待执行的请求。
+ * @param attempts 总尝试次数(含第一次)。
+ * @param delayMs 两次尝试之间的间隔。
+ * @returns 第一次成功的返回值。
+ * @remarks `npm run dev` 下服务端要载入派生数据并重建拓扑,冷启动约 3–5 s,
+ * 前端通常先加载完成;没有这段重试,首次进入就会永久降级。
+ */
+export async function retryWhenServerNotReady<T>(
+  fn: () => Promise<T>,
+  attempts = 12,
+  delayMs = 700,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (error instanceof ApiHttpError) throw error;
+      lastError = error;
+      if (attempt < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw lastError;
+}
+
 /** 服务端冷启动(载入 67 万边)慢于前端时自动重试,容忍 `npm run dev` 的启动竞态 */
 async function fetchWithRetry(url: string, retries = 10, delayMs = 800): Promise<Response> {
   let lastErr: unknown;
@@ -200,18 +247,32 @@ async function readErrorMessage(res: Response, fallback: string): Promise<string
  *
  * 服务端按模态过滤道路，**转向边的 ID 只在该模态内有效**：
  * 编辑器提交禁转时必须带上同一个 mode，否则服务端无法匹配边对。
+ *
+ * @throws 服务端已应答但状态码为错误时抛 `ApiHttpError`；网络层失败会先重试。
  */
 export async function fetchNetworkByMode(mode: TravelMode): Promise<RoadFeatureCollection> {
-  const res = await fetch(`/api/network?mode=${mode}`);
-  if (!res.ok) throw new Error(await readErrorMessage(res, `获取 ${mode} 路网失败`));
-  return (await res.json()) as RoadFeatureCollection;
+  return retryWhenServerNotReady(async () => {
+    const res = await fetch(`/api/network?mode=${mode}`);
+    if (!res.ok) {
+      throw new ApiHttpError(res.status, await readErrorMessage(res, `获取 ${mode} 路网失败`));
+    }
+    return (await res.json()) as RoadFeatureCollection;
+  });
 }
 
-/** 取指定交通模态的转换点（地铁站 / 公交站 / 停车场）。 */
+/**
+ * 取指定交通模态的转换点（地铁站 / 公交站 / 停车场）。
+ *
+ * @throws 服务端已应答但状态码为错误时抛 `ApiHttpError`；网络层失败会先重试。
+ */
 export async function fetchTransferPoints(mode: TravelMode): Promise<TransferPoint[]> {
-  const res = await fetch(`/api/transfer-points?mode=${mode}`);
-  if (!res.ok) throw new Error(await readErrorMessage(res, `获取 ${mode} 转换点失败`));
-  return (await res.json()) as TransferPoint[];
+  return retryWhenServerNotReady(async () => {
+    const res = await fetch(`/api/transfer-points?mode=${mode}`);
+    if (!res.ok) {
+      throw new ApiHttpError(res.status, await readErrorMessage(res, `获取 ${mode} 转换点失败`));
+    }
+    return (await res.json()) as TransferPoint[];
+  });
 }
 
 /** 取某路口的全部转向动作；mode 缺省为 car，与服务端一致。 */

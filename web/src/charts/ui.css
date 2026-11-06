@@ -181,6 +181,17 @@
   background: rgba(232, 196, 119, 0.05);
 }
 
+/*
+ * [hidden] 必须压过组件自身的 display。
+ *
+ * 类选择器(.gis-placeholder { display: flex })的优先级高于浏览器默认样式里的
+ * [hidden] { display: none },所以 JS 设置 element.hidden = true 不会真的隐藏——
+ * 属性完整率的「待接入」占位层会一直盖在图表上,看起来像"统计不可用"。
+ */
+[hidden] {
+  display: none !important;
+}
+
 .gis-placeholder__text {
   margin: 0;
   color: var(--gis-muted);

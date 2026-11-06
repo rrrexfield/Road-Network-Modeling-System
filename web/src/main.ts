@@ -4,13 +4,21 @@ import { Map as MaplibreMap, NavigationControl } from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PathLayer } from '@deck.gl/layers';
 import type { Layer } from '@deck.gl/core';
-import type { RoadFeature, RoadFeatureCollection, TransferPoint, WeightProfile, WSMessage } from '@gisalgo/shared';
+import type {
+  NetworkStats,
+  RoadFeature,
+  RoadFeatureCollection,
+  TransferPoint,
+  WeightProfile,
+  WSMessage,
+} from '@gisalgo/shared';
 import {
   connectWebSocket,
   fetchHealth,
   fetchNetwork,
   fetchNetworkByMode,
   fetchTransferPoints,
+  retryWhenServerNotReady,
   type WsStatus,
 } from './api-client';
 import {
@@ -142,16 +150,25 @@ async function initStatsPanel(): Promise<void> {
  *
  * @param statsPanel 统计面板句柄。
  * @param weightPanel 权重面板句柄。
+ * @remarks 服务端冷启动时要载入派生数据并重建拓扑,前端可能先加载完成;
+ * 这里对网络层失败重试,避免把「还没起来」误判成「接口坏了」。
  */
 async function refreshStats(
   statsPanel: StatsPanelHandle,
   weightPanel: WeightPanelHandle,
 ): Promise<void> {
-  const stats = await fetchStats({
-    metric: weightProfile.metric,
-    speedFactor: weightProfile.speedFactor,
-    speedOverridesKmh: weightProfile.speedOverridesKmh,
-  });
+  let stats: NetworkStats | null = null;
+  try {
+    stats = await retryWhenServerNotReady(() =>
+      fetchStats({
+        metric: weightProfile.metric,
+        speedFactor: weightProfile.speedFactor,
+        speedOverridesKmh: weightProfile.speedOverridesKmh,
+      }),
+    );
+  } catch {
+    stats = null;
+  }
   if (stats === null) {
     statsPanel.setSource('接口不可用', false);
     return;
@@ -247,8 +264,16 @@ async function main(): Promise<void> {
   });
   map.addControl(overlay);
 
+  // 左栏堆叠容器:选路卡与转向编辑器纵向排布。
+  // 两者原本各自写死 top 偏移,转向编辑器一展开就会压到选路卡上(选路卡加了跨模态行后更高),
+  // 改成同一容器内常规流排布,展开/收起都不会互相遮挡。
+  const leftStack = document.createElement('div');
+  leftStack.className = 'left-stack';
+  (document.getElementById('app') ?? document.body).append(leftStack);
+
   pathSelection = createPathSelection({
     map,
+    container: leftStack,
     onLayersChange: refreshLayers,
     onActiveChange: (active) => {
       if (active) hideProperty();
@@ -294,7 +319,8 @@ async function main(): Promise<void> {
       pathSelection?.recompute();
     },
   });
-  (document.getElementById('app') ?? document.body).append(turnEditor.element);
+  // 转向编辑器进入左栏堆叠容器,与选路卡上下排布而非各自定位。
+  leftStack.append(turnEditor.element);
 
   const refreshTransferPoints = (): void => {
     if (transferPoints.length === 0) {

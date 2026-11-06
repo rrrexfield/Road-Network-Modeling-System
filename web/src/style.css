@@ -103,6 +103,40 @@ body {
   color: var(--ui-muted);
 }
 
+/* 左栏堆叠容器:选路卡与转向编辑器纵向排布,展开/收起都互不遮挡。
+   两者原本各自写死 top 偏移(92px / 312px),转向编辑器一展开就压到选路卡上。 */
+.left-stack {
+  position: fixed;
+  top: 92px;
+  left: 16px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  width: min(390px, calc(100vw - 32px));
+  /* 下边界避开左下角的交通模式条(底 52px + 自身高度)。 */
+  max-height: calc(100vh - 244px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+/* 堆叠内改为常规流:高度由内容决定,不再各自定位。 */
+.left-stack > .path-select,
+.left-stack > .turn-editor {
+  position: static;
+  top: auto;
+  left: auto;
+  max-width: 100%;
+}
+
+/* 转向编辑器在堆叠里由容器统一约束高度,内部列表自行滚动。 */
+.left-stack > .turn-editor {
+  max-height: min(430px, 60vh);
+}
+
 #hud-status {
   position: absolute;
   left: 16px;
