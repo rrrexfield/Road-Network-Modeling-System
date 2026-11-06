@@ -1,28 +1,44 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './style.css';
-import { Map as MaplibreMap, NavigationControl, Popup } from 'maplibre-gl';
+import { Map as MaplibreMap, NavigationControl } from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PathLayer } from '@deck.gl/layers';
 import type { Layer } from '@deck.gl/core';
-import type { RoadFeature, WeightProfile, WSMessage } from '@gisalgo/shared';
-import { connectWebSocket, fetchHealth, fetchNetwork, type WsStatus } from './api-client';
+import type { RoadFeature, RoadFeatureCollection, TransferPoint, WSMessage } from '@gisalgo/shared';
+import {
+  connectWebSocket,
+  fetchHealth,
+  fetchNetwork,
+  fetchNetworkByMode,
+  fetchTransferPoints,
+  type WsStatus,
+} from './api-client';
 import {
   BASEMAP_STYLE_URL,
   WUHAN_CENTER,
   WUHAN_ZOOM,
   buildFallbackStyle,
+  createModeControl,
   createPathSelection,
   createRoadsLayer,
+  createTransferPointsLayers,
   isBasemapReachable,
+  travelModeLabel,
+  type DisplayMode,
   type PathSelectionHandle,
 } from './map/index.js';
-import { createStatsPanel, fetchStats, fetchWeightProfile } from './panels/stats/index.js';
-import { createWeightPanel } from './panels/weight/index.js';
+import { createStatsPanel, fetchStats } from './panels/stats/index.js';
+import { createPropertyPanel } from './panels/property/index.js';
+import {
+  createTurnEditor,
+  createTurnRestrictionLayers,
+  type TurnEditorHandle,
+} from './panels/editor/index.js';
 
-/** 当前权重目标；权重面板变化时更新，选路模块通过它读取。 */
-let currentMetric: 'distance' | 'time' = 'distance';
 /** 选路模块句柄；在 main() 中创建后供面板回调使用。 */
 let pathSelection: PathSelectionHandle | null = null;
+/** 当前成功显示的交通模式；全量基础图降级时为 null。 */
+let currentMode: DisplayMode | null = null;
 
 function $(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -37,51 +53,30 @@ function setChip(el: HTMLElement, label: string, ok: boolean | null): void {
   el.classList.toggle('chip-wait', ok === null);
 }
 
-const tooltip = new Popup({ closeButton: false, closeOnClick: false, offset: 14 });
-
-function roadFeatureHtml(feature: RoadFeature): string {
-  const p = feature.properties;
-  const rows: string[] = [];
-  if (p.name !== undefined) rows.push(`<div class="tt-name">${escapeHtml(p.name)}</div>`);
-  rows.push(`<div>类型:${escapeHtml(p.highway)}</div>`);
-  rows.push(`<div>Way ID:${p.id}</div>`);
-  const extra = Object.entries(p.tags)
-    .filter(([k]) => k !== 'highway' && k !== 'name')
-    .slice(0, 6);
-  if (extra.length > 0) {
-    rows.push(
-      `<div class="tt-tags">${extra
-        .map(([k, v]) => `<span>${escapeHtml(k)}=${escapeHtml(v)}</span>`)
-        .join(' ')}</div>`,
-    );
-  }
-  return rows.join('');
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
+interface CollapsibleSection {
+  element: HTMLElement;
 }
 
 /** 把面板包成可收起的独立分区：固定的标题条 + 可独立滚动的内容区。 */
-function createCollapsibleSection(title: string, content: HTMLElement): HTMLElement {
+function createCollapsibleSection(
+  title: string,
+  content: HTMLElement,
+  defaultCollapsed = false,
+): CollapsibleSection {
   const section = document.createElement('section');
   section.className = 'side-section';
 
   const toggle = document.createElement('button');
   toggle.type = 'button';
   toggle.className = 'side-section__toggle';
-  toggle.setAttribute('aria-expanded', 'true');
 
   const label = document.createElement('span');
   label.textContent = title;
+  label.className = 'side-section__label';
 
   const chevron = document.createElement('span');
   chevron.className = 'side-section__chevron';
-  chevron.textContent = '▾';
+  chevron.setAttribute('aria-hidden', 'true');
 
   toggle.append(label, chevron);
 
@@ -89,82 +84,40 @@ function createCollapsibleSection(title: string, content: HTMLElement): HTMLElem
   body.className = 'side-section__body';
   body.append(content);
 
-  toggle.addEventListener('click', () => {
-    const collapsed = section.classList.toggle('is-collapsed');
+  function setCollapsed(collapsed: boolean): void {
+    section.classList.toggle('is-collapsed', collapsed);
     toggle.setAttribute('aria-expanded', String(!collapsed));
     chevron.textContent = collapsed ? '▸' : '▾';
+  }
+
+  toggle.addEventListener('click', () => {
+    setCollapsed(!section.classList.contains('is-collapsed'));
   });
 
   section.append(toggle, body);
-  return section;
+  setCollapsed(defaultCollapsed);
+
+  return { element: section };
 }
 
 /**
- * 把统计/权重面板挂载到右侧栏,并接上实时接口。
+ * 把统计与拓扑面板挂载到右侧栏,并接上实时接口。
  * 面板只在路网加载成功后初始化(此时服务端已完成拓扑组装)。
  */
-async function initPanels(): Promise<void> {
+async function initStatsPanel(): Promise<void> {
   const host = document.getElementById('side-panels');
   if (host === null) return;
 
   const statsPanel = createStatsPanel();
-  let hasStats = false;
-  const weightPanel = createWeightPanel({
-    onChange: (profile) => {
-      currentMetric = profile.metric;
-      void reloadStats(profile);
-      // 权重目标变了，已显示的路径要按新目标重算
-      pathSelection?.recompute();
-    },
-  });
+  host.append(createCollapsibleSection('路网与拓扑', statsPanel.element, true).element);
 
-  host.append(
-    createCollapsibleSection('网络统计', statsPanel.element),
-    createCollapsibleSection('权重配置', weightPanel.element),
-  );
-
-  const panelState: { speedTable?: Readonly<Record<string, number>> } = {};
-  let requestToken = 0;
-
-  /** 按(可选的)权重配置重取统计;旧响应由 token 丢弃。 */
-  async function reloadStats(profile?: WeightProfile): Promise<void> {
-    const token = ++requestToken;
-    const stats = await fetchStats(
-      profile === undefined
-        ? undefined
-        : {
-            metric: profile.metric,
-            speedFactor: profile.speedFactor,
-            speedOverridesKmh: profile.speedOverridesKmh,
-          },
-    );
-    if (token !== requestToken) return;
-    if (stats === null) {
-      statsPanel.setSource('接口不可用', false);
-      return;
-    }
-    statsPanel.render(stats);
-    statsPanel.setSource('实时接口', true);
-    // 首次拿到数据后填充权重面板的等级行;之后不再 update,避免输入框失焦
-    if (!hasStats) {
-      weightPanel.update(stats, panelState.speedTable);
-      hasStats = true;
-    }
-  }
-
-  const [profileResponse, initialStats] = await Promise.all([fetchWeightProfile(), fetchStats()]);
-  panelState.speedTable = profileResponse?.speedTable;
-
-  if (initialStats !== null) {
-    statsPanel.render(initialStats);
-    statsPanel.setSource('实时接口', true);
-    weightPanel.update(initialStats, panelState.speedTable);
-    hasStats = true;
-  } else {
+  const stats = await fetchStats();
+  if (stats === null) {
     statsPanel.setSource('接口不可用', false);
+    return;
   }
-
-  currentMetric = weightPanel.getProfile().metric;
+  statsPanel.render(stats);
+  statsPanel.setSource('实时接口', true);
 }
 
 async function main(): Promise<void> {
@@ -184,12 +137,47 @@ async function main(): Promise<void> {
   });
   map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right');
 
+  const propertyPanel = createPropertyPanel();
+  propertyPanel.element.classList.add('gis-property--floating');
+  (document.getElementById('app') ?? document.body).append(propertyPanel.element);
+
+  const modeControl = createModeControl({
+    initialMode: 'car',
+    onChange: (mode) => void activateMode(mode),
+  });
+  (document.getElementById('app') ?? document.body).append(modeControl.element);
+
+  function showProperty(feature: RoadFeature, x: number, y: number): void {
+    propertyPanel.show(feature);
+    const panel = propertyPanel.element;
+    const margin = 12;
+    const offset = 14;
+    const width = panel.offsetWidth;
+    const height = panel.offsetHeight;
+    let left = x + offset;
+    let top = y + offset;
+    if (left + width > window.innerWidth - margin) left = x - width - offset;
+    if (top + height > window.innerHeight - margin) top = y - height - offset;
+    panel.style.left = `${Math.max(margin, left)}px`;
+    panel.style.top = `${Math.max(margin, top)}px`;
+  }
+
+  const hideProperty = (): void => propertyPanel.hide();
+
   let roadsLayer: PathLayer<RoadFeature> | null = null;
+  let transferPoints: TransferPoint[] = [];
+  let transferPointLayers: Layer[] = [];
+  let restrictionLayers: Layer[] = [];
+  const currentRoadNames = new Map<number, string>();
+  let turnEditor: TurnEditorHandle | null = null;
+  let modeRequestToken = 0;
 
   /** 把路网图层与选路图层合成一次，统一交给 deck.gl。 */
   const refreshLayers = (): void => {
     const layers: Layer[] = [];
     if (roadsLayer !== null) layers.push(roadsLayer);
+    layers.push(...transferPointLayers);
+    layers.push(...restrictionLayers);
     if (pathSelection !== null) layers.push(...pathSelection.getLayers());
     overlay.setProps({ layers });
   };
@@ -208,13 +196,10 @@ async function main(): Promise<void> {
     onClick: (info) => {
       if (pathSelection?.isActive() === true) return true; // 选点模式下不弹道路属性
       if (info.object && info.coordinate) {
-        tooltip
-          .setLngLat(info.coordinate as [number, number])
-          .setHTML(roadFeatureHtml(info.object as RoadFeature))
-          .addTo(map);
+        showProperty(info.object as RoadFeature, info.x, info.y);
         lastShowAt = performance.now();
       } else if (performance.now() - lastShowAt > 150) {
-        tooltip.remove();
+        hideProperty();
       }
       return true;
     },
@@ -223,13 +208,120 @@ async function main(): Promise<void> {
 
   pathSelection = createPathSelection({
     map,
-    getMetric: () => currentMetric,
     onLayersChange: refreshLayers,
+    onActiveChange: (active) => {
+      if (active) hideProperty();
+    },
   });
 
-  map.on('movestart', () => tooltip.remove());
+  turnEditor = createTurnEditor({
+    getMode: () => currentMode,
+    getRoadName: (wayId) => currentRoadNames.get(wayId) ?? `Way ${wayId}`,
+    onIntersectionFocus: (intersection) => {
+      map.easeTo({
+        center: intersection.position,
+        zoom: Math.max(map.getZoom(), 16),
+        duration: 450,
+      });
+    },
+    onRestrictionChange: (intersection) => {
+      restrictionLayers = createTurnRestrictionLayers(intersection);
+      refreshLayers();
+    },
+  });
+  (document.getElementById('app') ?? document.body).append(turnEditor.element);
+
+  const refreshTransferPoints = (): void => {
+    if (transferPoints.length === 0) {
+      transferPointLayers = [];
+    } else {
+      transferPointLayers = createTransferPointsLayers(transferPoints, map.getZoom());
+    }
+    refreshLayers();
+  };
+
+  async function activateMode(mode: DisplayMode, initial = false): Promise<void> {
+    if (!initial && currentMode === mode) return;
+
+    const token = ++modeRequestToken;
+    const label = travelModeLabel(mode);
+    hideProperty();
+    turnEditor?.setMode(null);
+    pathSelection?.setActive(false);
+    pathSelection?.clear();
+    modeControl.setBusy(true);
+    modeControl.setStatus(`${label}路网加载中…`, 'pending');
+
+    try {
+      let network: RoadFeatureCollection;
+      let points: TransferPoint[];
+      if (mode === 'all') {
+        network = await fetchNetwork();
+        points = [];
+      } else {
+        [network, points] = await Promise.all([
+          fetchNetworkByMode(mode),
+          fetchTransferPoints(mode),
+        ]);
+      }
+      if (token !== modeRequestToken) return;
+
+      roadsLayer = createRoadsLayer(network.features);
+      transferPoints = points;
+      transferPointLayers = createTransferPointsLayers(points, map.getZoom());
+      currentRoadNames.clear();
+      for (const feature of network.features) {
+        currentRoadNames.set(
+          feature.properties.id,
+          feature.properties.name ?? `Way ${feature.properties.id}`,
+        );
+      }
+      refreshLayers();
+      currentMode = mode;
+      modeControl.setMode(mode);
+      turnEditor?.setMode(mode === 'all' ? null : mode);
+      modeControl.setStatus(
+        mode === 'all'
+          ? `${label}基础路网 · ${network.features.length.toLocaleString()} 条道路`
+          : `${label} · ${network.features.length.toLocaleString()} 条道路 · ${points.length.toLocaleString()} 个转换点`,
+        'ok',
+      );
+    } catch (error) {
+      if (token !== modeRequestToken) return;
+
+      if (initial) {
+        try {
+          const baseNetwork = await fetchNetwork();
+          if (token !== modeRequestToken) return;
+          roadsLayer = createRoadsLayer(baseNetwork.features);
+          transferPoints = [];
+          transferPointLayers = [];
+          refreshLayers();
+          currentMode = 'all';
+          modeControl.setMode('all');
+          turnEditor?.setMode(null);
+          modeControl.setStatus('多模态数据不可用，已切换到全量基础路网', 'error');
+          return;
+        } catch (fallbackError) {
+          throw fallbackError instanceof Error ? fallbackError : error;
+        }
+      }
+
+      modeControl.setMode(currentMode);
+      turnEditor?.setMode(currentMode === 'all' ? null : currentMode);
+      modeControl.setStatus(
+        `${label}切换失败：${error instanceof Error ? error.message : '接口不可用'}`,
+        'error',
+      );
+    } finally {
+      if (token === modeRequestToken) modeControl.setBusy(false);
+    }
+  }
+
+  map.on('zoomend', refreshTransferPoints);
+  map.on('movestart', hideProperty);
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') tooltip.remove();
+    if (e.key === 'Escape') hideProperty();
   });
 
   fetchHealth()
@@ -257,9 +349,7 @@ async function main(): Promise<void> {
   );
 
   try {
-    const gj = await fetchNetwork();
-    roadsLayer = createRoadsLayer(gj.features);
-    refreshLayers();
+    await activateMode('car', true);
   } catch (err) {
     console.error('路网数据加载失败', err);
     $('loading').textContent = '路网数据加载失败,请确认服务端已启动(/api/network)';
@@ -267,7 +357,7 @@ async function main(): Promise<void> {
   }
 
   $('loading').remove();
-  void initPanels();
+  void initStatsPanel();
 }
 
 main().catch((err) => {

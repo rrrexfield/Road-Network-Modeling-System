@@ -29,7 +29,7 @@ describe('toPropertyViewModel', () => {
   it('Way ID 以字符串形式给出', () => {
     const vm = toPropertyViewModel(makeFeature({ id: 123456 }));
     expect(vm.wayId).toBe('123456');
-    expect(vm.fields).toContainEqual({ label: 'Way ID', value: '123456' });
+    expect(vm.fields).toEqual([{ label: 'Way ID', value: '123456' }]);
   });
 
   it('标签区排除 highway 与 name，其余全部保留且不截断', () => {
