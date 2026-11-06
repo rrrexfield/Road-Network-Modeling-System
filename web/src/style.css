@@ -148,6 +148,26 @@ body {
   max-height: min(430px, 60vh);
 }
 
+/* 模态转换点图标覆盖层:内联 SVG 图标画在地图之上。
+   放在 #app 下、晚于 deck.gl overlay 插入,因此压在路网图层之上。 */
+.transfer-point-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.transfer-point-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 15px;
+  height: 15px;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.65));
+}
+
 #hud-status {
   position: absolute;
   left: 16px;
@@ -257,8 +277,8 @@ body {
 .side-section__chevron {
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   font-size: 9px;
   line-height: 1;
   color: var(--ui-muted);
