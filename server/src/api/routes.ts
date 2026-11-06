@@ -11,8 +11,13 @@ import {
   type Graph,
   type TurnRestrictionPredicate,
 } from '../graph/index.js';
-import { DEFAULT_WEIGHT_PROFILE, createModeEdgeWeight } from '../weights/index.js';
+import {
+  createModeEdgeWeight,
+  normalizeWeightProfile,
+  parseWeightProfileParams,
+} from '../weights/index.js';
 import { registerModalRoutes, parseMode } from './modal-routes.js';
+import { findMultimodalPath, parseModeSequence, snapToNode } from './multimodal-path.js';
 import type { ModalRuntimeRegistry } from './modal-runtime.js';
 
 interface WsLike {
@@ -49,27 +54,9 @@ export function parseLonLat(raw: string | undefined): [number, number] | null {
 /**
  * 把经纬度吸附到最近的图节点。
  *
- * 线性扫描全部节点:武汉数据 62.8 万节点,实测在毫秒级,满足演示需要。
- * 若后续成为瓶颈,可替换为 G3 的空间索引。
+ * 实现位于 `multimodal-path.ts`(跨模态路径同样需要吸附),此处转出以保持既有引用不变。
  */
-export function snapToNode(graph: Graph, lon: number, lat: number): number | null {
-  let best: number | null = null;
-  let bestDist = Number.POSITIVE_INFINITY;
-  const cosLat = Math.cos((lat * Math.PI) / 180);
-  for (const id of graph.nodes()) {
-    const c = graph.coordinates(id);
-    if (c === undefined) continue;
-    // c 是 [lat, lon];经度差要乘 cos(lat) 才能和纬度差同尺度比较
-    const dy = c[0] - lat;
-    const dx = (c[1] - lon) * cosLat;
-    const d = dx * dx + dy * dy;
-    if (d < bestDist) {
-      bestDist = d;
-      best = id;
-    }
-  }
-  return best;
-}
+export { snapToNode } from './multimodal-path.js';
 
 export async function registerRoutes(
   app: FastifyInstance,
@@ -132,6 +119,7 @@ export async function registerRoutes(
         to?: string;
         metric?: string;
         mode?: unknown;
+        modes?: unknown;
       };
 
       const fromPoint = parseLonLat(query.from);
@@ -140,6 +128,53 @@ export async function registerRoutes(
         return reply.code(400).send({
           error: { message: 'from / to 需为 "经度,纬度"，例如 from=114.305,30.593' },
         });
+      }
+
+      // 权重配置:优化目标由 metric 决定(缺省最短距离,与作业一一致);
+      // 速度系数与等级限速覆盖来自查询串(issue #45:权重面板的全局参数作用于路径与统计)。
+      const profile = normalizeWeightProfile({
+        ...parseWeightProfileParams(query as Record<string, unknown>),
+        metric: query.metric === 'time' ? ('time' as const) : ('distance' as const),
+      });
+
+      // 跨模态路径(issue #34):modes 是有序模态序列,例如 modes=car,walk。
+      // 与单模态的 mode 参数互斥——两者语义不同,混用无法判定该走哪套路网。
+      if (query.modes !== undefined) {
+        if (query.mode !== undefined) {
+          return reply
+            .code(400)
+            .send({ error: { message: 'mode 与 modes 不可同时使用:mode 是单模态,modes 是跨模态序列' } });
+        }
+        const modes = parseModeSequence(query.modes);
+        if (modes === null || modes.length < 2) {
+          return reply.code(400).send({
+            error: { message: 'modes 需为至少两个不同的交通模态,例如 modes=car,walk' },
+          });
+        }
+        if (modal === undefined) {
+          return reply.code(501).send({ error: { message: '多模态路网未启用' } });
+        }
+        if (!modal.ready) {
+          return reply
+            .code(503)
+            .send({ error: { message: modal.unavailableReason ?? '派生数据不可用' } });
+        }
+        try {
+          const result = findMultimodalPath(modes, fromPoint, toPoint, {
+            registry: modal,
+            network,
+            profile,
+          });
+          if (result === null) {
+            return reply.code(404).send({
+              error: { message: '起点与终点之间不存在可行的跨模态路径(无可用换乘连接或不可达)' },
+            });
+          }
+          return result.body;
+        } catch (error) {
+          request.log.error({ err: error }, '跨模态路径求解失败');
+          return reply.code(500).send({ error: { message: '跨模态路径求解失败' } });
+        }
       }
 
       // 缺省走基础图（无禁转，与作业一一致）；显式给 mode 走该模态子图并应用禁转判定。
@@ -180,10 +215,6 @@ export async function registerRoutes(
 
       // metric=time 走 D 的时间权重(里程/有效限速),distance 走里程;
       // 速度来源按当前模态取值(issue #47):car 沿用汽车限速表,walk/bike/bus 用模态速度表。
-      const profile = {
-        ...DEFAULT_WEIGHT_PROFILE,
-        metric: query.metric === 'time' ? ('time' as const) : ('distance' as const),
-      };
       const weight: EdgeWeightFn = createModeEdgeWeight(
         { nodes: network.nodes, wayHighway: activeWayHighway },
         activeMode,

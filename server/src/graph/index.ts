@@ -6,3 +6,11 @@ export {
 } from './turn-restricted-dijkstra.js';
 export type { PathResult, TopologyStats } from '@gisalgo/shared';
 export { connectedComponents, computeTopologyStats } from './components.js';
+export {
+  multimodalDijkstra,
+  type ModalLayer,
+  type TransferLink,
+  type MultiModalSegment,
+  type TransferUsage,
+  type MultiModalPath,
+} from './multimodal-dijkstra.js';

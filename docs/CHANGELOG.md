@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### Added(Sprint 2 · 跨模态路径,issue #34)
+
+- **B 的跨模态搜索算法** `server/src/graph/multimodal-dijkstra.ts`:层内沿用 `(节点, 入边)` 边扩展状态空间(禁转在跨模态路径里同样生效),层间用**动态规划**推进(第 i 层算出到每个候选换乘点的最小代价,再作为下一层的多源),因此存在多个候选换乘点时取全局最优而非"遇到第一个就换";支持多源与早停,回溯保证路径代价与 dist 自洽;新增 10 项单测(含 DP 最优性、禁转绕行、罚时口径)。
+- **A 的换乘连接表** `server/src/api/transfer-links.ts`:把模态转换点落成"模态 A 节点 ↔ 模态 B 节点"的连接——用 C 的 `matchTransferConnections` 按模态匹配(步行半径 200 m,其余 100 m),接驳距离超限不连边,way 型设施缺出入口证据一律不连;连接保留**证据类型**(`shared-osm-node` 精确同节点 / `nearby-candidate` 近邻近似),换乘罚时 = 接驳步行时间 + 等待时间(C 的 `computeTransferPenalty` + D 的 `transferPenaltySeconds`)。
+- **跨模态路径接口** `GET /api/path?modes=car,walk`:`modes` 为逗号分隔的**有序**模态序列(至少两个),与单模态的 `mode` 互斥(混用 400);响应按冻结契约给出 `segments` 分段(段间以 `TransferPoint.id` 相接),跨模态时顶层 `edgeIds` 留空(边 id 只在所属模态内有效);新增 `PathResponse.transferPenaltySeconds` 单独下发换乘罚时(按契约不计入 `distance`)。实现见 `server/src/api/multimodal-path.ts`。
+- **实测(武汉全量)**:2930 个转换点可建立 **2447 条**换乘连接(452 条精确同节点 / 1995 条近邻近似),模态对覆盖 bus↔walk 1103/1092、car↔walk 90/88、bike↔walk 37/37,最大接驳距离 190.8 m;真实场景跑通「驾车 5.5 km → 停车场换乘(罚时 326 s)→ 步行 774 m 到江汉路」与「公交 5.5 km → 公交站换乘 → 步行 68 m 到武胜路地铁站」。口径、阈值与已知边界见 `docs/多模态路网设计.md`。
+
 ### Changed(Sprint 2 · A 接线模态权重与属性完整率,issue #47 / #23)
 
 - **`/api/path` 的 mode 分支改用模态权重**(issue #47):显式给 `mode` 时走 `createModeEdgeWeight`,时间口径按该模态的速度表换算(步行 4 km/h,不再是汽车 fallback 30 km/h),distance 口径与模态无关(两模态共用同一 Haversine 里程);**缺省(不带 mode)仍走基础图 + 汽车限速表,行为与作业一完全一致**。

@@ -42,5 +42,9 @@ export {
   transferPenaltySeconds,
   TRANSFER_PENALTY_MINUTES,
 } from './mode-weight.js';
-export { registerWeightRoutes, type WeightRoutesOptions } from './routes.js';
+export {
+  parseWeightProfileParams,
+  registerWeightRoutes,
+  type WeightRoutesOptions,
+} from './routes.js';
 export type { WeightProfileResponse } from '@gisalgo/shared';

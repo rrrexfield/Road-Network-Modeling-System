@@ -86,6 +86,67 @@ export type PathFetchResult =
   | { ok: false; reason: 'unreachable' | 'error' };
 
 /**
+ * 构造 `/api/path` 的查询串（不含前导 `?`）。
+ *
+ * 抽成纯函数便于单测：既覆盖单模态的 `mode` 下发规则，也覆盖跨模态的 `modes` 序列。
+ *
+ * - `mode` 缺省不下发（服务端走基础图、不施加转向限制），与作业一行为一致；
+ * - `modes` 缺省不下发；长度不足 2 时视为未启用跨模态，同样不下发。
+ */
+/**
+ * 路径请求可携带的全局权重参数(issue #45)。
+ *
+ * 与 `/api/stats` 的 `speedFactor` / `speedKmh` 参数同一套口径:
+ * 权重面板调整全局速度系数与等级限速覆盖后,统计与路径按同一配置重算。
+ */
+export interface PathWeightParams {
+  /** 全局速度系数,>0;缺省用服务端默认值。 */
+  speedFactor?: number;
+  /** 等级 → 限速(km/h)覆盖表。 */
+  speedOverridesKmh?: Record<string, number>;
+}
+
+/**
+ * 构造 `/api/path` 的查询串(纯函数,便于单测)。
+ *
+ * @param from 起点 [经度, 纬度]
+ * @param to 终点 [经度, 纬度]
+ * @param metric 优化目标
+ * @param mode 单模态交通模态;缺省表示走基础图
+ * @param modes 跨模态的有序模态序列;少于 2 个不下发
+ * @param profile 全局权重参数;缺省则用服务端默认值
+ */
+export function buildPathQuery(
+  from: [number, number],
+  to: [number, number],
+  metric: 'distance' | 'time' = 'distance',
+  mode?: TravelMode,
+  modes?: TravelMode[],
+  profile?: PathWeightParams,
+): string {
+  const query = new URLSearchParams({
+    from: `${from[0]},${from[1]}`,
+    to: `${to[0]},${to[1]}`,
+    metric,
+  });
+  if (mode !== undefined) query.set('mode', mode);
+  // 全局权重参数(issue #45):与 /api/stats 同一套参数名与口径,
+  // 保证"面板改权重 → 统计与路径按同一配置重算"。
+  if (profile?.speedFactor !== undefined) query.set('speedFactor', String(profile.speedFactor));
+  const overridePairs = Object.entries(profile?.speedOverridesKmh ?? {});
+  if (overridePairs.length > 0) {
+    query.set('speedKmh', overridePairs.map(([highway, speed]) => `${highway}:${speed}`).join(','));
+  }
+  const base = query.toString();
+  // 跨模态：有序的模态序列，逗号分隔；少于 2 个不构成跨模态，按单模态处理。
+  // 逗号是 RFC 3986 允许直接出现在查询串中的字符，这里保留字面量以便阅读与调试。
+  if (modes !== undefined && modes.length >= 2) {
+    return `${base}&modes=${modes.join(',')}`;
+  }
+  return base;
+}
+
+/**
  * 请求最短 / 最快路径。
  *
  * @param from 起点 [经度, 纬度]；服务端会吸附到最近的图节点
@@ -94,21 +155,21 @@ export type PathFetchResult =
  * @param mode 交通模态。**缺省（undefined）走基础图、不施加转向限制**，与作业一行为一致；
  *   显式给 mode 则走该模态子图，并由服务端按该模态的禁转表判定转向——禁转边对与边 ID
  *   只在所属模态内有效，故 mode 必须与编辑禁转时使用的模态相同。
+ * @param modes 跨模态的**有序**模态序列（至少 2 个）。缺省或长度不足 2 时不下发，
+ *   响应为单模态路径（无 `segments`）。
+ * @param profile 全局权重参数（速度系数与等级限速覆盖）；缺省则用服务端默认值。
  */
 export async function fetchPath(
   from: [number, number],
   to: [number, number],
   metric: 'distance' | 'time' = 'distance',
   mode?: TravelMode,
+  modes?: TravelMode[],
+  profile?: PathWeightParams,
 ): Promise<PathFetchResult> {
-  const query = new URLSearchParams({
-    from: `${from[0]},${from[1]}`,
-    to: `${to[0]},${to[1]}`,
-    metric,
-  });
-  if (mode !== undefined) query.set('mode', mode);
+  const query = buildPathQuery(from, to, metric, mode, modes, profile);
   try {
-    const res = await fetch(`/api/path?${query.toString()}`);
+    const res = await fetch(`/api/path?${query}`);
     if (res.status === 404) return { ok: false, reason: 'unreachable' };
     if (!res.ok) return { ok: false, reason: 'error' };
     return { ok: true, path: (await res.json()) as PathResponse };
