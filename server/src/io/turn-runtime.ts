@@ -14,7 +14,7 @@ export function createTurnRuntime(
 ) {
   const network = loadNetwork(derivedFile);
   if (network.dataWarnings.length) throw new Error(network.dataWarnings.join('; '));
-  const modal = buildModalTopology(network.nodes, network.ways, options.mode);
+  const modal = buildModalTopology(network.nodes, network.ways, options.mode, network.nodeTags);
   const service = new PersistentTurnService(modal.topology, {
     ...options,
     dataset: `${options.dataset}:${options.mode}`,

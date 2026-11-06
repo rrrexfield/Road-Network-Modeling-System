@@ -96,6 +96,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## 三、多人协作同步区(随项目增量更新)
 
+**C节点准入补充最后更新:2026-11-06（fix/node-access分支，待A评审接入）**
+
+topology的buildModalTopology增加可选第四参数NodeTags，返回nodeAccess（checked/excludedNodes/excludedEdgeCount）；未传保持旧行为并checked=false。按模式过滤受限/未决节点的相邻段，不跨缺口补边，剩余edgeId和原始way属性不改；unknown/无许可屏障保守排除，并非实景禁行认证。io/createTurnRuntime已传nodeTags，A的ModalRuntimeRegistry两处调用尚需接入并重建Graph/转向/nearest索引及换乘缓存；未改A/B/E或shared。399项测试及类型/lint/build通过，策略和武汉实测见docs/plans/c-node-access-ready.md。线上功能尚未据此完成修复。
+
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
 **最后更新:2026-11-05(A 完成 Sprint 2 集成:PR #39/#40/#42 已合入 main、派生数据已重建、前端禁转端到端已打通、新增路口就近查询接口;issue #34 仍开放)**

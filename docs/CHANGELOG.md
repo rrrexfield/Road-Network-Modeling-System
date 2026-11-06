@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### Fixed(2026-11-06 · C节点准入，分支待审)
+
+- buildModalTopology可选接收NodeTags，按模式过滤受限/未决节点的相邻段并返回nodeAccess诊断；不跨缺口补边、不改原始数据或剩余edgeId。旧调用兼容但checked=false。
+- io/createTurnRuntime接入节点标签；原始扬波门permit片段阻断及SQLite失配保护回归通过。A网页运行时两处构图调用尚需接入，保守屏障策略仍待A评审。
+- 全仓399项测试及typecheck/lint/build通过，武汉四模态过滤统计与局限见docs/plans/c-node-access-ready.md。
+
 ### Changed(前端圆角统一 + 底图版权标签改白字)
 
 - **圆角尺度全站统一**:新增 `--ui-radius-lg: 8px`(容器/面板/卡片)与 `--ui-radius-sm: 4px`(按钮/输入框/次级控件)两个变量,图表侧的 `--gis-radius` 由 10px 收到 8px;原先混用的三套圆角(容器直角、控件 1–2px、图表卡 8–10px)统一为圆角,涉及 `style.css`(标题栏、右侧分区、状态徽标、地图控件组、加载框、统计卡片)、`map/mode-control.css`、`map/path-selection.css`、`panels/editor/turn-editor.css`、`panels/property/property-panel.css`、`panels/weight/weight-panel.css`、`charts/ui.css`。胶囊徽标(999px)与圆点(50%)保留各自的形状语义。

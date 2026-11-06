@@ -1,0 +1,102 @@
+{
+  "status": "implemented-on-fix-node-access-branch-policy-awaits-review",
+  "nodes": [
+    [1, 30, 114],
+    [2, 30, 114.0001],
+    [3, 30, 114.0002],
+    [4, 30.0001, 114.0001]
+  ],
+  "directWay": {
+    "id": 100,
+    "highway": "residential",
+    "nds": [1, 2, 3],
+    "tags": { "highway": "residential" }
+  },
+  "detourWay": {
+    "id": 101,
+    "highway": "residential",
+    "nds": [1, 4, 3],
+    "tags": { "highway": "residential", "oneway": "yes", "oneway:foot": "yes" }
+  },
+  "source": 1,
+  "target": 3,
+  "restrictedNode": 2,
+  "baselineExpectedPath": [1, 2, 3],
+  "detourExpectedPath": [1, 4, 3],
+  "cases": [
+    { "id": "access-no", "mode": "walk", "tags": { "access": "no" }, "proposed": "block" },
+    { "id": "access-private", "mode": "car", "tags": { "access": "private" }, "proposed": "block" },
+    {
+      "id": "foot-permit",
+      "mode": "walk",
+      "tags": { "access": "yes", "foot": "permit", "barrier": "gate" },
+      "proposed": "block"
+    },
+    {
+      "id": "foot-overrides-general",
+      "mode": "walk",
+      "tags": { "access": "no", "foot": "yes", "barrier": "gate" },
+      "proposed": "allow"
+    },
+    {
+      "id": "foot-no-overrides-yes",
+      "mode": "walk",
+      "tags": { "access": "yes", "foot": "no" },
+      "proposed": "block"
+    },
+    {
+      "id": "motorcar-overrides-motor-vehicle",
+      "mode": "car",
+      "tags": { "motor_vehicle": "no", "motorcar": "yes" },
+      "proposed": "allow"
+    },
+    {
+      "id": "bus-overrides-psv",
+      "mode": "bus",
+      "tags": { "psv": "no", "bus": "yes" },
+      "proposed": "allow"
+    },
+    {
+      "id": "bike-overrides-vehicle",
+      "mode": "bike",
+      "tags": { "vehicle": "no", "bicycle": "yes" },
+      "proposed": "allow"
+    },
+    {
+      "id": "cycle-barrier-explicit-foot",
+      "mode": "walk",
+      "tags": { "barrier": "cycle_barrier", "foot": "yes" },
+      "proposed": "allow"
+    },
+    {
+      "id": "wall-even-with-foot-yes",
+      "mode": "walk",
+      "tags": { "barrier": "wall", "foot": "yes" },
+      "proposed": "unresolved"
+    },
+    {
+      "id": "gate-no-access-evidence",
+      "mode": "walk",
+      "tags": { "barrier": "gate" },
+      "proposed": "unresolved"
+    },
+    {
+      "id": "conditional-foot",
+      "mode": "walk",
+      "tags": { "foot": "yes", "foot:conditional": "no @ (Mo-Fr)" },
+      "proposed": "unresolved"
+    },
+    {
+      "id": "unknown-value",
+      "mode": "walk",
+      "tags": { "foot": "unknown-project-value" },
+      "proposed": "unresolved"
+    },
+    {
+      "id": "motor-condition-with-explicit-foot",
+      "mode": "walk",
+      "tags": { "foot": "yes", "motor_vehicle:conditional": "no @ (Mo-Fr)" },
+      "proposed": "allow"
+    }
+  ]
+}

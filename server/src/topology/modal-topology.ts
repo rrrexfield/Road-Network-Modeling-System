@@ -1,5 +1,11 @@
 import type { TravelMode } from '@gisalgo/shared';
 import { buildTopology, type TopologyResult, type TopologyWay } from './build-topology.js';
+import {
+  accessKeys,
+  applyNodeAccess,
+  type NodeTags,
+  type NodeAccessReport,
+} from './node-access.js';
 
 const motorRoads = [
   'motorway',
@@ -27,12 +33,6 @@ const defaults: Record<TravelMode, ReadonlySet<string>> = {
   walk: new Set([...localRoads, 'footway', 'pedestrian', 'path', 'steps', 'track', 'corridor']),
   bike: new Set([...localRoads, 'cycleway', 'path', 'track']),
 };
-const accessKeys: Record<TravelMode, readonly string[]> = {
-  car: ['motorcar', 'motor_vehicle', 'vehicle', 'access'],
-  bus: ['bus', 'psv', 'motor_vehicle', 'vehicle', 'access'],
-  bike: ['bicycle', 'vehicle', 'access'],
-  walk: ['foot', 'access'],
-};
 const directionKeys: Record<TravelMode, readonly string[]> = {
   car: ['oneway:motorcar', 'oneway:motor_vehicle', 'oneway:vehicle', 'oneway'],
   bus: ['oneway:bus', 'oneway:psv', 'oneway:motor_vehicle', 'oneway:vehicle', 'oneway'],
@@ -41,6 +41,7 @@ const directionKeys: Record<TravelMode, readonly string[]> = {
 };
 
 export interface ModalTopologyResult {
+  nodeAccess: NodeAccessReport;
   mode: TravelMode;
   topology: TopologyResult;
   /** 准入排除；方向与数据质量排除另见 topology.issues，不可忽略。 */
@@ -52,11 +53,13 @@ export interface ModalTopologyResult {
  * @remarks 默认等级为项目保守策略；更具体准入优先，条件/目的地/私有等未支持语义排除并报告。
  * 各模式必须分别建立 Graph 与禁转索引，edgeId 不能跨模式复用。
  * bus 只表示公交通行道路，不含真实线路、班次或停站规则。
+ * 可选nodeTags用于节点准入；未传时nodeAccess.checked=false，兼容旧调用但不表示权限已核验。
  */
 export function buildModalTopology(
   nodes: ReadonlyMap<number, readonly [number, number]>,
   ways: readonly TopologyWay[],
   mode: TravelMode,
+  nodeTags?: NodeTags,
 ): ModalTopologyResult {
   if (!Object.hasOwn(defaults, mode)) throw new Error(`未知交通模式: ${mode}`);
   const selected: TopologyWay[] = [];
@@ -112,5 +115,6 @@ export function buildModalTopology(
   const topology = buildTopology(nodes, selected);
   // 构边使用临时有效方向，不篡改公开道路属性的原始 oneway 标签。
   for (const [id, properties] of topology.ways) properties.tags = { ...originals.get(id)!.tags };
-  return { mode, topology, excludedWays };
+  const nodeAccess = applyNodeAccess(topology, mode, nodeTags);
+  return { mode, topology, excludedWays, nodeAccess };
 }
