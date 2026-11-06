@@ -8,6 +8,8 @@
  * 坐标),两者数值不严格相等(分轴最坏 ~0.7 m)。服务端启动组装出 Graph 后一律走注入路径。
  */
 import type {
+  AttributeCompleteness,
+  AttributeCompletenessReport,
   HighwayStat,
   LengthBucket,
   NetworkStats,
@@ -30,6 +32,12 @@ import {
 /** 统计响应体与子类型由 shared 冻结；本模块只 re-export，不再定义本地副本。 */
 export type { HighwayStat, LengthBucket, NetworkStats, TopologyMetrics, TopologyMetricsSourceTag };
 
+/** 统计所需的 way 最简视图:只读 highway 与原始标签,不依赖 io 的完整 Way 类型。 */
+export interface StatWay {
+  highway: string;
+  tags: Readonly<Record<string, string>>;
+}
+
 /** 统计输入:在权重上下文之上补一份边集。 */
 export interface StatsInput extends NetworkContext {
   edges: readonly RoadEdge[];
@@ -38,6 +46,13 @@ export interface StatsInput extends NetworkContext {
    * 返回非有限值的边按缺失端点同样跳过。
    */
   edgeLength?: (edge: RoadEdge) => number;
+  /**
+   * 可选 way 标签表(wayId → highway + 原始标签),用于属性完整率统计(issue #23)。
+   * 缺省时 `NetworkStats.attributeCompleteness` 保持缺省——契约语义为
+   * "服务端尚未提供该统计",前端按待接入处理,不得以 0 冒充完整率。
+   * 建议传全量 ways(与拓扑验证报告口径一致),不要按参与构边的 way 过滤。
+   */
+  ways?: ReadonlyMap<number, StatWay>;
 }
 
 /** 直方图分档上界(米),最后一档为无上界的开区间。 */
@@ -101,14 +116,60 @@ export function toTopologyMetrics(source: TopologyStats): TopologyMetrics {
   };
 }
 
+/** 属性完整率统计的属性清单,键名与 OSM 标签一致;顺序即前端展示顺序。 */
+const COMPLETENESS_KEYS = ['name', 'maxspeed', 'lanes', 'surface', 'oneway'] as const;
+
+/**
+ * 按 way 统计道路属性完整率(issue #23 冻结口径)。
+ * @param ways wayId → highway + 原始标签的表;建议传全量 ways。
+ * @returns 每个属性的 filled / total / ratio(0–1)。
+ * @remarks 两条口径纪律:
+ * 1. **按 way 统计**——属性来自 way 标签,同一 way 被拆成多条有向边,按边统计会把
+ *    完整率重复稀释(武汉 6.9 万 way 对应 119 万有向边,差一个量级);
+ * 2. **只统计原始标注**——本函数读的是原始 tags,按等级查表推断的限速不在其中,
+ *    不得把推断值算进 filled,否则 maxspeed 完整率会虚高到接近 100%。
+ * 空串 / 纯空白标签视为未填写。复杂度 O(W·k),k=5。
+ */
+export function computeAttributeCompleteness(
+  ways: ReadonlyMap<number, StatWay>,
+): AttributeCompletenessReport {
+  const filled: Record<(typeof COMPLETENESS_KEYS)[number], number> = {
+    name: 0,
+    maxspeed: 0,
+    lanes: 0,
+    surface: 0,
+    oneway: 0,
+  };
+  let total = 0;
+  for (const way of ways.values()) {
+    total += 1;
+    for (const key of COMPLETENESS_KEYS) {
+      const value = way.tags[key];
+      if (typeof value === 'string' && value.trim() !== '') filled[key] += 1;
+    }
+  }
+  const entry = (count: number): AttributeCompleteness => ({
+    filled: count,
+    total,
+    ratio: total > 0 ? count / total : 0,
+  });
+  return {
+    name: entry(filled.name),
+    maxspeed: entry(filled.maxspeed),
+    lanes: entry(filled.lanes),
+    surface: entry(filled.surface),
+    oneway: entry(filled.oneway),
+  };
+}
+
 /**
  * 计算网络统计。
- * @param input 坐标表、边集、way→等级表与可选的边长注入函数。
+ * @param input 坐标表、边集、way→等级表、可选边长注入函数与可选 way 标签表。
  * @param options.profile 权重配置;省略用默认配置。
  * @param options.topology B 的图引擎拓扑指标(`TopologyStats`);省略时 topology 为 null、
  * topologySource 为 'pending'。M1 为全道路拓扑(与 C 构边口径一致,不做模态过滤),
  * 模态子图待准入规则立项后再另立口径。
- * @returns 里程、时间、等级分布、边长分布与拓扑指标。
+ * @returns 里程、时间、等级分布、边长分布、拓扑指标;提供 way 标签表时另含属性完整率。
  * @remarks 端点缺失或边长非有限的边整体跳过,不按 0 米计入——否则会把"未知长度"伪装成
  * 极短边,既拉低平均边长也污染直方图。里程与时间分别累加,等级平均速度由二者反算,
  * 因此不受逐条舍入影响。复杂度 O(E log E),排序用于取中位数与整理等级表。
@@ -201,5 +262,9 @@ export function computeNetworkStats(
     topology: topology ? toTopologyMetrics(topology) : null,
     topologySource: topology ? 'graph-engine' : 'pending',
     profile,
+    // 属性完整率与权重配置无关,但随统计缓存一起复用;未提供 way 标签表时保持缺省
+    ...(input.ways !== undefined
+      ? { attributeCompleteness: computeAttributeCompleteness(input.ways) }
+      : {}),
   };
 }

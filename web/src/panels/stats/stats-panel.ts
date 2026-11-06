@@ -1,5 +1,5 @@
 /**
- * 统计仪表盘面板:网络规模 KPI + 等级里程分布 / 边长分布 + 拓扑指标区。
+ * 统计仪表盘面板:网络规模 KPI + 等级里程分布 / 边长分布 / 属性完整性三张图 + 拓扑指标区。
  * 面板只负责把 NetworkStats 映射到图表选项,DOM 与样式留在本目录。
  */
 import {
@@ -25,6 +25,9 @@ export interface StatsPanelHandle {
   setSource(label: string, ok: boolean): void;
   dispose(): void;
 }
+
+/** 属性完整性图的展示顺序,与契约 AttributeCompletenessReport 的键一致。 */
+const COMPLETENESS_KEYS = ['name', 'maxspeed', 'lanes', 'surface', 'oneway'] as const;
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -75,22 +78,40 @@ export function createStatsPanel(): StatsPanelHandle {
   const charts = element('div', 'gis-grid');
   const lengthCard = createChartCard('等级里程分布', '按 highway 聚合');
   const histogramCard = createChartCard('边长分布');
-  charts.append(lengthCard.card, histogramCard.card);
+  const completenessCard = createChartCard('属性完整性', '按 way 统计 · 原始标注');
+  charts.append(lengthCard.card, histogramCard.card, completenessCard.card);
 
   const topologyCard = element('section', 'gis-card gis-topology');
   topologyCard.append(element('h3', 'gis-card__title', '拓扑指标'));
 
-  // 先展示规模与拓扑摘要,两张分布图放在最后上下排列。
+  // 先展示规模与拓扑摘要,三张分布图放在最后上下排列。
   root.append(head, summaryCard, topologyCard, charts);
 
-  const charts_: Record<'length' | 'histogram', ChartInstance> = {
+  const charts_: Record<'length' | 'histogram' | 'completeness', ChartInstance> = {
     length: createChart(lengthCard.body),
     histogram: createChart(histogramCard.body),
+    completeness: createChart(completenessCard.body),
   };
   const stopResize = [
     autoResize(charts_.length, lengthCard.body),
     autoResize(charts_.histogram, histogramCard.body),
+    autoResize(charts_.completeness, completenessCard.body),
   ];
+
+  // 契约语义(issue #23):attributeCompleteness 缺省 = 服务端尚未提供该统计,
+  // 显示"待接入"占位,不得以 0% 冒充完整率。占位覆盖在图表上方,提供数据时隐藏。
+  const completenessPlaceholder = element('div', 'gis-placeholder gis-placeholder--overlay');
+  completenessPlaceholder.hidden = true;
+  completenessPlaceholder.append(
+    element('span', 'gis-badge gis-badge--wait', '待接入'),
+    element(
+      'p',
+      'gis-placeholder__text',
+      '属性完整率需要服务端提供 way 标签表后方可统计(issue #23)。' +
+        '接入前本区不显示任何数值——没有数据不等于完整率是 0。',
+    ),
+  );
+  completenessCard.body.append(completenessPlaceholder);
 
   function renderTopology(stats: NetworkStats): void {
     topologyCard.replaceChildren(element('h3', 'gis-card__title', '拓扑指标'));
@@ -120,6 +141,26 @@ export function createStatsPanel(): StatsPanelHandle {
     );
     topologyCard.append(grid);
     topologyCard.append(element('p', 'gis-note', `来源：${stats.topologySource}`));
+  }
+
+  /** 属性完整性:契约字段缺省时切换占位态,提供时画 0–100% 横向条形图。 */
+  function renderCompleteness(stats: NetworkStats): void {
+    const report = stats.attributeCompleteness;
+    if (report === undefined) {
+      charts_.completeness.clear();
+      completenessPlaceholder.hidden = false;
+      return;
+    }
+    completenessPlaceholder.hidden = true;
+    charts_.completeness.setOption(
+      horizontalBarOption({
+        categories: [...COMPLETENESS_KEYS],
+        values: COMPLETENESS_KEYS.map((key) => Math.round(report[key].ratio * 1000) / 10),
+        colors: [CHART_COLORS.accent],
+        axisName: '完整率 (%)',
+      }),
+      true,
+    );
   }
 
   function render(stats: NetworkStats): void {
@@ -155,6 +196,7 @@ export function createStatsPanel(): StatsPanelHandle {
     );
 
     renderTopology(stats);
+    renderCompleteness(stats);
   }
 
   function setSource(label: string, ok: boolean): void {

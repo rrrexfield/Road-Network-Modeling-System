@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { RoadEdge, TopologyStats } from '@gisalgo/shared';
 import { haversineMeters } from './geo.js';
-import { computeNetworkStats, toTopologyMetrics, type StatsInput } from './stats.js';
+import {
+  computeAttributeCompleteness,
+  computeNetworkStats,
+  toTopologyMetrics,
+  type StatsInput,
+} from './stats.js';
 
 const N1: readonly [number, number] = [30, 114];
 const N2: readonly [number, number] = [30, 114.001];
@@ -225,5 +230,53 @@ describe('toTopologyMetrics', () => {
       { degree: 1, count: 2 },
       { degree: 3, count: 1 },
     ]);
+  });
+});
+
+describe('computeAttributeCompleteness', () => {
+  const way = (id: number, tags: Record<string, string>) =>
+    [id, { highway: 'primary', tags }] as const;
+
+  const wayTags = new Map<number, { highway: string; tags: Record<string, string> }>([
+    way(1, { name: '人民路', maxspeed: '60', oneway: 'yes' }),
+    way(2, { name: '建设路' }),
+    way(3, { name: '', surface: 'asphalt' }),
+    way(4, {}),
+  ]);
+
+  it('按 way 统计 filled/total/ratio,空串视为未填写', () => {
+    const report = computeAttributeCompleteness(wayTags);
+    expect(report.name).toEqual({ filled: 2, total: 4, ratio: 0.5 });
+    expect(report.maxspeed).toEqual({ filled: 1, total: 4, ratio: 0.25 });
+    expect(report.oneway).toEqual({ filled: 1, total: 4, ratio: 0.25 });
+    expect(report.surface).toEqual({ filled: 1, total: 4, ratio: 0.25 });
+    expect(report.lanes).toEqual({ filled: 0, total: 4, ratio: 0 });
+  });
+
+  it('空白标签不计入 filled', () => {
+    const report = computeAttributeCompleteness(new Map([way(1, { name: '   ', lanes: ' ' })]));
+    expect(report.name.filled).toBe(0);
+    expect(report.lanes.filled).toBe(0);
+    expect(report.name.total).toBe(1);
+  });
+
+  it('空表返回 total=0 且 ratio=0,不产生除零', () => {
+    const report = computeAttributeCompleteness(new Map());
+    for (const key of ['name', 'maxspeed', 'lanes', 'surface', 'oneway'] as const) {
+      expect(report[key]).toEqual({ filled: 0, total: 0, ratio: 0 });
+    }
+  });
+
+  it('computeNetworkStats 未提供 ways 时 attributeCompleteness 保持缺省', () => {
+    const stats = computeNetworkStats(input);
+    expect('attributeCompleteness' in stats).toBe(false);
+  });
+
+  it('computeNetworkStats 提供 ways 时填充完整率,口径为全量 way 而非参与构边的 way', () => {
+    // input 的边只涉及 way 100/200/300,而 wayTags 里 way 4 不参与构边——仍应计入 total
+    const stats = computeNetworkStats({ ...input, ways: wayTags });
+    expect(stats.attributeCompleteness).toBeDefined();
+    expect(stats.attributeCompleteness?.name.total).toBe(4);
+    expect(stats.attributeCompleteness?.name.ratio).toBeCloseTo(0.5, 10);
   });
 });
