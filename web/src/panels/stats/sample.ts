@@ -140,6 +140,14 @@ export const SAMPLE_STATS: NetworkStats = {
     ],
   },
   topologySource: 'graph-engine',
+  // 属性完整率为必填字段(issue #47):示例数据给出与合成路网一致的占位值。
+  attributeCompleteness: {
+    name: { filled: 22, total: 37, ratio: 22 / 37 },
+    maxspeed: { filled: 2, total: 37, ratio: 2 / 37 },
+    lanes: { filled: 3, total: 37, ratio: 3 / 37 },
+    surface: { filled: 5, total: 37, ratio: 5 / 37 },
+    oneway: { filled: 9, total: 37, ratio: 9 / 37 },
+  },
   profile: {
     metric: 'time',
     speedFactor: 1,

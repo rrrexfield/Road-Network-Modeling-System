@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### Changed(Sprint 2 · A 接线模态权重与属性完整率,issue #47 / #23)
+
+- **`/api/path` 的 mode 分支改用模态权重**(issue #47):显式给 `mode` 时走 `createModeEdgeWeight`,时间口径按该模态的速度表换算(步行 4 km/h,不再是汽车 fallback 30 km/h),distance 口径与模态无关(两模态共用同一 Haversine 里程);**缺省(不带 mode)仍走基础图 + 汽车限速表,行为与作业一完全一致**。
+- **`/api/stats` 启用属性完整率**(issue #23):`registerWeightRoutes` 的 network 入参补 `ways: topology.ways`(**全量 69,382 条 way**,不按参与构边的 way 过滤,与拓扑验证报告口径一致)。
+- **契约收紧(A 决策,兑现 issue #23 的承诺)**:`NetworkStats.attributeCompleteness` 由可选改为**必填**,`StatsInput.ways` 同步改为必填。理由:服务端已恒定提供该统计,再保留"缺省=服务端尚未提供"的状态只会让前端长期挂着待接入分支,并留下"以 0 冒充完整率"的口子。配套改动:`web/src/panels/stats/sample.ts` 示例数据补齐该字段;`stats-panel.ts` 保留运行期兜底(旧服务端缺字段时显示占位),类型上以 `AttributeCompletenessReport | undefined` 局部变量承接。
+- 新增 4 项测试:显式 mode 的时间口径按模态差异(步行 > 汽车 5 倍)、distance 口径两模态一致、缺省 mode 与 car 模态时间一致、`/api/stats` 下发属性完整率。全仓 320 项通过,三包 typecheck 与全仓 ESLint 全绿。
+
 ### Added(Sprint 2 · D 属性完整率与多模态权重,issue #23 / #47)
 
 - `server/src/weights/stats.ts`:`StatsInput` 新增可选 `ways`(way 标签表,`StatWay = { highway, tags }`,与 `TopologyResult.ways` 的 `WayProperties` 结构兼容);新增 `computeAttributeCompleteness`,按 issue #23 冻结口径**按 way 统计** name/maxspeed/lanes/surface/oneway 的 filled/total/ratio(0–1),只计原始标注、不把按等级推断的限速算进 filled;空串/纯空白视为未填写,空表返回 total=0 不除零。`computeNetworkStats` 在提供 ways 时填充 `attributeCompleteness`,未提供时保持缺省(契约语义:服务端尚未提供该统计)。
@@ -11,6 +18,7 @@
 - 新增 `server/src/weights/mode-weight.ts`(Sprint 2 多模态权重):`createModeEdgeWeight(context, mode, profile)` 模态边权——car 委托既有 `createEdgeWeight`(零行为变化),walk/bike/bus 用模态速度表;time 口径按模态换算(修复 `/api/path?mode=walk` 用汽车 fallback 30 km/h 算步行时间的口径失真),distance 口径与模态无关(跨模态共用同一 Haversine 里程);`effectiveModeSpeedKmh` 与汽车模型保持同一覆盖合成顺序;`transferPenaltySeconds` 换乘罚时为**占位值**(地铁 5 分/公交 3 分/停车 5 分),标定依赖 issue #34 的核验换乘连接。设计说明与占位值声明见 `docs/plans/d-sprint2-weights-stats.md`。
 - 新增 22 项测试(模态速度表、时间换算、覆盖合成顺序、car 模型逐边一致、罚时正有限、完整率口径与缺省语义),全仓 289 项通过;三包 typecheck、全仓 ESLint、Prettier 全绿。
 - 评审 PR #41(E 改动 D 目录 3 个展示文件)并批准:占比环形图与总通行时间 KPI 的删除不影响作业三数据能力,契约字段保留;`/api/path` 模态权重注入与统计 ways 接线请 A 处理(issue #47)。
+
 ### Added(Sprint 2 · A 路口就近查询,issue #43)
 
 - 契约冻结:`NearestIntersectionResponse` 进入 `shared/src/index.ts`,含 `nodeId`、`position`、`distanceMeters`、`degree`、`connectedWayIds`、`roadNames` 六个字段。

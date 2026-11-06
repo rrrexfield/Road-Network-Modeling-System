@@ -14,6 +14,7 @@ import {
   type ChartInstance,
   type NetworkStats,
 } from '../../charts/index.js';
+import type { AttributeCompletenessReport } from '@gisalgo/shared';
 import './stats-panel.css';
 
 /** 面板句柄。 */
@@ -143,9 +144,9 @@ export function createStatsPanel(): StatsPanelHandle {
     topologyCard.append(element('p', 'gis-note', `来源：${stats.topologySource}`));
   }
 
-  /** 属性完整性:契约字段缺省时切换占位态,提供时画 0–100% 横向条形图。 */
+  /** 属性完整性:契约字段已收紧为必填,此处仍做运行期兜底——旧服务端缺字段时显示占位。 */
   function renderCompleteness(stats: NetworkStats): void {
-    const report = stats.attributeCompleteness;
+    const report: AttributeCompletenessReport | undefined = stats.attributeCompleteness;
     if (report === undefined) {
       charts_.completeness.clear();
       completenessPlaceholder.hidden = false;

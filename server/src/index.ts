@@ -82,6 +82,9 @@ async function main(): Promise<void> {
       edges: topology.edges,
       wayHighway,
       edgeLength: (edge) => graph.edgeLength(edge.id),
+      // 传全量 way 标签表以启用属性完整率(issue #23 / #47);
+      // 口径为「按 way 统计」,故不能按参与构边的 way 过滤。
+      ways: topology.ways,
     },
     topology: topologyStats,
   });

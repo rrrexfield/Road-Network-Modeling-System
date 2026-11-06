@@ -98,9 +98,14 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
-**最后更新:2026-11-06(D交付属性完整率与多模态权重;A 接线待办见 #47)**
+**最后更新:2026-11-06(A 接线模态权重与属性完整率,issue #47 / #23;契约收紧 attributeCompleteness 为必填)**
+
+2026-11-06 A 接线(issue #47 + #23):`/api/path` 的 mode 分支改用 D 的 `createModeEdgeWeight`——**显式 mode 时**时间口径按该模态速度表换算(步行 4 km/bike 12-18 km/bus 折减 0.8),distance 口径与模态无关;**缺省(不带 mode)仍走基础图 + 汽车限速表**,行为与作业一完全一致。`/api/stats` 接线 `ways: topology.ways`(全量 69,382 条 way,不按参与构边的 way 过滤),启用属性完整率。**契约收紧(A 决策)**:兑现 issue #23 的承诺,`NetworkStats.attributeCompleteness` 由可选改为**必填**,`StatsInput.ways` 同步必填——服务端已恒定提供该统计,保留缺省态只会让前端长期挂待接入分支并留下"以 0 冒充完整率"的口子;前端示例数据与统计面板同步适配(面板保留运行期兜底占位)。新增 4 项测试,全仓 320 项通过。**PR #48(D 的权重/统计交付)已合入 main**,合并时按 PR #41 调整后的统计面板结构适配(保留 #41 结构 + D 的属性完整性卡片)。
+
+2026-11-06 D 交付(issue #23 / #47 的 D 侧):属性完整率与多模态权重模型
 
 2026-11-06 D:`server/src/weights/mode-weight.ts`(新文件,经 index.ts 公开)提供 `createModeEdgeWeight(context, mode, profile)` / `effectiveModeSpeedKmh` / `transferPenaltySeconds`:car 委托既有汽车模型(零行为变化),walk/bike/bus 用模态速度表,time 口径按模态换算、distance 口径与模态无关(共用同一 Haversine);换乘罚时为占位值(地铁 5 分/公交 3 分/停车 5 分钟),标定依赖 issue #34,声明见 docs/plans/d-sprint2-weights-stats.md §2。stats 按 issue #23 冻结口径实现 `computeAttributeCompleteness`(按 way 统计、只计原始标注、空表不除零),`StatsInput` 新增可选 `ways`(`TopologyResult.ways` 的 `WayProperties` 结构兼容)——A 在 `registerWeightRoutes` 的 network 入参补 `ways: topology.ways` 即启用,并把 `NetworkStats.attributeCompleteness` 收紧为必填;`/api/path` 的 mode 分支仍用汽车权重,请 A 改注入 `createModeEdgeWeight`(issue #47)。统计面板新增「属性完整性」卡片,契约字段缺省时显示「待接入」占位、不以 0% 冒充。全仓 289 项测试通过。
+
 2026-11-05 A 集成快照:**PR #39/#40/#42 已合入 main、派生数据已重建、前端禁转端到端已打通、新增路口就近查询接口;issue #34 仍开放**
 
 2026-11-05 A 集成(issue #38 闭环):**PR #39(B 边扩展 Dijkstra)、#40(/api/path 接入禁转)、#42(C 接驳表)已合入 main**,三者代码零冲突,本地组合验证 268 项测试全绿。`/api/path` 新增 `mode` 查询参数:**缺省走基础图、不施加禁转**(与作业一一致),显式给 mode 走该模态子图并注入 `PersistentTurnService.isForbidden` 谓词——禁转边对与边 ID 只在所属模态内有效,故必须同模态的图 + 禁转服务。`ModalRuntime` 由接口改为类,`graph` / `wayHighway` 走 getter 惰性构建(转向读写不承担 62.8 万节点 / ~100 万边的构造成本)。错误码:非法 mode 400、未启用多模态 501、派生数据不可用 503。
