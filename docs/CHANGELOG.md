@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### Changed(模态转换点改用 Font Awesome 图标,替代 P/B/M 字母)
+
+- 新增 `web/src/map/transfer-point-icons.ts`:用 Font Awesome Free 的 `faSquareParking` / `faBus` / `faTrainSubway` 生成**内联 SVG**(深色圆角底板 + 金色字形),不引 webfont、不依赖网络。
+- 新增 `web/src/map/transfer-point-overlay.ts`:DOM 覆盖层渲染图标,位置随 `map.project()` 同步,**压在路网图层之上**。
+- **为什么不用 deck.gl 的 IconLayer**:deck.gl 的图片加载走 @loaders.gl,它把字节装进**无 MIME 类型**的 Blob 再交给 `createImageBitmap`,本机 Chromium 直接抛 "The source image could not be decoded",图标层只剩底板圆圈(实测);MapLibre 的图片层又会被 deck.gl 的路网盖住(overlay 默认 `interleaved=false`)。内联 SVG 完全绕开图片解码管线,任何环境都能显示。
+- 显示阈值由 12.5 级提到 **13.5 级**:步行模式有 2930 个转换点,12.5 级时一个视口内挤进上百个图标互相压盖;13.5 级后视口内通常只剩几十个。图标尺寸 15px。
+- 新增依赖 `@fortawesome/fontawesome-svg-core` 与 `@fortawesome/free-solid-svg-icons`(web 工作区);图标 artwork 授权为 **CC BY 4.0**,仅用于课程项目的非商业演示。
+
 ### Changed(A 接入节点准入过滤,PR #56 的 A 侧集成)
 
 - `server/src/api/modal-runtime.ts`:`ModalRuntimeRegistry` 的**两处构图调用**改为四参数形式,传入 `network.nodeTags`,使 C 的节点准入规则(闸机/护栏/条件准入等)在**网页端真正生效**——此前 CLI 的 `createTurnRuntime` 已过滤,而网页仍用未过滤的图,两端口径不一致。

@@ -29,6 +29,7 @@ import {
   createModeControl,
   createPathSelection,
   createRoadsLayer,
+  createTransferPointOverlay,
   createTransferPointsLayers,
   isBasemapReachable,
   travelModeLabel,
@@ -222,6 +223,15 @@ async function main(): Promise<void> {
 
   const hideProperty = (): void => propertyPanel.hide();
 
+  /** 坐标是否落在当前视口内(留一点余量)。 */
+  const inViewport = (position: [number, number]): boolean => {
+    const bounds = map.getBounds();
+    return bounds.contains(position);
+  };
+
+  // 转换点图标覆盖层:Font Awesome 图标画在地图之上(详见 transfer-point-overlay.ts 的说明)。
+  const transferOverlay = createTransferPointOverlay(map);
+
   let roadsLayer: PathLayer<RoadFeature> | null = null;
   let transferPoints: TransferPoint[] = [];
   let transferPointLayers: Layer[] = [];
@@ -323,12 +333,13 @@ async function main(): Promise<void> {
   leftStack.append(turnEditor.element);
 
   const refreshTransferPoints = (): void => {
-    if (transferPoints.length === 0) {
-      transferPointLayers = [];
-    } else {
-      transferPointLayers = createTransferPointsLayers(transferPoints, map.getZoom());
-    }
+    // 城市级缩放只画小点;放大到路口级后改用 Font Awesome 图标(DOM 覆盖层)。
+    transferPointLayers = createTransferPointsLayers(transferPoints, map.getZoom());
     refreshLayers();
+    // 图标只画视口内的点,避免城市级下生成上千个 DOM 节点。
+    const visible =
+      map.getZoom() >= 12.5 ? transferPoints.filter((point) => inViewport(point.position)) : [];
+    transferOverlay.setPoints(visible);
   };
 
   async function activateMode(mode: DisplayMode, initial = false): Promise<void> {
@@ -360,6 +371,9 @@ async function main(): Promise<void> {
       roadsLayer = createRoadsLayer(network.features);
       transferPoints = points;
       transferPointLayers = createTransferPointsLayers(points, map.getZoom());
+      transferOverlay.setPoints(
+        map.getZoom() >= 12.5 ? points.filter((point) => inViewport(point.position)) : [],
+      );
       currentRoadNames.clear();
       for (const feature of network.features) {
         currentRoadNames.set(
@@ -387,6 +401,7 @@ async function main(): Promise<void> {
           roadsLayer = createRoadsLayer(baseNetwork.features);
           transferPoints = [];
           transferPointLayers = [];
+          transferOverlay.setPoints([]);
           refreshLayers();
           currentMode = 'all';
           modeControl.setMode('all');
@@ -410,6 +425,7 @@ async function main(): Promise<void> {
   }
 
   map.on('zoomend', refreshTransferPoints);
+  map.on('moveend', refreshTransferPoints);
   map.on('movestart', hideProperty);
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') hideProperty();

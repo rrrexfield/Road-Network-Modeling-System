@@ -102,6 +102,10 @@ topology的buildModalTopology增加可选第四参数NodeTags，返回nodeAccess
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
+**最后更新:2026-11-07(模态转换点改用 Font Awesome 图标,替代 P/B/M 字母)**
+
+2026-11-07 A 转换点图标:原实现用字母 M/B/P 标记转换点(地铁/公交/停车场),含义不直观且 M 易被误读。改为 **Font Awesome Free 图标**(`faSquareParking` / `faBus` / `faTrainSubway`),以**内联 SVG** 形式进 DOM——不引 webfont、不依赖网络、任意缩放都清晰。**关键取舍**:不用 deck.gl 的 `IconLayer`,因为 deck.gl 的图片加载走 @loaders.gl,它把字节装进**无 MIME 类型**的 Blob 再交给 `createImageBitmap`,本机 Chromium 直接抛 "The source image could not be decoded"(实测图标层只剩底板圆圈);MapLibre 的图片层又会被 deck.gl 路网盖住(overlay 默认 `interleaved=false`)。最终用 `web/src/map/transfer-point-overlay.ts` 的 **DOM 覆盖层**渲染,位置随 `map.project()` 同步,压在路网之上。显示阈值由 12.5 提到 **13.5 级**(步行模式 2930 个点,12.5 级时视口内上百个图标互相压盖),图标 15px。新增依赖 `@fortawesome/fontawesome-svg-core` + `@fortawesome/free-solid-svg-icons`(图标 artwork 为 **CC BY 4.0**,非商业课程演示)。
+
 **最后更新:2026-11-07(A 接入节点准入过滤,PR #56 的 A 侧集成;网页端口径与 CLI 对齐)**
 
 2026-11-07 A 接入节点准入(PR #56 已合入 main):`ModalRuntimeRegistry` 的**两处构图调用**改为四参数形式,传入 `network.nodeTags`——此前 C 的 `createTurnRuntime`(CLI)已按节点标签过滤,而**网页端仍用未过滤的图**,两端口径不一致;现已对齐。`ModalRuntime` 新增 `nodeAccess` 诊断字段,`ModalRuntimeOptions` 新增 `onRuntimeReady` 回调,`server/src/index.ts` 在某模态**首次构建**时把诊断记进日志(不额外构图、不拖慢启动)。实测武汉全量 walk 模态:排除 **1493 个受限节点 / 5198 条相邻边**(`node-access-denied` 717、`node-barrier-permission-unresolved:gate` 512、`node-permit-required` 47 即扬波门等、`lift_gate` 133、`toll_booth` 46,另有条件准入与未知屏障);car→walk 跨模态路径与换乘连接表**过滤前后结果不变**(两段合计 1050.3 s、换乘罚时 326.5 s)。口径提醒:该过滤是**保守排除**,不等于判定这些闸机现实中禁止公众通行;未传标签表时 `checked=false`,不宣称权限已核验。
