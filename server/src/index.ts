@@ -55,6 +55,25 @@ async function main(): Promise<void> {
   const modal = createModalRuntimeRegistry(network, {
     databasePath: TURNS_DB_PATH,
     dataset: 'wuhan-current-source',
+    // 节点准入诊断(issue #56):某个模态首次构建时,把受限节点与被移除的边记进日志。
+    onRuntimeReady: (mode, report) => {
+      if (!report.checked) {
+        app.log.warn(`模态 ${mode}:未提供节点标签,节点权限未检查`);
+        return;
+      }
+      if (report.excludedNodes.length === 0) return;
+      const reasons = new Map<string, number>();
+      for (const item of report.excludedNodes) {
+        reasons.set(item.reason, (reasons.get(item.reason) ?? 0) + 1);
+      }
+      const detail = [...reasons.entries()]
+        .map(([reason, count]) => `${reason}×${count}`)
+        .join(', ');
+      app.log.info(
+        `模态 ${mode} 节点准入:排除 ${report.excludedNodes.length} 个受限节点、` +
+          `${report.excludedEdgeCount} 条相邻边(${detail})`,
+      );
+    },
   });
   setActiveModalRuntimeRegistry(modal);
   if (modal.ready) {

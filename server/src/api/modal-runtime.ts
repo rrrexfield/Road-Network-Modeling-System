@@ -17,7 +17,7 @@ import type {
 } from '@gisalgo/shared';
 import { Graph } from '../graph/index.js';
 import { getTransferPoints, PersistentTurnService, type LoadedNetwork } from '../io/index.js';
-import { buildModalTopology, type TopologyResult } from '../topology/index.js';
+import { buildModalTopology, type NodeAccessReport, type TopologyResult } from '../topology/index.js';
 import { IntersectionIndex } from './intersection-index.js';
 import { buildTransferLinks, type TransferLinkEntry } from './transfer-links.js';
 
@@ -49,6 +49,13 @@ export class ModalRuntime {
     readonly service: PersistentTurnService,
     /** 准入排除清单（等级 / 权限 / 方向）。 */
     readonly excludedWays: { wayId: number; reason: string }[],
+    /**
+     * 节点准入诊断（issue #56 的节点权限过滤）。
+     *
+     * `checked=false` 表示本次构图**没有**传入节点标签表，不等于权限已核验；
+     * `excludedNodes` 列出被排除的节点与原因（如闸机需许可、条件准入）。
+     */
+    readonly nodeAccess: NodeAccessReport,
   ) {}
 
   /** 该模态的图；首次访问才构建。 */
@@ -97,6 +104,11 @@ export interface ModalRuntimeOptions {
   dataset: string;
   /** 同时驻留的重运行时个数,默认 1;调大可换取模态切换速度,代价是内存线性增长。 */
   capacity?: number;
+  /**
+   * 运行时构建完成后的回调(用于把节点准入诊断记进服务日志,issue #56)。
+   * 缺省则不记录——诊断仍保留在 `ModalRuntime.nodeAccess` 上。
+   */
+  onRuntimeReady?: (mode: TravelMode, report: NodeAccessReport) => void;
 }
 
 /**
@@ -205,21 +217,45 @@ export class ModalRuntimeRegistry {
     return links;
   }
 
+  /**
+   * 构建该模态的拓扑。
+   *
+   * 传入 `network.nodeTags`,让 C 的节点准入规则（闸机/护栏/条件准入等,issue #56）
+   * 真正在网页端生效——否则网页仍是"未检查权限"的旧图,而 CLI 的 turn-runtime 已经过滤过，
+   * 两端口径会不一致。
+   */
   private buildModalTopology(mode: TravelMode): TopologyResult {
     if (!this.ready) throw new Error(this.unavailableReason ?? '派生数据缺少 Sprint2 字段');
-    return buildModalTopology(this.network.nodes, this.network.ways, mode).topology;
+    return buildModalTopology(
+      this.network.nodes,
+      this.network.ways,
+      mode,
+      this.network.nodeTags,
+    ).topology;
   }
 
   private build(mode: TravelMode): ModalRuntime {
     if (!this.ready) throw new Error(this.unavailableReason ?? '派生数据缺少 Sprint2 字段');
-    const modal = buildModalTopology(this.network.nodes, this.network.ways, mode);
+    const modal = buildModalTopology(
+      this.network.nodes,
+      this.network.ways,
+      mode,
+      this.network.nodeTags,
+    );
     const service = new PersistentTurnService(modal.topology, {
       databasePath: this.options.databasePath,
       dataset: `${this.options.dataset}:${mode}`,
       mode,
       relations: this.network.relations,
     });
-    return new ModalRuntime(mode, modal.topology, service, modal.excludedWays);
+    this.options.onRuntimeReady?.(mode, modal.nodeAccess);
+    return new ModalRuntime(
+      mode,
+      modal.topology,
+      service,
+      modal.excludedWays,
+      modal.nodeAccess,
+    );
   }
 
   /**

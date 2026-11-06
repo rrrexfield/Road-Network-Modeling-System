@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### Changed(A 接入节点准入过滤,PR #56 的 A 侧集成)
+
+- `server/src/api/modal-runtime.ts`:`ModalRuntimeRegistry` 的**两处构图调用**改为四参数形式,传入 `network.nodeTags`,使 C 的节点准入规则(闸机/护栏/条件准入等)在**网页端真正生效**——此前 CLI 的 `createTurnRuntime` 已过滤,而网页仍用未过滤的图,两端口径不一致。
+- `ModalRuntime` 新增 `nodeAccess` 诊断字段;`ModalRuntimeOptions` 新增 `onRuntimeReady` 回调,`server/src/index.ts` 在**某个模态首次构建**时把诊断记进服务日志(不额外构建拓扑,不拖慢启动)。
+- **实测(武汉全量,walk 模态)**:排除 1493 个受限节点、5198 条相邻边——`node-access-denied` 717、`node-barrier-permission-unresolved:gate` 512、`node-permit-required` 47(扬波门等)、`lift_gate` 133、`toll_booth` 46,以及条件准入与未知屏障若干;car→walk 跨模态路径与换乘连接表在过滤后**结果不变**(实测两段合计 1050.3 s、换乘罚时 326.5 s,与过滤前一致)。
+- 口径提醒:过滤是**保守排除**,不代表这些闸机现实中禁止公众通行;未传标签表时 `checked=false`,不宣称权限已核验。
+
 ### Fixed(2026-11-06 · C节点准入，分支待审)
 
 - buildModalTopology可选接收NodeTags，按模式过滤受限/未决节点的相邻段并返回nodeAccess诊断；不跨缺口补边、不改原始数据或剩余edgeId。旧调用兼容但checked=false。
