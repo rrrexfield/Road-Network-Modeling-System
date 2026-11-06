@@ -47,12 +47,13 @@ export interface StatsInput extends NetworkContext {
    */
   edgeLength?: (edge: RoadEdge) => number;
   /**
-   * 可选 way 标签表(wayId → highway + 原始标签),用于属性完整率统计(issue #23)。
-   * 缺省时 `NetworkStats.attributeCompleteness` 保持缺省——契约语义为
-   * "服务端尚未提供该统计",前端按待接入处理,不得以 0 冒充完整率。
-   * 建议传全量 ways(与拓扑验证报告口径一致),不要按参与构边的 way 过滤。
+   * way 标签表(wayId → highway + 原始标签),用于属性完整率统计(issue #23)。
+   * **必填**:契约 `NetworkStats.attributeCompleteness` 已收紧为必填字段,
+   * 服务端不再存在"尚未提供该统计"的状态,前端因此不必处理缺省分支
+   * (也不能用 0 冒充完整率)。请传全量 ways(与拓扑验证报告口径一致),
+   * 不要按参与构边的 way 过滤。
    */
-  ways?: ReadonlyMap<number, StatWay>;
+  ways: ReadonlyMap<number, StatWay>;
 }
 
 /** 直方图分档上界(米),最后一档为无上界的开区间。 */
@@ -164,12 +165,12 @@ export function computeAttributeCompleteness(
 
 /**
  * 计算网络统计。
- * @param input 坐标表、边集、way→等级表、可选边长注入函数与可选 way 标签表。
+ * @param input 坐标表、边集、way→等级表、way 标签表与可选边长注入函数。
  * @param options.profile 权重配置;省略用默认配置。
  * @param options.topology B 的图引擎拓扑指标(`TopologyStats`);省略时 topology 为 null、
  * topologySource 为 'pending'。M1 为全道路拓扑(与 C 构边口径一致,不做模态过滤),
  * 模态子图待准入规则立项后再另立口径。
- * @returns 里程、时间、等级分布、边长分布、拓扑指标;提供 way 标签表时另含属性完整率。
+ * @returns 里程、时间、等级分布、边长分布、拓扑指标与属性完整率(恒有值)。
  * @remarks 端点缺失或边长非有限的边整体跳过,不按 0 米计入——否则会把"未知长度"伪装成
  * 极短边,既拉低平均边长也污染直方图。里程与时间分别累加,等级平均速度由二者反算,
  * 因此不受逐条舍入影响。复杂度 O(E log E),排序用于取中位数与整理等级表。
@@ -262,9 +263,8 @@ export function computeNetworkStats(
     topology: topology ? toTopologyMetrics(topology) : null,
     topologySource: topology ? 'graph-engine' : 'pending',
     profile,
-    // 属性完整率与权重配置无关,但随统计缓存一起复用;未提供 way 标签表时保持缺省
-    ...(input.ways !== undefined
-      ? { attributeCompleteness: computeAttributeCompleteness(input.ways) }
-      : {}),
+    // 属性完整率与权重配置无关,但随统计缓存一起复用;
+    // way 标签表为必填输入,故该字段恒有值(契约已收紧为必填)。
+    attributeCompleteness: computeAttributeCompleteness(input.ways),
   };
 }

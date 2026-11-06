@@ -195,6 +195,59 @@ describe('模态与参数解析', () => {
   });
 });
 
+/* ---------- /api/path 的模态权重(issue #47) ---------- */
+
+describe('GET /api/path 的模态权重', () => {
+  it('显式 mode 时按该模态的速度算时间,步行明显慢于汽车', async () => {
+    const app = await buildApp(makeRegistry());
+    const url = 'from=114.300,30.500&to=114.310,30.500&metric=time';
+
+    const car = await app.inject({ method: 'GET', url: `/api/path?mode=car&${url}` });
+    const walk = await app.inject({ method: 'GET', url: `/api/path?mode=walk&${url}` });
+    expect(car.statusCode).toBe(200);
+    expect(walk.statusCode).toBe(200);
+
+    const carSeconds = (car.json() as { distance: number }).distance;
+    const walkSeconds = (walk.json() as { distance: number }).distance;
+    // primary:汽车 60 km/h,步行 4 km/h(模态速度表)——时间口径相差约 15 倍
+    expect(walkSeconds).toBeGreaterThan(carSeconds * 5);
+
+    await app.close();
+  });
+
+  it('distance 口径与模态无关,两模态里程一致', async () => {
+    const app = await buildApp(makeRegistry());
+    const url = 'from=114.300,30.500&to=114.310,30.500&metric=distance';
+
+    const car = await app.inject({ method: 'GET', url: `/api/path?mode=car&${url}` });
+    const walk = await app.inject({ method: 'GET', url: `/api/path?mode=walk&${url}` });
+    expect(car.statusCode).toBe(200);
+    expect(walk.statusCode).toBe(200);
+
+    const carMeters = (car.json() as { distance: number }).distance;
+    const walkMeters = (walk.json() as { distance: number }).distance;
+    expect(walkMeters).toBeCloseTo(carMeters, 3);
+
+    await app.close();
+  });
+
+  it('缺省 mode 走基础图,时间口径与 car 模态一致', async () => {
+    const app = await buildApp(makeRegistry());
+    const url = 'from=114.300,30.500&to=114.310,30.500&metric=time';
+
+    const base = await app.inject({ method: 'GET', url: `/api/path?${url}` });
+    const car = await app.inject({ method: 'GET', url: `/api/path?mode=car&${url}` });
+    expect(base.statusCode).toBe(200);
+    expect(car.statusCode).toBe(200);
+
+    const baseSeconds = (base.json() as { distance: number }).distance;
+    const carSeconds = (car.json() as { distance: number }).distance;
+    expect(baseSeconds).toBeCloseTo(carSeconds, 6);
+
+    await app.close();
+  });
+});
+
 /* ---------- /api/intersections/nearest ---------- */
 
 describe('GET /api/intersections/nearest', () => {

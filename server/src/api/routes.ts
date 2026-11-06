@@ -2,7 +2,7 @@
  * REST + WebSocket 路由。
  */
 import type { FastifyInstance } from 'fastify';
-import type { HealthResponse, PathResponse, WSMessage } from '@gisalgo/shared';
+import type { HealthResponse, PathResponse, TravelMode, WSMessage } from '@gisalgo/shared';
 import type { LoadedNetwork } from '../io/loader.js';
 import {
   dijkstra,
@@ -11,7 +11,7 @@ import {
   type Graph,
   type TurnRestrictionPredicate,
 } from '../graph/index.js';
-import { DEFAULT_WEIGHT_PROFILE, createEdgeWeight } from '../weights/index.js';
+import { DEFAULT_WEIGHT_PROFILE, createModeEdgeWeight } from '../weights/index.js';
 import { registerModalRoutes, parseMode } from './modal-routes.js';
 import type { ModalRuntimeRegistry } from './modal-runtime.js';
 
@@ -146,6 +146,9 @@ export async function registerRoutes(
       // 禁转边对与边 ID 都只在所属模态内有效，故必须用同一模态的图 + 禁转服务（issue #38）。
       let activeGraph = baseGraph;
       let activeWayHighway = baseWayHighway;
+      // 边权按当前模态取速度：缺省为 car（基础图沿用汽车限速表，行为不变），
+      // 显式 mode 时走该模态的速度表（issue #47）。
+      let activeMode: TravelMode = 'car';
       let isTurnForbidden: TurnRestrictionPredicate | undefined;
       if (query.mode !== undefined) {
         const mode = parseMode(query.mode);
@@ -165,6 +168,7 @@ export async function registerRoutes(
         const runtime = modal.runtime(mode);
         activeGraph = runtime.graph;
         activeWayHighway = runtime.wayHighway;
+        activeMode = mode;
         isTurnForbidden = (via, from, to) => runtime.service.isForbidden(via, from, to);
       }
 
@@ -174,13 +178,15 @@ export async function registerRoutes(
         return reply.code(404).send({ error: { message: '路网中没有可吸附的节点' } });
       }
 
-      // metric=time 走 D 的时间权重(里程/有效限速),distance 走里程
+      // metric=time 走 D 的时间权重(里程/有效限速),distance 走里程;
+      // 速度来源按当前模态取值(issue #47):car 沿用汽车限速表,walk/bike/bus 用模态速度表。
       const profile = {
         ...DEFAULT_WEIGHT_PROFILE,
         metric: query.metric === 'time' ? ('time' as const) : ('distance' as const),
       };
-      const weight: EdgeWeightFn = createEdgeWeight(
+      const weight: EdgeWeightFn = createModeEdgeWeight(
         { nodes: network.nodes, wayHighway: activeWayHighway },
+        activeMode,
         profile,
       );
 

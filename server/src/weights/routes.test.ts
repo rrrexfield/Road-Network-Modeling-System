@@ -27,7 +27,14 @@ const topology: TopologyStats = {
 async function withApp<T>(run: (baseUrl: string) => Promise<T>): Promise<T> {
   const app = Fastify();
   await app.register(registerWeightRoutes, {
-    network: { nodes, edges, wayHighway, edgeLength: () => 100 },
+    network: {
+      nodes,
+      edges,
+      wayHighway,
+      edgeLength: () => 100,
+      // 属性完整率的 way 标签表为必填输入(issue #47 收紧契约)。
+      ways: new Map([[7, { highway: 'primary', tags: { name: '测试路' } }]]),
+    },
     topology,
   });
   await app.listen({ port: 0, host: '127.0.0.1' });
@@ -67,6 +74,8 @@ describe('registerWeightRoutes', () => {
       expect(body.topology?.degreeDistribution).toEqual([{ degree: 2, count: 2 }]);
       // 200 m @ primary 60 km/h = 12 s
       expect(body.totalTravelSeconds).toBeCloseTo(12, 6);
+      // 属性完整率随统计一并下发(issue #47 收紧为必填字段)
+      expect(body.attributeCompleteness.name).toEqual({ filled: 1, total: 1, ratio: 1 });
     });
   });
 

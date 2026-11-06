@@ -44,6 +44,8 @@ const input: StatsInput = {
     [100, 'primary'],
     [200, 'motorway'],
   ]),
+  // 属性完整率的 way 标签表为必填输入;此处留空表示"没有可统计的 way"。
+  ways: new Map<number, { highway: string; tags: Record<string, string> }>(),
 };
 
 const len12 = haversineMeters(N1, N2);
@@ -267,16 +269,19 @@ describe('computeAttributeCompleteness', () => {
     }
   });
 
-  it('computeNetworkStats 未提供 ways 时 attributeCompleteness 保持缺省', () => {
+  it('契约收紧后 computeNetworkStats 恒提供 attributeCompleteness(不再有缺省态)', () => {
     const stats = computeNetworkStats(input);
-    expect('attributeCompleteness' in stats).toBe(false);
+    expect(stats.attributeCompleteness).toBeDefined();
+    // input 的 way 标签表为空:total=0 表示"没有可统计的 way",而不是"完整率是 0"
+    expect(stats.attributeCompleteness.name.total).toBe(0);
+    expect(stats.attributeCompleteness.name.filled).toBe(0);
   });
 
   it('computeNetworkStats 提供 ways 时填充完整率,口径为全量 way 而非参与构边的 way', () => {
     // input 的边只涉及 way 100/200/300,而 wayTags 里 way 4 不参与构边——仍应计入 total
     const stats = computeNetworkStats({ ...input, ways: wayTags });
     expect(stats.attributeCompleteness).toBeDefined();
-    expect(stats.attributeCompleteness?.name.total).toBe(4);
-    expect(stats.attributeCompleteness?.name.ratio).toBeCloseTo(0.5, 10);
+    expect(stats.attributeCompleteness.name.total).toBe(4);
+    expect(stats.attributeCompleteness.name.ratio).toBeCloseTo(0.5, 10);
   });
 });

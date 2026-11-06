@@ -186,10 +186,10 @@ export interface NetworkStats {
   topology: TopologyMetrics | null;
   topologySource: TopologyMetricsSourceTag;
   /**
-   * 道路属性完整率。**缺省表示服务端尚未提供该统计**（实现落地前前端不展示该区块，
-   * 不得以 0 冒充完整率）；实现落地后由 A 评审收紧为必填。
+   * 道路属性完整率。**按 way 统计**（属性来自 way 标签），服务端必定提供；
+   * 口径与实现见 issue #23 与 `server/src/weights/stats.ts` 的 `computeAttributeCompleteness`。
    */
-  attributeCompleteness?: AttributeCompletenessReport;
+  attributeCompleteness: AttributeCompletenessReport;
   /** 本次统计所用的权重配置，便于前端回显。 */
   profile: WeightProfile;
 }
