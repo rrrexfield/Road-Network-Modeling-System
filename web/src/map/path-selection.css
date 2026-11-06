@@ -11,7 +11,7 @@
   background:
     linear-gradient(135deg, rgba(242, 198, 109, 0.055), transparent 46%), rgba(13, 20, 26, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.055);
-  border-radius: 0;
+  border-radius: var(--ui-radius-lg);
   backdrop-filter: blur(16px) saturate(1.08);
   -webkit-backdrop-filter: blur(16px) saturate(1.08);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.24);
@@ -43,7 +43,7 @@
   color: #e8edf4;
   background: rgba(255, 255, 255, 0.045);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 2px;
+  border-radius: var(--ui-radius-sm);
   cursor: pointer;
   transition:
     color 0.15s,
@@ -123,7 +123,7 @@
   font-size: 11.5px;
   background: rgba(255, 255, 255, 0.035);
   border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 1px;
+  border-radius: var(--ui-radius-sm);
   cursor: pointer;
 }
 
@@ -167,7 +167,7 @@
   padding: 8px;
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 2px;
+  border-radius: var(--ui-radius-sm);
 }
 
 .path-select__sequence[hidden] {
@@ -200,7 +200,7 @@
   line-height: 1.4;
   background: rgba(242, 198, 109, 0.12);
   border: 1px solid rgba(242, 198, 109, 0.4);
-  border-radius: 2px;
+  border-radius: var(--ui-radius-sm);
   cursor: pointer;
 }
 
