@@ -20,6 +20,8 @@ C 的 Sprint 2 基础模块已合入 main：禁转表、路口转向枚举、SQL
 
 **跨模态路径已打通**(issue #34):`GET /api/path` 新增 `modes=car,walk` 形式的**有序模态序列**,服务端在模态子图之间按转换点换乘,按冻结契约 `PathResult.segments` 分段返回(段间以 `TransferPoint.id` 相接),换乘罚时(等待 + 接驳)单独下发、不计入距离。武汉实测:2930 个转换点可建立 **2447 条换乘连接**(452 条为设施自身节点即该模态节点的精确连接,1995 条为半径内近邻近似),模态对覆盖 bus↔walk 1103/1092、car↔walk 90/88、bike↔walk 37/37;真实场景已跑通「驾车 5.5 km → 停车场换乘 → 步行 774 m 到江汉路」。实现口径、阈值、代价模型与已知边界见 `docs/多模态路网设计.md`「跨模态路径的实现口径」一节。
 
+**作业二最终验收清单与演示脚本**见 `docs/作业二验收清单.md`:逐条对照任务书 G2 第 2 次作业的任务内容、产出物与评分维度,附答辩演示分步脚本(转向限制改路径 → 多模态切换 → 跨模态路径 → 权重与统计)、提交材料清单与已知边界的如实口径。
+
 Sprint 1 的 B 图引擎、C 拓扑与 D 权重统计已接入服务启动链路:`server/src/index.ts` 依次执行 `loadNetwork → buildTopology → new Graph → computeTopologyStats`,再注册 REST/WS 与权重统计路由;`/api/health` 与 WS 的 `edgeCount` 为**有向边数**。topology 不做模态/车辆准入过滤,不能将输出解释为汽车可通行图;无法确定方向的道路跳过并在启动日志中列明。B 模块规则见 `docs/plans/b-sprint1-graph.md` 与 `docs/plans/b-sprint1-graph-interface.md`,C 模块见 `docs/plans/c-sprint1-topology.md`。
 
 D 的 `server/src/weights/` 提供 Haversine 距离、等级限速、可注入 `dijkstra` 的边权函数与网络统计;`web/src/charts/`、`web/src/panels/stats/`、`web/src/panels/weight/` 提供 ECharts 深色主题、统计仪表盘与权重配置面板,独立预览页见 `web/src/panels/stats/demo.html`。统计中的拓扑指标由 B 的 `computeTopologyStats` 填充(`topologySource='graph-engine'`),`/api/stats` 按权重配置缓存并预热默认配置;`WeightProfile`/`NetworkStats` 等契约已冻结进 `shared/src/index.ts`。主界面右侧栏挂载统计与权重面板(权重面板只管全局权重参数,优化目标留在起终点选路卡),权重变化后统计与路径按新配置重取、重算。全仓 371 项测试通过。
