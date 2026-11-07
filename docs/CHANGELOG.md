@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Added(2026-11-07 · C节点权限复用入口，分支待审)
+
+- topology公开evaluateNodeAccess/NodeAccessDecision供图外设施复用现有构图规则，标签来源缺失时拒绝当作已检查；构图准入改用同一判定，原图规则不变。
+- 新增16项回归，全仓416项及typecheck/lint/build通过；A仍需接入完整设施标签来源和连接表，GeoJSON残留另待A/E处理，见docs/plans/c-node-access-query-ready.md。
+
 ### Changed(模态转换点改用 Font Awesome 图标,替代 P/B/M 字母)
 
 - 新增 `web/src/map/transfer-point-icons.ts`:用 Font Awesome Free 的 `faSquareParking` / `faBus` / `faTrainSubway` 生成**内联 SVG**(深色圆角底板 + 金色字形),不引 webfont、不依赖网络。

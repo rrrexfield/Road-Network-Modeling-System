@@ -6,7 +6,12 @@ export { classifyTurnRestrictions } from './restriction-types.js';
 export { importOsmRestrictions } from './osm-restrictions.js';
 export { diagnoseStructureConflicts, type StructureConflict } from './structure-diagnostics.js';
 export { buildModalTopology, type ModalTopologyResult } from './modal-topology.js';
-export type { NodeTags, NodeAccessReport } from './node-access.js';
+export {
+  evaluateNodeAccess,
+  type NodeAccessDecision,
+  type NodeTags,
+  type NodeAccessReport,
+} from './node-access.js';
 export { matchTransferConnections, type TransferConnectionReport } from './transfer-connections.js';
 export { inspectTransferEntrances, type TransferEntranceReport } from './transfer-entrances.js';
 export {

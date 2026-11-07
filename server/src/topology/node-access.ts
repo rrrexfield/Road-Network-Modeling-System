@@ -2,6 +2,10 @@ import type { TravelMode } from '@gisalgo/shared';
 import type { TopologyResult } from './build-topology.js';
 
 export type NodeTags = ReadonlyMap<number, readonly { k: string; v: string }[]>;
+export type NodeAccessDecision =
+  | { checked: false; allowed: false; reason: 'node-tags-unavailable' }
+  | { checked: true; allowed: true }
+  | { checked: true; allowed: false; reason: string };
 export interface NodeAccessReport {
   /** 未传标签输入时为false，兼容旧调用，不宣称校验过权限。 */
   checked: boolean;
@@ -52,6 +56,25 @@ function exclusion(tags: Record<string, string>, mode: TravelMode): string | und
 }
 
 /**
+ * 对任意节点标签复用构图准入规则，不依赖节点是否已在图内，供设施自身权限检查。
+ * undefined表示调用方无完整标签证据，拒绝当作已校验；[]只用于已确认没有标签的节点。
+ * allowed仅表示当前保守规则没有排除，不证明入口、楼层、接驳路线或公众实景通行。
+ * 模式层级、屏障与条件规则和buildModalTopology共用，不修改输入或创建连接。
+ */
+export function evaluateNodeAccess(
+  tags: readonly { k: string; v: string }[] | undefined,
+  mode: TravelMode,
+): NodeAccessDecision {
+  if (!Object.hasOwn(accessKeys, mode)) throw new Error(`未知交通模式: ${mode}`);
+  if (tags === undefined)
+    return { checked: false, allowed: false, reason: 'node-tags-unavailable' };
+  const reason = exclusion(Object.fromEntries(tags.map((t) => [t.k, t.v])), mode);
+  return reason === undefined
+    ? { checked: true, allowed: true }
+    : { checked: true, allowed: false, reason };
+}
+
+/**
  * 按模式检查已入图节点标签，移除受限节点的相邻有向段；不跨缺口补边。
  * 输入topology须是本次新建的结果，本函数只修改它，不修改原始节点/way/标签。
  * sparse标签表由调用方保证来自完整标签提取；缺少某节点条目表示无标签，整表缺失则checked=false。
@@ -72,10 +95,10 @@ export function applyNodeAccess(
   for (const id of topology.nodes.keys()) {
     const entries = nodeTags.get(id);
     if (!entries?.length) continue;
-    const reason = exclusion(Object.fromEntries(entries.map((t) => [t.k, t.v])), mode);
-    if (reason !== undefined) {
+    const decision = evaluateNodeAccess(entries, mode);
+    if (!decision.allowed) {
       blocked.add(id);
-      report.excludedNodes.push({ nodeId: id, reason });
+      report.excludedNodes.push({ nodeId: id, reason: decision.reason });
     }
   }
   if (!blocked.size) return report;
