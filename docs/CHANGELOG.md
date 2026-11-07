@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### Test(2026-11-07 · C设施标签审计与固定回归)
+
+- 新增独立命令audit-transfer-tags.ts与check-sprint2-data.ts，只在显式调用时审计/验证，报告及SQLite均写入新文件/目录，不改生产接口或数据格式。
+- 武汉1890点型源设施仅372有道路nodeTags条目，其余1518有原始标签但未保留；813相关缺项为809个bus=yes及4个layer，不冒称全是禁行风险。新生成派生2930点与原始提取完全一致。
+- 四模式、五路口12动作及新库保存/重建恢复验证通过；本分支401项测试与typecheck/lint通过。用法及Sprint2遗留见docs/plans/c-sprint2-independent-audit.md。
+
 ### Changed(模态转换点改用 Font Awesome 图标,替代 P/B/M 字母)
 
 - 新增 `web/src/map/transfer-point-icons.ts`:用 Font Awesome Free 的 `faSquareParking` / `faBus` / `faTrainSubway` 生成**内联 SVG**(深色圆角底板 + 金色字形),不引 webfont、不依赖网络。

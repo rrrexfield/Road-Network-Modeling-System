@@ -1,5 +1,7 @@
 # GISAlgo · 路网建模与拓扑构建系统(G2 组)
 
+C的独立数据审计与固定回归命令（test/transfer-tag-audit分支，待审核）见 `docs/plans/c-sprint2-independent-audit.md`。可核对设施源标签覆盖并在新目录验证四模式、五路口和SQLite恢复；命令不在服务启动时运行，不替代网页或实景通行验收。
+
 2026-11-06 `fix/node-access` 分支提供C节点准入修复（待评审）：`buildModalTopology(nodes,ways,mode,nodeTags?)` 返回 `nodeAccess` 诊断，C的 `createTurnRuntime` 已接入。A的网页模式运行时仍需传节点标签才能生效；未传时兼容旧图且标记未检查。规则、399项验证及保守排除局限见 `docs/plans/c-node-access-ready.md`。
 
 面向 GIS 算法课程的 B/S 架构路网建模系统:Node.js 服务端持有路网图模型与全部算法,浏览器端负责可视化与交互编辑。
