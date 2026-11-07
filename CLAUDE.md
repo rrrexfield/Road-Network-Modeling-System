@@ -96,6 +96,8 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## 三、多人协作同步区(随项目增量更新)
 
+**C补充最后更新:2026-11-07（feature/node-access-query，待评审）**：topology公开evaluateNodeAccess(tags,mode)及NodeAccessDecision，构图与设施自身权限共用现有规则；undefined标签表示来源不完整，checked=false且allowed=false，明确空数组才表示已确认无标签。A仍需确认完整设施标签来源并接入连接表；现有nodeTags只覆盖道路节点，不能用Map缺项推断所有图外设施无标签。未改A/E或shared，416项回归及typecheck/lint/build通过。见docs/plans/c-node-access-query-ready.md。
+
 **C节点准入补充最后更新:2026-11-06（fix/node-access分支，待A评审接入）**
 
 topology的buildModalTopology增加可选第四参数NodeTags，返回nodeAccess（checked/excludedNodes/excludedEdgeCount）；未传保持旧行为并checked=false。按模式过滤受限/未决节点的相邻段，不跨缺口补边，剩余edgeId和原始way属性不改；unknown/无许可屏障保守排除，并非实景禁行认证。io/createTurnRuntime已传nodeTags，A的ModalRuntimeRegistry两处调用尚需接入并重建Graph/转向/nearest索引及换乘缓存；未改A/B/E或shared。399项测试及类型/lint/build通过，策略和武汉实测见docs/plans/c-node-access-ready.md。线上功能尚未据此完成修复。
