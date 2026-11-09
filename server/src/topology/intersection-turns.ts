@@ -2,7 +2,10 @@ import type { IntersectionTurns, RoadEdge } from '@gisalgo/shared';
 import { computeTurnGeometry } from './turn-geometry.js';
 import { TurnRestrictionTable } from './turn-restriction-table.js';
 
-/** 单个图版本的转向索引。输入节点表在索引存续期间不得修改。 */
+/**
+ * 单个图版本的转向索引。
+ * 输入节点表与边对象在索引存续期间不得修改（只读引用、不拷贝）。
+ */
 export class IntersectionTurnIndex {
   readonly restrictions: TurnRestrictionTable;
   private readonly incoming = new Map<number, RoadEdge[]>();
@@ -18,12 +21,11 @@ export class IntersectionTurnIndex {
       if (!nodes.has(edge.from) || !nodes.has(edge.to)) {
         throw new Error(`转向索引缺失边端点: ${edge.id}`);
       }
-      const copy = { ...edge };
       const incoming = this.incoming.get(edge.to) ?? [];
-      incoming.push(copy);
+      incoming.push(edge);
       this.incoming.set(edge.to, incoming);
       const outgoing = this.outgoing.get(edge.from) ?? [];
-      outgoing.push(copy);
+      outgoing.push(edge);
       this.outgoing.set(edge.from, outgoing);
     }
   }

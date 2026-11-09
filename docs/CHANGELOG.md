@@ -11,6 +11,10 @@
 - `ModalRuntime.graph` 改用 `createAdjacencyView` 替代 `new Graph(...)`,模态路径不再为每个模态重建完整图(武汉 99 万边量级下显著降低堆占用)。
 - 新增 1 项测试(轻量视图与 Graph 的邻接/边查找/禁转搜索一致);全仓 238 项测试、server typecheck、全仓 lint 全绿。
 
+### Fixed(Sprint 2 · C 减少边对象拷贝,issue #61)
+
+- `IntersectionTurnIndex` 与 `TurnRestrictionTable` 改为复用传入边对象引用,不再各做一份 `{ ...edge }` 拷贝;单模态运行时从「每条边 3 份对象」降到 1 份(武汉 99 万边量级约省 160 MB)。两类的边对象均为只读、从不暴露,「输入边表在索引存续期间不得修改」的约定不变。
+
 ### Changed(模态转换点改用 Font Awesome 图标,替代 P/B/M 字母)
 
 - 新增 `web/src/map/transfer-point-icons.ts`:用 Font Awesome Free 的 `faSquareParking` / `faBus` / `faTrainSubway` 生成**内联 SVG**(深色圆角底板 + 金色字形),不引 webfont、不依赖网络。
