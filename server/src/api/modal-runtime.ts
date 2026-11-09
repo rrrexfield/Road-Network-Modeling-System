@@ -15,7 +15,7 @@ import type {
   TravelMode,
   WayProperties,
 } from '@gisalgo/shared';
-import { Graph } from '../graph/index.js';
+import { createAdjacencyView, type ReadonlyAdjacency } from '../graph/index.js';
 import { getTransferPoints, PersistentTurnService, type LoadedNetwork } from '../io/index.js';
 import { buildModalTopology, type NodeAccessReport, type TopologyResult } from '../topology/index.js';
 import { IntersectionIndex } from './intersection-index.js';
@@ -36,7 +36,7 @@ export function isTravelMode(value: unknown): value is TravelMode {
  * 转向读写只依赖拓扑与禁转服务，不应白白承担构造成本。
  */
 export class ModalRuntime {
-  private graphCache: Graph | null = null;
+  private graphCache: ReadonlyAdjacency | null = null;
   private wayHighwayCache: ReadonlyMap<number, string> | null = null;
   private intersectionIndexCache: IntersectionIndex | null = null;
   private wayNamesCache: ReadonlyMap<number, string> | null = null;
@@ -58,10 +58,10 @@ export class ModalRuntime {
     readonly nodeAccess: NodeAccessReport,
   ) {}
 
-  /** 该模态的图；首次访问才构建。 */
-  get graph(): Graph {
+  /** 该模态的只读邻接视图；首次访问才构建（轻量：不预计算边长/出入度/紧凑坐标）。 */
+  get graph(): ReadonlyAdjacency {
     if (this.graphCache === null) {
-      this.graphCache = new Graph(this.topology.nodes, this.topology.edges);
+      this.graphCache = createAdjacencyView(this.topology.nodes, this.topology.edges);
     }
     return this.graphCache;
   }

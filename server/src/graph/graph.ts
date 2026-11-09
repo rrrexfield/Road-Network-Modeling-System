@@ -3,7 +3,7 @@ import type { RoadEdge } from '@gisalgo/shared';
 const EARTH_RADIUS_M = 6371000;
 
 /** 两点球面距离（米），Haversine 公式。入参为 [lat, lon]。 */
-function haversine(a: readonly [number, number], b: readonly [number, number]): number {
+export function haversine(a: readonly [number, number], b: readonly [number, number]): number {
   const toRad = (d: number): number => (d * Math.PI) / 180;
   const dLat = toRad(b[0] - a[0]);
   const dLon = toRad(b[1] - a[1]);

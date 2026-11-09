@@ -1,7 +1,8 @@
 import type { PathResult } from '@gisalgo/shared';
-import { Graph } from './graph.js';
 import { PriorityQueue } from './priority-queue.js';
 import type { EdgeWeightFn } from './dijkstra.js';
+import { haversine } from './graph.js';
+import type { ReadonlyAdjacency } from './adjacency-view.js';
 
 /**
  * 禁转判定函数：在 viaNode 路口，是否禁止从 fromEdge 转入 toEdge。
@@ -20,9 +21,14 @@ export type TurnRestrictionPredicate = (
 /** 起点无入边的哨兵：起点的出边不受任何转向限制，故以 -1 表示“无入边”。 */
 const NO_INCOMING_EDGE = -1;
 
-/** 默认边权：构造时预计算的 Haversine 球面长度（米），O(1) 读取。 */
-function defaultEdgeWeight(graph: Graph): EdgeWeightFn {
-  return (e) => graph.edgeLength(e.id);
+/** 默认边权：端点 Haversine 球面长度（米），按坐标现算，不依赖 Graph 的边长预计算。 */
+function defaultEdgeWeight(graph: ReadonlyAdjacency): EdgeWeightFn {
+  return (e) => {
+    const a = graph.coordinates(e.from);
+    const b = graph.coordinates(e.to);
+    if (a === undefined || b === undefined) return Infinity;
+    return haversine(a, b);
+  };
 }
 
 /**
@@ -52,18 +58,18 @@ function defaultEdgeWeight(graph: Graph): EdgeWeightFn {
  * 作业四的 A* 复用本 `TurnRestrictionPredicate`，在 `PriorityQueue` 的 key 上叠加
  * haversine 启发式即可，签名保持一致，故无需改动本接口。
  *
- * @param graph 有向图。
+ * @param graph 只读邻接视图（`Graph` 或 `createAdjacencyView` 产物）。
  * @param source 起点节点 id。
  * @param target 终点节点 id。
  * @param isTurnForbidden 禁转判定；缺省全部允许。
- * @param weight 边权函数；默认端点 Haversine 距离（米，预计算）。
+ * @param weight 边权函数；默认端点 Haversine 距离（米）。
  * @returns 路径与总代价；源/目标缺失或不可达时 distance 为 Infinity、序列为空。
  * @remarks 起点出边直接入队（无入边、不受限制）；终点判定为“首次结算到末端为目标
  * 节点的入边”即止，因优先队列按 key 非降弹出，此时代价已是目标节点的最短路。
  * 复杂度 O((V+E) log E)，状态数由节点放大到有向边。
  */
 export function dijkstraWithTurnRestrictions(
-  graph: Graph,
+  graph: ReadonlyAdjacency,
   source: number,
   target: number,
   isTurnForbidden?: TurnRestrictionPredicate,

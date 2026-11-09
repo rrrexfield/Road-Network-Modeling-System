@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### Fixed(Sprint 2 · B/A 降低禁转路径搜索内存)
+
+- 新增 `server/src/graph/adjacency-view.ts`:`ReadonlyAdjacency` 只读接口与 `createAdjacencyView` 轻量邻接视图——只建出边邻接 + 按边 id 索引,复用传入边对象,不预计算边长/出入度/紧凑坐标/节点下标。
+- `dijkstraWithTurnRestrictions` 入参由完整 `Graph` 泛化为 `ReadonlyAdjacency`(`Graph` 结构上满足,既有测试零回归),默认边权改为按坐标现算 Haversine,不再依赖 `Graph.edgeLength` 预计算;`snapToNode` 同步泛化。
+- `ModalRuntime.graph` 改用 `createAdjacencyView` 替代 `new Graph(...)`,模态路径不再为每个模态重建完整图(武汉 99 万边量级下显著降低堆占用)。
+- 新增 1 项测试(轻量视图与 Graph 的邻接/边查找/禁转搜索一致);全仓 238 项测试、server typecheck、全仓 lint 全绿。
+
 ### Changed(模态转换点改用 Font Awesome 图标,替代 P/B/M 字母)
 
 - 新增 `web/src/map/transfer-point-icons.ts`:用 Font Awesome Free 的 `faSquareParking` / `faBus` / `faTrainSubway` 生成**内联 SVG**(深色圆角底板 + 金色字形),不引 webfont、不依赖网络。
