@@ -1,4 +1,10 @@
 export { resolveRoadDirection, type RoadDirection } from './direction.js';
+export {
+  CompressionWayIndex,
+  collectCompressionProtectedNodes,
+  type CompressionWayAttributes,
+  type CompressionProtectedNodesInput,
+} from './compression-input.js';
 export { TurnRestrictionTable } from './turn-restriction-table.js';
 export { computeTurnGeometry } from './turn-geometry.js';
 export { IntersectionTurnIndex } from './intersection-turns.js';
