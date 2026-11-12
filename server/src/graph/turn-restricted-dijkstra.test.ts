@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RoadEdge } from '@gisalgo/shared';
-import { Graph, dijkstra, dijkstraWithTurnRestrictions } from './index.js';
+import { Graph, createAdjacencyView, dijkstra, dijkstraWithTurnRestrictions } from './index.js';
 
 /** 构造测试边；wayId 恒为 1，本测试只关心拓扑与边 id。 */
 function roadEdge(id: number, from: number, to: number): RoadEdge {
@@ -160,5 +160,28 @@ describe('dijkstraWithTurnRestrictions', () => {
       nodeIds: [1],
       edgeIds: [],
     });
+  });
+
+  it('createAdjacencyView 提供与 Graph 一致的邻接与边查找，并支持禁转搜索', () => {
+    const view = createAdjacencyView(crossNodes(), crossEdges());
+    const graph = new Graph(crossNodes(), crossEdges());
+
+    expect(view.hasNode(0)).toBe(true);
+    expect(view.hasNode(999)).toBe(false);
+    expect(
+      view
+        .outEdges(0)
+        .map((e) => e.id)
+        .sort(),
+    ).toEqual(
+      graph
+        .outEdges(0)
+        .map((e) => e.id)
+        .sort(),
+    );
+    expect(view.edge(5)).toEqual(graph.edge(5));
+    expect(dijkstraWithTurnRestrictions(view, 1, 2, forbidLeftFromNorth, unitWeight)).toEqual(
+      dijkstraWithTurnRestrictions(graph, 1, 2, forbidLeftFromNorth, unitWeight),
+    );
   });
 });

@@ -1,4 +1,5 @@
 export { Graph } from './graph.js';
+export { createAdjacencyView, type ReadonlyAdjacency } from './adjacency-view.js';
 export { dijkstra, type EdgeWeightFn } from './dijkstra.js';
 export {
   dijkstraWithTurnRestrictions,

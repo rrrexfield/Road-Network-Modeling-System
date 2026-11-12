@@ -1,6 +1,9 @@
 import type { RoadEdge, SetIntersectionTurnsRequest, TurnRestriction } from '@gisalgo/shared';
 
-/** 单次装载图内的禁转边对表，不用作跨会话持久化格式。 */
+/**
+ * 单次装载图内的禁转边对表，不用作跨会话持久化格式。
+ * 边对象只读引用、不拷贝。
+ */
 export class TurnRestrictionTable {
   private readonly edges = new Map<number, RoadEdge>();
   private readonly forbidden = new Map<number, Map<number, Set<number>>>();
@@ -9,7 +12,7 @@ export class TurnRestrictionTable {
   constructor(edges: readonly RoadEdge[]) {
     for (const edge of edges) {
       if (this.edges.has(edge.id)) throw new Error(`重复边 ID: ${edge.id}`);
-      this.edges.set(edge.id, { ...edge });
+      this.edges.set(edge.id, edge);
     }
   }
 

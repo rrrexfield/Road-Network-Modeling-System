@@ -1,5 +1,5 @@
 import type { TravelMode } from '@gisalgo/shared';
-import type { Graph } from './graph.js';
+import type { ReadonlyAdjacency } from './adjacency-view.js';
 import type { EdgeWeightFn } from './dijkstra.js';
 import type { TurnRestrictionPredicate } from './turn-restricted-dijkstra.js';
 import { PriorityQueue } from './priority-queue.js';
@@ -17,7 +17,7 @@ export interface ModalLayer {
   /** 本层的交通模态（car / walk / bike / bus）。 */
   mode: TravelMode;
   /** 本层的路网图（该模态子图）。 */
-  graph: Graph;
+  graph: ReadonlyAdjacency;
   /** 本层的边权函数（米或秒）；必须 ≥ 0 且有限。 */
   weight: EdgeWeightFn;
   /** 本层的禁转判定；缺省表示全部允许。 */
@@ -232,7 +232,7 @@ function searchLayer(
  */
 function reconstructSegment(
   search: LayerSearch,
-  graph: Graph,
+  graph: ReadonlyAdjacency,
   target: number,
 ): SegmentPath | undefined {
   const inEdge = search.bestEdge.get(target);

@@ -9,6 +9,7 @@ import {
   dijkstraWithTurnRestrictions,
   type EdgeWeightFn,
   type Graph,
+  type ReadonlyAdjacency,
   type TurnRestrictionPredicate,
 } from '../graph/index.js';
 import {
@@ -179,7 +180,7 @@ export async function registerRoutes(
 
       // 缺省走基础图（无禁转，与作业一一致）；显式给 mode 走该模态子图并应用禁转判定。
       // 禁转边对与边 ID 都只在所属模态内有效，故必须用同一模态的图 + 禁转服务（issue #38）。
-      let activeGraph = baseGraph;
+      let activeGraph: ReadonlyAdjacency = baseGraph;
       let activeWayHighway = baseWayHighway;
       // 边权按当前模态取速度：缺省为 car（基础图沿用汽车限速表，行为不变），
       // 显式 mode 时走该模态的速度表（issue #47）。
@@ -223,7 +224,7 @@ export async function registerRoutes(
 
       const result =
         isTurnForbidden === undefined
-          ? dijkstra(activeGraph, startId, endId, weight)
+          ? dijkstra(baseGraph, startId, endId, weight)
           : dijkstraWithTurnRestrictions(activeGraph, startId, endId, isTurnForbidden, weight);
 
       // 不可达时返回 Infinity + 空序列;REST 层转成 404 而不是下发 Infinity
