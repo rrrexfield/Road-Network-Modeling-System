@@ -10,6 +10,7 @@
 - `dijkstraWithTurnRestrictions` 入参由完整 `Graph` 泛化为 `ReadonlyAdjacency`(`Graph` 结构上满足,既有测试零回归),默认边权改为按坐标现算 Haversine,不再依赖 `Graph.edgeLength` 预计算;`snapToNode` 同步泛化。
 - `ModalRuntime.graph` 改用 `createAdjacencyView` 替代 `new Graph(...)`,模态路径不再为每个模态重建完整图(武汉 99 万边量级下显著降低堆占用)。
 - 新增 1 项测试(轻量视图与 Graph 的邻接/边查找/禁转搜索一致);全仓 238 项测试、server typecheck、全仓 lint 全绿。
+- `ModalLayer.graph` 与 `reconstructSegment` 的图参数由完整 `Graph` 放宽为 `ReadonlyAdjacency`(A 复核 API 侧时发现 B 的泛化只覆盖了 `dijkstraWithTurnRestrictions`,跨模态搜索的层类型仍写死 `Graph`,导致 `server/src/api/multimodal-path.ts` typecheck 报 TS2322)。`Graph` 结构上满足该接口,既有调用与测试零改动;本次重整到最新 main 后,全仓 401 项测试、shared/server/web 三包 typecheck、全仓 lint、前端生产构建全绿。
 
 ### Fixed(Sprint 2 · C 减少边对象拷贝,issue #61)
 
