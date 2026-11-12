@@ -102,6 +102,12 @@ topology的buildModalTopology增加可选第四参数NodeTags，返回nodeAccess
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
+**最后更新:2026-11-12(PR #62 合入 main:模态路径改用轻量邻接视图;作业三分工确认 issue #63)**
+
+2026-11-12 A 两件事。**①PR #62(B 的禁转路径内存优化)已重整到最新 main 并合入 main(`716b6c8`)。** 核心变更:`ModalRuntime.graph` 由完整 `Graph` 改为轻量 `ReadonlyAdjacency`(`createAdjacencyView` 产物:只建出边邻接 + 边 id 索引,复用边对象,不预计算边长/出入度/紧凑坐标);`dijkstraWithTurnRestrictions` 入参同步泛化为 `ReadonlyAdjacency`,默认边权改为按坐标现算 Haversine;C 的 `IntersectionTurnIndex`/`TurnRestrictionTable` 不再各拷一份边对象(单模态运行时边对象从 3 份降到 1 份)。**对外契约未变**(`shared/` 未动)。A 复核 API 侧时发现 B 的泛化只覆盖了 `dijkstraWithTurnRestrictions`,跨模态搜索的 `ModalLayer.graph` 仍写死 `Graph`,导致 `server/src/api/multimodal-path.ts` typecheck 报 TS2322、CI 无法通过;已把 `ModalLayer.graph` 与 `reconstructSegment` 的图参数放宽为 `ReadonlyAdjacency`(`Graph` 结构上满足该接口,既有调用与测试零回归)。合入后全仓 401 项测试(50 文件)、shared/server/web 三包 typecheck、全仓 lint、前端生产构建全绿。内存数值(~106 MB / ~160 MB / ~266 MB)为**合成 99 万边规模的估算**,非武汉端到端实测。
+
+**②作业三分工确认(issue #63,C 发起)。** 对照任务书 G2 第 3 次作业(5 项任务内容 / 4 项产出物 / 5 项评分维度),A 确认 C 提的 4 项交付全部保留、边界不变(C 仅在 `server/src/io/`、`server/src/topology/` 及相关文档)。**关键口径**:度-2 用**去重后的邻居数**判定(`|{ w | 存在边 v→w 或 w→v }| == 2`),**不能直接拿现有有向度统计判断**——双向道路的普通中间点有向度 = 4 但邻居数 = 2,与 `TopologyStats` 的有向度口径不同。**保留集五类**(命中即不压缩):禁转 via 节点 / 换乘连接涉及的节点(**路网节点 id,不是设施展示 id**)/ 属性变化点(等级、限速、oneway、权限)/ 方向模式变化点 / 模态准入边界点。**映射口径**:压缩边记录原图有向边序列 + 起止原图节点,路径还原按序列展开拼接;权重累计距离口径 Σ 原边长度、时间口径逐原边算时间再求和(不先平均速度再乘总长)。**禁转编辑后的更新**:禁转仍按原图边对存储,禁转集合变化 → 保留集变化 → 压缩图按 `(mode, 禁转表版本号)` **惰性重建**(版本号 +1 即失效),不新增持久化表、不做常驻全量缓存。新增 `docs/plans/a-sprint3-division.md`;并按任务书拆出三个缺口单:#64(B 度-2 压缩 + 映射还原 + 对比报告,25% 评分项)、#65(D 拥堵系数/事件影响 + 可达性分析)、#66(E 按车速/拥堵着色 + 权重时间变化动画)。**现状盘点**:压缩模块为零,拥堵/事件权重与可达性分析未做,权重可视化只有配置侧没有表达侧;权重配置界面与统计(里程/等级/连通性/属性完整率)已具备。CH 收缩层次为可选加分,本期不排期(立项文档 §2.2)。
+
 **最后更新:2026-11-05(A 完成 Sprint 2 集成:PR #39/#40/#42 已合入 main、派生数据已重建、前端禁转端到端已打通、新增路口就近查询接口;issue #34 仍开放)**
 
 2026-11-05 A 集成(issue #38 闭环):**PR #39(B 边扩展 Dijkstra)、#40(/api/path 接入禁转)、#42(C 接驳表)已合入 main**,三者代码零冲突,本地组合验证 268 项测试全绿。`/api/path` 新增 `mode` 查询参数:**缺省走基础图、不施加禁转**(与作业一一致),显式给 mode 走该模态子图并注入 `PersistentTurnService.isForbidden` 谓词——禁转边对与边 ID 只在所属模态内有效,故必须同模态的图 + 禁转服务。`ModalRuntime` 由接口改为类,`graph` / `wayHighway` 走 getter 惰性构建(转向读写不承担 62.8 万节点 / ~100 万边的构造成本)。错误码:非法 mode 400、未启用多模态 501、派生数据不可用 503。
