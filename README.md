@@ -1,6 +1,8 @@
 # GISAlgo · 路网建模与拓扑构建系统(G2 组)
 
-2026-11-12 C 作业三压缩输入（`feature/compression-topology-input`，待审）：新增道路属性边界查询、禁转保留节点/版本快照及语义保留集合并，供 B/A 接入；未实现压缩算法或修改网页接口。见 [交接说明](docs/plans/c-sprint3-compression-input.md)。
+2026-11-20 作业三看板：PR #68（C 的作业三压缩输入接口 `CompressionWayIndex` / `collectCompressionProtectedNodes` / `PersistentTurnService.getCompressionState`）已由 A 评审并合入 main（`556c274`）；缺口单 #64(B 度-2 压缩) / #65(D 拥堵·事件·可达性) / #66(E 权重可视化) 已指派并附 A 的口径，A 侧跟踪单为 #69。分工与交付口径见 [作业三分工文档](docs/plans/a-sprint3-division.md)。
+
+2026-11-12 C 作业三压缩输入（`feature/compression-topology-input`，已合入 main `556c274`）：新增道路属性边界查询、禁转保留节点/版本快照及语义保留集合并，供 B/A 接入；未实现压缩算法或修改网页接口。见 [交接说明](docs/plans/c-sprint3-compression-input.md)。
 
 2026-11-06 `fix/node-access` 分支提供C节点准入修复（待评审）：`buildModalTopology(nodes,ways,mode,nodeTags?)` 返回 `nodeAccess` 诊断，C的 `createTurnRuntime` 已接入。A的网页模式运行时仍需传节点标签才能生效；未传时兼容旧图且标记未检查。规则、399项验证及保守排除局限见 `docs/plans/c-node-access-ready.md`。
 

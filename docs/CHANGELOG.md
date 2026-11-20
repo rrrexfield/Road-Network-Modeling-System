@@ -4,7 +4,12 @@
 
 ## [Unreleased]
 
-### Added(C 作业三压缩输入，issue #63/#64，待审)
+### Added(作业三看板就位与 C 压缩输入合入,issue #63/#64/#65/#66/#69,PR #68)
+
+- PR #68 由 A 评审通过并合入 main(`556c274`):C 的作业三压缩输入接口——`CompressionWayIndex`(道路属性只读查询与属性边界比较)、`collectCompressionProtectedNodes`(禁转/换乘语义保留集合并)、`PersistentTurnService.getCompressionState()`(当前实际禁转 via 节点 + 实例内版本号,成功保存后递增、失败不变,不新增持久化表)。A 本地复核:全仓 411 项测试(51 文件)、shared/server/web 三包 typecheck、全仓 ESLint、前端生产构建全绿。
+- 作业三分工确认 issue #63 闭环关闭;#64(B 度-2 压缩 + 原图映射还原 + 对比报告)、#65(D 拥堵系数/事件影响 + 可达性分析)、#66(E 按车速/拥堵着色 + 权重时间变化动画)分别指派 B/D/E,并由 A 在各单留言钉死输入接口、判定口径、验收物与边界;新开 #69 跟踪 A 侧自有交付(`shared/` 契约冻结、压缩图运行时接线、验收清单)。四个作业三 issue 均挂 M3 里程碑。
+
+### Added(C 作业三压缩输入，issue #63/#64，已合入 main)
 
 - topology公开CompressionWayIndex道路等级/限速/方向/权限边界查询，以及collectCompressionProtectedNodes语义保留集合并；不重复构图或实现B的压缩算法。
 - PersistentTurnService公开getCompressionState，返回当前禁转via节点和实例内版本号；成功保存后递增，失败不变，不新增SQLite表。A/B的压缩缓存须绑定运行时实例后按版本失效。
