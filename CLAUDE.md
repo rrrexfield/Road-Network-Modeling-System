@@ -96,7 +96,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## 三、多人协作同步区(随项目增量更新)
 
-**C作业三最后更新：2026-11-12（feature/compression-topology-input，待审）**
+**C作业三最后更新：2026-11-12（feature/compression-topology-input，已由 A 评审并合入 main `556c274`）**
 
 topology新增CompressionWayIndex（way原属性只读查询/边界比较）及collectCompressionProtectedNodes（当前图禁转/换乘节点合并）；io的PersistentTurnService新增getCompressionState返回当前禁转via节点和实例内版本。成功setTurns后版本递增、失败不变；缓存绑定运行时实例，不跨实例比较版本。无shared/API/数据库格式改动，不重复B的邻接/度-2/方向判定；A/B仍须接入。交接见docs/plans/c-sprint3-compression-input.md。
 
@@ -105,6 +105,14 @@ topology新增CompressionWayIndex（way原属性只读查询/边界比较）及c
 topology的buildModalTopology增加可选第四参数NodeTags，返回nodeAccess（checked/excludedNodes/excludedEdgeCount）；未传保持旧行为并checked=false。按模式过滤受限/未决节点的相邻段，不跨缺口补边，剩余edgeId和原始way属性不改；unknown/无许可屏障保守排除，并非实景禁行认证。io/createTurnRuntime已传nodeTags，A的ModalRuntimeRegistry两处调用尚需接入并重建Graph/转向/nearest索引及换乘缓存；未改A/B/E或shared。399项测试及类型/lint/build通过，策略和武汉实测见docs/plans/c-node-access-ready.md。线上功能尚未据此完成修复。
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
+
+**最后更新:2026-11-20(PR #68 合入 main:C 的作业三压缩输入接口;作业三 issue 看板就位)**
+
+2026-11-20 A 三件事。**①PR #68(C 的作业三压缩输入)已评审通过并合入 main(`556c274`)。** C 交付:`server/src/topology/` 新增 `CompressionWayIndex`(way 原属性只读查询 + 属性边界比较:highway 与 maxspeed/oneway/access/foot/bicycle/vehicle/motor_vehicle/motorcar/bus/psv 含冒号子键逐值比较,标签顺序无关,缺 way 明确抛错而不是当作无差异)与 `collectCompressionProtectedNodes`(合并禁转/换乘语义保留节点,只保留当前模态图内节点);`server/src/io/` 的 `PersistentTurnService` 新增 `getCompressionState()` → `{ version, protectedNodeIds }`(当前**实际**禁转的 via 节点 + **实例内**版本号,成功保存含显式清空后 +1,校验或写盘失败不变)。无 `shared/`/API/数据库格式改动,不新增持久化表。**缓存口径**:压缩图缓存键 = `(mode, 禁转表版本号)`,且**缓存须绑定运行时实例**——不同服务实例版本都从 0 开始,不能靠相同数字跨实例复用旧压缩图。A 本地复核:全仓 **411 项测试(51 文件)**、shared/server/web 三包 typecheck、全仓 ESLint、前端生产构建全绿(CI check 亦绿)。
+
+**②作业三 issue 看板就位**:issue #63(C → A/B 分工确认)已闭环关闭;缺口单 #64(B:度-2 压缩 + 压缩图/原图映射还原 + 对比报告,25% 评分项)、#65(D:拥堵系数/事件影响 + 可达性分析)、#66(E:按车速/拥堵着色 + 权重时间变化动画)已分别指派 HCl2778 / WinYuhan / heocean3-cmyk,并由 A 在各单留言钉死输入接口、判定口径、验收物与边界;新开 **#69** 跟踪 A 侧自有交付(`shared/` 契约冻结 + 压缩图运行时接线 + 验收清单)。四个作业三 issue 均挂 **M3 · 路网压缩与权重管理** 里程碑。**M3 的 due 2026-11-08 已过期**,M4 定在 2026-11-22,与团队 11-12 才开工作业三的进度不一致,内部目标日期待 A 重排。
+
+**③A 侧下一步**:①`shared/` 冻结压缩结果类型(压缩边含 `originalEdgeIds` + 起止原图节点、压缩统计)、权重配置的拥堵/事件字段、统计的可达性字段——字段草案以 D 在 #65 的口径为准,冻结后由各 owner 自行适配(A 不代改他人目录);②`server/src/api/modal-runtime.ts` 按 mode 筛选换乘端点后调用 C 的 helper,把 `transferNodeIds` 喂给 B 的压缩入口,并把压缩图接入 `/api/path`(压缩/原图口径可切换);③按任务书 5 项任务内容 + 4 项产出物建验收清单(格式参照 `docs/作业二验收清单.md`,逐条给代码位置与可复现证据)。
 
 **最后更新:2026-11-12(PR #62 合入 main:模态路径改用轻量邻接视图;作业三分工确认 issue #63)**
 
