@@ -15,6 +15,7 @@ import { TurnRestrictionStore } from './turn-restriction-store.js';
 export class PersistentTurnService {
   private readonly index: IntersectionTurnIndex;
   private readonly store: TurnRestrictionStore;
+  private restrictionVersion = 0;
   readonly importReport: ReturnType<typeof importOsmRestrictions>;
   readonly restoreIssues: ReturnType<TurnRestrictionStore['restore']>['issues'];
 
@@ -56,6 +57,19 @@ export class PersistentTurnService {
     return this.index.restrictions.isForbidden(via, from, to);
   }
 
+  /**
+   * 压缩保留集与缓存版本的只读快照，包含当前OSM和人工禁转。
+   * 版本仅属于本服务实例，启动为0；每次成功保存后递增（包括显式清空）。
+   * A的压缩缓存须绑定运行时实例，不能把不同实例的相同版本视为同一图。
+   * 不读写新数据库表；O(当前禁转边对数)，返回独立数组。
+   */
+  getCompressionState(): { version: number; protectedNodeIds: number[] } {
+    return {
+      version: this.restrictionVersion,
+      protectedNodeIds: [...new Set(this.index.restrictions.snapshot().map((p) => p.viaNode))],
+    };
+  }
+
   /** 校验完整请求，先事务写盘，再同步内存；写盘失败时旧内存规则不变。 */
   setTurns(nodeId: number, request: SetIntersectionTurnsRequest): SetIntersectionTurnsResponse {
     if (this.restoreIssues.length) throw new Error('恢复存在失配，须先处理诊断，禁止覆盖旧快照');
@@ -74,6 +88,7 @@ export class PersistentTurnService {
     next.push(...forbidden.map((p) => ({ ...p, viaNode: nodeId })));
     this.store.save(this.topology, next);
     const restrictionCount = this.index.restrictions.replace(nodeId, { forbidden });
+    this.restrictionVersion++;
     return { ok: true, restrictionCount };
   }
 }

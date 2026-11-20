@@ -96,6 +96,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## 三、多人协作同步区(随项目增量更新)
 
+**C作业三最后更新：2026-11-12（feature/compression-topology-input，待审）**
+
+topology新增CompressionWayIndex（way原属性只读查询/边界比较）及collectCompressionProtectedNodes（当前图禁转/换乘节点合并）；io的PersistentTurnService新增getCompressionState返回当前禁转via节点和实例内版本。成功setTurns后版本递增、失败不变；缓存绑定运行时实例，不跨实例比较版本。无shared/API/数据库格式改动，不重复B的邻接/度-2/方向判定；A/B仍须接入。交接见docs/plans/c-sprint3-compression-input.md。
+
 **C节点准入补充最后更新:2026-11-06（fix/node-access分支，待A评审接入）**
 
 topology的buildModalTopology增加可选第四参数NodeTags，返回nodeAccess（checked/excludedNodes/excludedEdgeCount）；未传保持旧行为并checked=false。按模式过滤受限/未决节点的相邻段，不跨缺口补边，剩余edgeId和原始way属性不改；unknown/无许可屏障保守排除，并非实景禁行认证。io/createTurnRuntime已传nodeTags，A的ModalRuntimeRegistry两处调用尚需接入并重建Graph/转向/nearest索引及换乘缓存；未改A/B/E或shared。399项测试及类型/lint/build通过，策略和武汉实测见docs/plans/c-node-access-ready.md。线上功能尚未据此完成修复。

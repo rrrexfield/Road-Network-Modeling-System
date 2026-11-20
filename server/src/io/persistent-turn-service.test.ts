@@ -43,6 +43,22 @@ const relation: OsmRelation = {
 };
 
 describe('PersistentTurnService 可交接运行链路', () => {
+  it('压缩状态包含OSM和人工禁转，保存后递增、清空后移除，重启恢复节点', () => {
+    const opts = { databasePath: file(), dataset: 'compression', relations: [relation] };
+    const topology = buildTopology(nodes, ways);
+    const service = new PersistentTurnService(topology, opts);
+    expect(service.getCompressionState()).toEqual({ version: 0, protectedNodeIds: [2] });
+    service.getCompressionState().protectedNodeIds.length = 0;
+    expect(service.getCompressionState().protectedNodeIds).toEqual([2]);
+    service.setTurns(2, { forbidden: [{ fromEdge: 0, toEdge: 2 }] });
+    expect(service.getCompressionState()).toEqual({ version: 1, protectedNodeIds: [2] });
+    expect(new PersistentTurnService(topology, opts).getCompressionState()).toEqual({
+      version: 0,
+      protectedNodeIds: [2],
+    });
+    service.setTurns(2, { forbidden: [] });
+    expect(service.getCompressionState()).toEqual({ version: 2, protectedNodeIds: [] });
+  });
   it('OSM来源正确，手动更新保存后重启与边ID重排恢复', () => {
     const path = file();
     const topo = buildTopology(nodes, ways);
@@ -95,6 +111,7 @@ describe('PersistentTurnService 可交接运行链路', () => {
     try {
       expect(() => service.setTurns(2, { forbidden: [] })).toThrow();
       expect(service.isForbidden(2, 0, 1)).toBe(true);
+      expect(service.getCompressionState()).toEqual({ version: 1, protectedNodeIds: [2] });
     } finally {
       lock.exec('ROLLBACK');
       lock.close();
@@ -108,6 +125,7 @@ describe('PersistentTurnService 可交接运行链路', () => {
     const service = new PersistentTurnService(topo, opts);
     service.setTurns(2, { forbidden: [{ fromEdge: 0, toEdge: 1 }] });
     expect(() => service.setTurns(2, { forbidden: [{ fromEdge: 0, toEdge: 99 }] })).toThrow();
+    expect(service.getCompressionState().version).toBe(1);
     expect(service.isForbidden(2, 0, 1)).toBe(true);
     const changed = buildTopology(nodes, [ways[0]!, ways[2]!]);
     const restarted = new PersistentTurnService(changed, opts);
