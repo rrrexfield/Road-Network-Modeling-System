@@ -237,6 +237,7 @@ async function main(): Promise<void> {
   let transferPointLayers: Layer[] = [];
   let restrictionLayers: Layer[] = [];
   const currentRoadNames = new Map<number, string>();
+  const currentRoadGeometries = new Map<number, RoadFeature['geometry']['coordinates']>();
   let turnEditor: TurnEditorHandle | null = null;
   let modeRequestToken = 0;
 
@@ -321,7 +322,7 @@ async function main(): Promise<void> {
       });
     },
     onRestrictionChange: (intersection) => {
-      restrictionLayers = createTurnRestrictionLayers(intersection);
+      restrictionLayers = createTurnRestrictionLayers(intersection, currentRoadGeometries);
       refreshLayers();
     },
     // 禁转已落盘：重算当前路径，使新禁转立即体现在路径结果上（绕行或变为不可达）。
@@ -375,11 +376,13 @@ async function main(): Promise<void> {
         map.getZoom() >= 12.5 ? points.filter((point) => inViewport(point.position)) : [],
       );
       currentRoadNames.clear();
+      currentRoadGeometries.clear();
       for (const feature of network.features) {
         currentRoadNames.set(
           feature.properties.id,
           feature.properties.name ?? `Way ${feature.properties.id}`,
         );
+        currentRoadGeometries.set(feature.properties.id, feature.geometry.coordinates);
       }
       refreshLayers();
       currentMode = mode;
@@ -402,6 +405,15 @@ async function main(): Promise<void> {
           transferPoints = [];
           transferPointLayers = [];
           transferOverlay.setPoints([]);
+          currentRoadNames.clear();
+          currentRoadGeometries.clear();
+          for (const feature of baseNetwork.features) {
+            currentRoadNames.set(
+              feature.properties.id,
+              feature.properties.name ?? `Way ${feature.properties.id}`,
+            );
+            currentRoadGeometries.set(feature.properties.id, feature.geometry.coordinates);
+          }
           refreshLayers();
           currentMode = 'all';
           modeControl.setMode('all');

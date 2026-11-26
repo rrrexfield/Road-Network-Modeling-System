@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Fixed(转向限制编辑器 · 道路方向箭头)
+
+- 禁转绘制改为读取当前模态的 Way 几何，选择与 `angleDelta` 最吻合的驶入道路臂和目标道路臂；普通禁转绘制带箭头的红色曲线，掉头只在目标道路臂绘制纯红线，不再生成容易随缩放漂移的箭头尖端。
+- 道路几何缺失时保留旧示意弧线降级，不伪造道路方向；路径判定、禁转保存接口和数据库口径均未改变。
+
 ### Added(作业三看板就位与 C 压缩输入合入,issue #63/#64/#65/#66/#69,PR #68)
 
 - PR #68 由 A 评审通过并合入 main(`556c274`):C 的作业三压缩输入接口——`CompressionWayIndex`(道路属性只读查询与属性边界比较)、`collectCompressionProtectedNodes`(禁转/换乘语义保留集合并)、`PersistentTurnService.getCompressionState()`(当前实际禁转 via 节点 + 实例内版本号,成功保存后递增、失败不变,不新增持久化表)。A 本地复核:全仓 411 项测试(51 文件)、shared/server/web 三包 typecheck、全仓 ESLint、前端生产构建全绿。
