@@ -1,0 +1,45 @@
+/* 可达性(等时圈)卡片:Sprint 3 · issue #65 */
+
+.gis-access {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gis-access__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  align-items: flex-end;
+}
+
+.gis-access__controls .gis-field {
+  min-width: 150px;
+}
+
+.gis-access__controls .gis-range {
+  width: 160px;
+}
+
+.gis-access .gis-card__body {
+  height: 220px;
+}
+
+/* 与面板其余 KPI 区保持一致的呼吸感 */
+.gis-access .gis-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.gis-access select.gis-input,
+.gis-access input.gis-input {
+  text-align: left;
+  width: 130px;
+  padding: 4px 8px;
+}
+
+.gis-access select.gis-input option {
+  background: #101418;
+  color: var(--gis-text);
+}

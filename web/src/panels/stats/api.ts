@@ -36,10 +36,19 @@ export async function fetchStats(params?: {
   metric?: 'distance' | 'time';
   speedFactor?: number;
   speedOverridesKmh?: Record<string, number>;
+  /** 参考钟点(0–24);传入即启用服务端拥堵时间槽(Sprint 3)。 */
+  hour?: number;
+  /** 显式关闭拥堵(congestion=off)。 */
+  congestionOff?: boolean;
+  /** 显式关闭事件场景(events=off)。 */
+  eventsOff?: boolean;
 }): Promise<NetworkStats | null> {
   const query = new URLSearchParams();
   if (params?.metric !== undefined) query.set('metric', params.metric);
   if (params?.speedFactor !== undefined) query.set('speedFactor', String(params.speedFactor));
+  if (params?.hour !== undefined) query.set('hour', String(params.hour));
+  if (params?.congestionOff === true) query.set('congestion', 'off');
+  if (params?.eventsOff === true) query.set('events', 'off');
   const overrides = params?.speedOverridesKmh ?? {};
   const overridePairs = Object.entries(overrides);
   if (overridePairs.length > 0) {
@@ -52,4 +61,43 @@ export async function fetchStats(params?: {
 /** 拉取权重基线配置(默认配置与各等级默认限速表)。 */
 export async function fetchWeightProfile(): Promise<WeightProfileResponse | null> {
   return getJson<WeightProfileResponse>('/weights/profile');
+}
+
+/** 等时圈可达性报告(与服务端 AccessibilityReport 对齐的字段子集)。 */
+export interface AccessibilityReportView {
+  originNode: number;
+  budgetSeconds: number;
+  mode: string;
+  reachableNodeCount: number;
+  reachableEdgeCount: number;
+  reachableLengthMeters: number;
+  byHighway: Array<{
+    highway: string;
+    edgeCount: number;
+    lengthMeters: number;
+    lengthShare: number;
+  }>;
+  truncated: boolean;
+}
+
+/**
+ * 拉取等时圈可达性统计(Sprint 3 · issue #65)。
+ * @returns 报告;接口不可用、origin 非法(400)或起点未知(404)时返回 null。
+ */
+export async function fetchAccessibility(params: {
+  originNode: number;
+  budgetMinutes: number;
+  mode: string;
+  hour?: number;
+  congestionOff?: boolean;
+  eventsOff?: boolean;
+}): Promise<AccessibilityReportView | null> {
+  const query = new URLSearchParams();
+  query.set('origin', String(params.originNode));
+  query.set('budget', String(params.budgetMinutes));
+  query.set('mode', params.mode);
+  if (params.hour !== undefined) query.set('hour', String(params.hour));
+  if (params.congestionOff === true) query.set('congestion', 'off');
+  if (params.eventsOff === true) query.set('events', 'off');
+  return getJson<AccessibilityReportView>(`/accessibility?${query.toString()}`);
 }

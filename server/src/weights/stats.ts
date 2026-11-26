@@ -22,6 +22,12 @@ import type {
 import { haversineMeters } from './geo.js';
 import { travelSeconds } from './speed.js';
 import {
+  clampHourOfDay,
+  congestionFactorAt,
+  normalizeCongestionProfile,
+  type TrafficConditions,
+} from './traffic.js';
+import {
   DEFAULT_WEIGHT_PROFILE,
   UNKNOWN_HIGHWAY,
   effectiveSpeedKmh,
@@ -177,15 +183,32 @@ export function computeAttributeCompleteness(
  */
 export function computeNetworkStats(
   input: StatsInput,
-  options?: { profile?: WeightProfile; topology?: TopologyStats | null },
+  options?: {
+    profile?: WeightProfile;
+    topology?: TopologyStats | null;
+    /**
+     * 可选交通条件(Sprint 3 · issue #65):仅拥堵时间槽参与统计,**事件不计入**——
+     * 统计描述路网本身的固有属性,封闭/事故是瞬时状态;把封闭边从里程里剔除会
+     * 让 totalLengthMeters 随一次交通事故波动,口径反而不可解释。
+     * 拥堵只作用于时间口径(totalTravelSeconds / averageSpeedKmh),
+     * 里程口径永不随钟点变化。
+     */
+    traffic?: TrafficConditions;
+  },
 ): NetworkStats {
   const profile = normalizeWeightProfile(options?.profile ?? DEFAULT_WEIGHT_PROFILE);
+
+  const traffic = options?.traffic;
+  const congestion =
+    traffic && !traffic.congestionDisabled ? normalizeCongestionProfile(traffic.congestion) : null;
+  const hourOfDay = traffic ? clampHourOfDay(traffic.hourOfDay) : 0;
 
   const speedCache = new Map<string, number>();
   const speedFor = (highway: string): number => {
     let speed = speedCache.get(highway);
     if (speed === undefined) {
       speed = effectiveSpeedKmh(highway, profile);
+      if (congestion !== null) speed /= congestionFactorAt(congestion, hourOfDay, highway);
       speedCache.set(highway, speed);
     }
     return speed;

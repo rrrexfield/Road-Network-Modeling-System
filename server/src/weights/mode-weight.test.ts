@@ -20,7 +20,9 @@ import {
   transferPenaltySeconds,
   TRANSFER_PENALTY_MINUTES,
   WALK_FALLBACK_SPEED_KMH,
+  WALK_SPEED_KMH,
 } from './mode-weight.js';
+import { congestionFactorAt as _cf, normalizeCongestionProfile } from './traffic.js';
 
 const A: readonly [number, number] = [30, 114];
 const B: readonly [number, number] = [30, 114.001];
@@ -179,5 +181,106 @@ describe('transferPenaltySeconds', () => {
       expect(seconds).toBeGreaterThan(0);
       expect(Number.isFinite(seconds)).toBe(true);
     }
+  });
+});
+
+describe('createModeEdgeWeight · 拥堵与事件(Sprint 3 · issue #65)', () => {
+  /** primary 限速 60 km/h;1→2 约 96.3 m → 无拥堵时间 ≈ 5.78 s。 */
+  const baseSeconds = haversineMeters(A, B) / ((60 * 1000) / 3600);
+
+  it('无交通条件时与 Sprint 2 行为逐位一致(零回归)', () => {
+    const withTraffic = createModeEdgeWeight(context, 'car', DEFAULT_WEIGHT_PROFILE);
+    const baseline = createEdgeWeight(context, DEFAULT_WEIGHT_PROFILE);
+    expect(withTraffic(primaryEdge)).toBe(baseline(primaryEdge));
+    expect(withTraffic(edge(2, 2, 1, 300))).toBe(
+      createEdgeWeight(context, DEFAULT_WEIGHT_PROFILE)(edge(2, 2, 1, 300)),
+    );
+  });
+
+  it('早高峰拥堵系数 >1 时时间变长,且与 congestionFactorAt 精确吻合(合成顺序=乘在速度上)', () => {
+    const traffic = { hourOfDay: 8.5 };
+    const factor = _cf(normalizeCongestionProfile(undefined), 8.5, 'primary');
+    const expected = haversineMeters(A, B) / (((60 / factor) * 1000) / 3600); // 时间 = 基础时间 × 拥堵系数
+    const weight = createModeEdgeWeight(context, 'car', DEFAULT_WEIGHT_PROFILE, traffic);
+    expect(weight(primaryEdge)).toBeCloseTo(expected, 10);
+    expect(weight(primaryEdge)).toBeGreaterThan(baseSeconds);
+  });
+
+  it('夜间畅通系数 <1 时时间变短', () => {
+    const weight = createModeEdgeWeight(context, 'car', DEFAULT_WEIGHT_PROFILE, {
+      hourOfDay: 3,
+    });
+    expect(weight(primaryEdge)).toBeLessThan(baseSeconds);
+  });
+
+  it('确定性:同一钟点两次构造结果逐位相同', () => {
+    const a = createModeEdgeWeight(context, 'car', DEFAULT_WEIGHT_PROFILE, { hourOfDay: 8.5 });
+    const b = createModeEdgeWeight(context, 'car', DEFAULT_WEIGHT_PROFILE, { hourOfDay: 8.5 });
+    expect(a(primaryEdge)).toBe(b(primaryEdge));
+  });
+
+  it('closure 事件:time 口径返回 Infinity(不可通行)', () => {
+    const weight = createModeEdgeWeight(context, 'car', DEFAULT_WEIGHT_PROFILE, {
+      hourOfDay: 12,
+      events: [{ wayIds: [100], kind: 'closure' }],
+    });
+    expect(weight(primaryEdge)).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it('closure 事件同样作用于 distance 口径;incident 降速不影响 distance', () => {
+    const distance = haversineMeters(A, B);
+    const closed = createModeEdgeWeight(
+      context,
+      'car',
+      { ...DEFAULT_WEIGHT_PROFILE, metric: 'distance' },
+      { hourOfDay: 12, events: [{ wayIds: [100], kind: 'closure' }] },
+    );
+    const incident = createModeEdgeWeight(
+      context,
+      'car',
+      { ...DEFAULT_WEIGHT_PROFILE, metric: 'distance' },
+      { hourOfDay: 12, events: [{ wayIds: [100], kind: 'incident', speedFactor: 0.3 }] },
+    );
+    expect(closed(primaryEdge)).toBe(Number.POSITIVE_INFINITY);
+    expect(incident(primaryEdge)).toBe(distance);
+  });
+
+  it('incident 降速:time 口径按乘子精确放缓', () => {
+    const weight = createModeEdgeWeight(context, 'car', DEFAULT_WEIGHT_PROFILE, {
+      hourOfDay: 12,
+      congestionDisabled: true,
+      events: [{ wayIds: [100], kind: 'incident', speedFactor: 0.5 }],
+    });
+    expect(weight(primaryEdge)).toBeCloseTo(baseSeconds * 2, 10);
+  });
+
+  it('activeHours 窗口外事件不生效', () => {
+    const weight = createModeEdgeWeight(context, 'car', DEFAULT_WEIGHT_PROFILE, {
+      hourOfDay: 12,
+      congestionDisabled: true,
+      events: [{ wayIds: [100], kind: 'closure', activeHours: [7, 9] }],
+    });
+    expect(weight(primaryEdge)).toBe(baseSeconds);
+  });
+
+  it('可通行边的前置条件:返回值 ≥ 0 且有限', () => {
+    const weight = createModeEdgeWeight(context, 'car', DEFAULT_WEIGHT_PROFILE, {
+      hourOfDay: 8.5,
+      events: [{ wayIds: [200], kind: 'incident', speedFactor: 0.2 }],
+    });
+    for (const e of [primaryEdge, edge(2, 1, 2, 200), edge(3, 1, 2, 300), edge(4, 1, 2, 400)]) {
+      const value = weight(e);
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(Number.isFinite(value)).toBe(true);
+    }
+  });
+
+  it('walk 模态 + 拥堵:在模态速度之上乘拥堵系数', () => {
+    const walkBase = haversineMeters(A, B) / ((WALK_SPEED_KMH['primary']! * 1000) / 3600);
+    const factor = _cf(normalizeCongestionProfile(undefined), 8.5, 'primary');
+    const weight = createModeEdgeWeight(context, 'walk', DEFAULT_WEIGHT_PROFILE, {
+      hourOfDay: 8.5,
+    });
+    expect(weight(edge(5, 1, 2, 100))).toBeCloseTo(walkBase * factor, 10);
   });
 });

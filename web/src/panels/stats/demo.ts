@@ -6,9 +6,10 @@
  * 页头会明确标注当前数据来源,不以示例数据冒充实时结果。
  */
 import type { NetworkStats, WeightProfile } from '../../charts/index.js';
-import { createWeightPanel } from '../weight/weight-panel.js';
+import { createWeightPanel, type WeightPanelTraffic } from '../weight/weight-panel.js';
 import { fetchStats, fetchWeightProfile } from './api.js';
 import { SAMPLE_STATS } from './sample.js';
+import { createAccessibilityCard } from './accessibility-card.js';
 import { createStatsPanel } from './stats-panel.js';
 import './demo.css';
 
@@ -20,13 +21,18 @@ function must<T extends HTMLElement>(selector: string): T {
 
 const statsSlot = must<HTMLDivElement>('#slot-stats');
 const weightSlot = must<HTMLDivElement>('#slot-weight');
+const accessSlot = must<HTMLDivElement>('#slot-access');
 const sourceBadge = must<HTMLSpanElement>('#demo-source');
 const topologyButton = must<HTMLButtonElement>('#demo-topology');
 
 const statsPanel = createStatsPanel();
-const weightPanel = createWeightPanel({ onChange: (profile) => void reload(profile) });
+const weightPanel = createWeightPanel({
+  onChange: (profile, traffic) => void reload(profile, traffic),
+});
+const accessCard = createAccessibilityCard();
 statsSlot.append(statsPanel.element);
 weightSlot.append(weightPanel.element);
+accessSlot.append(accessCard.element);
 
 let speedTable: Readonly<Record<string, number>> | undefined;
 let latest: NetworkStats | null = null;
@@ -57,8 +63,8 @@ function apply(stats: NetworkStats, live: boolean): void {
   topologyButton.disabled = !live && latest.topology === null;
 }
 
-/** 按(可选的)权重配置重新取数;接口不可用时降级到示例数据。 */
-async function reload(profile?: WeightProfile): Promise<void> {
+/** 按(可选的)权重配置与时段模拟重新取数;接口不可用时降级到示例数据。 */
+async function reload(profile?: WeightProfile, traffic?: WeightPanelTraffic): Promise<void> {
   const token = ++requestToken;
   const live = await fetchStats(
     profile === undefined
@@ -67,6 +73,9 @@ async function reload(profile?: WeightProfile): Promise<void> {
           metric: profile.metric,
           speedFactor: profile.speedFactor,
           speedOverridesKmh: profile.speedOverridesKmh,
+          hour: traffic?.hourEnabled ? traffic.hourOfDay : undefined,
+          congestionOff: traffic?.hourEnabled && !traffic.congestionEnabled ? true : undefined,
+          eventsOff: traffic?.hourEnabled && !traffic.eventsEnabled ? true : undefined,
         },
   );
   if (token !== requestToken) return; // 丢弃过期响应,避免抖动时旧结果覆盖新结果
@@ -83,6 +92,7 @@ async function main(): Promise<void> {
   const profileResponse = await fetchWeightProfile();
   speedTable = profileResponse?.speedTable;
   await reload();
+  accessCard.refresh();
 }
 
 void main().catch((error: unknown) => {

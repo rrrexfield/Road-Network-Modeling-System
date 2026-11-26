@@ -104,6 +104,10 @@ topology新增CompressionWayIndex（way原属性只读查询/边界比较）及c
 
 topology的buildModalTopology增加可选第四参数NodeTags，返回nodeAccess（checked/excludedNodes/excludedEdgeCount）；未传保持旧行为并checked=false。按模式过滤受限/未决节点的相邻段，不跨缺口补边，剩余edgeId和原始way属性不改；unknown/无许可屏障保守排除，并非实景禁行认证。io/createTurnRuntime已传nodeTags，A的ModalRuntimeRegistry两处调用尚需接入并重建Graph/转向/nearest索引及换乘缓存；未改A/B/E或shared。399项测试及类型/lint/build通过，策略和武汉实测见docs/plans/c-node-access-ready.md。线上功能尚未据此完成修复。
 
+**D作业三最后更新:2026-11-26(feature/d-sprint3-traffic-accessibility,待A评审)**
+
+weights新增traffic.ts(确定性时间槽拥堵+路段事件)与accessibility.ts(等时圈),createModeEdgeWeight增加可选第4参TrafficConditions(缺省与Sprint2逐位一致);合成顺序钉死:有效速度=基础速度÷拥堵系数×事件乘子,拥堵/降速只作用time口径,封闭对time/distance均生效。parseTrafficParams与parseWeightProfileParams同在weights/routes.ts收口;新端点/api/accessibility(随registerWeightRoutes注册,A无需接线)与/api/weights/traffic(曲线/事件下发,供#66动画对齐)。前端权重面板加时段模拟区、统计面板加可达性卡片,onChange第二参数为增量。shared契约字段草案(AccessibilityReport等)交A冻结;武汉实测数值待A/C在有data/wuhan.json的机器按issue内命令回填。450项测试/typecheck/lint全绿,只改D目录;详见docs/plans/d-sprint3-weights-stats.md。
+
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 
 **最后更新:2026-11-20(PR #68 合入 main:C 的作业三压缩输入接口;作业三 issue 看板就位)**

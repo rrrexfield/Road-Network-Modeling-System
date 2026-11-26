@@ -213,3 +213,63 @@
   color: var(--gis-gold);
   border-color: var(--gis-gold-edge);
 }
+
+/* ---- 时段模拟(Sprint 3 · issue #65) ---- */
+.gis-traffic {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.gis-traffic__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.gis-traffic .gis-range {
+  width: 100%;
+}
+
+.gis-traffic__sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  margin: 0;
+}
+
+.gis-check {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 1px solid var(--gis-border);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  vertical-align: middle;
+  flex: none;
+}
+
+.gis-check:checked {
+  background: var(--gis-gold);
+  border-color: var(--gis-gold-edge);
+}
+
+.gis-check:checked::after {
+  content: '';
+  display: block;
+  width: 4px;
+  height: 8px;
+  margin: 1px auto;
+  border: solid #101418;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.gis-check:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
