@@ -94,8 +94,9 @@ describe('禁转道路方向箭头', () => {
       new Map([[100, eastWest]]),
     );
     expect(arrows).toHaveLength(1);
-    expect(arrows[0]!.path).toHaveLength(2);
-    expect(arrows[0]!.path[1]![0]).toBeGreaterThan(center[0]); // 目标道路东侧臂
+    expect(arrows[0]!.path).toHaveLength(3);
+    expect(arrows[0]!.path[0]![0]).toBeLessThan(center[0]);
+    expect(arrows[0]!.path[2]![0]).toBeGreaterThan(center[0]);
     expect(arrows[0]!.arrowhead).toBeUndefined();
   });
 

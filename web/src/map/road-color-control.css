@@ -1,0 +1,110 @@
+.road-color-control {
+  position: fixed;
+  right: 16px;
+  bottom: 48px;
+  z-index: 24;
+  width: 252px;
+  padding: 8px 9px 7px;
+  color: #e8edf4;
+  background:
+    linear-gradient(135deg, rgba(242, 198, 109, 0.05), transparent 48%), rgba(13, 20, 26, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: var(--ui-radius-lg);
+  backdrop-filter: blur(16px) saturate(1.08);
+  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.24);
+  font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+.road-color-control__title {
+  margin: 0 0 6px;
+  padding-bottom: 6px;
+  color: #f2c66d;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid rgba(242, 198, 109, 0.18);
+}
+
+.road-color-control__buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.road-color-control__button {
+  min-height: 24px;
+  color: #b8c0cc;
+  font: inherit;
+  font-size: 10.5px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--ui-radius-sm);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.road-color-control__button:hover {
+  color: #f2c66d;
+  border-color: rgba(242, 198, 109, 0.35);
+}
+
+.road-color-control__button.is-active {
+  color: #171b1f;
+  background: #f2c66d;
+  border-color: #f2c66d;
+}
+
+.road-color-control__legend-section {
+  margin-top: 7px;
+}
+
+.road-color-control__legend-title {
+  display: block;
+  margin-bottom: 4px;
+  color: #f2c66d;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+}
+
+.road-color-control__legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+}
+
+.road-color-control__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.road-color-control__swatch {
+  width: 14px;
+  height: 5px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.road-color-control__legend-label,
+.road-color-control__note {
+  color: #9aa4b2;
+  font-size: 9px;
+}
+
+.road-color-control__note {
+  margin: 5px 0 0;
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .road-color-control {
+    right: 12px;
+    bottom: 64px;
+    width: 228px;
+  }
+}

@@ -8,6 +8,8 @@
   --ui-border-strong: rgba(255, 255, 255, 0.16);
   --ui-gold: #f2c66d;
   --ui-gold-soft: rgba(242, 198, 109, 0.28);
+  --ui-accent-rgb: 242, 198, 109;
+  --ui-accent-ink: #171b1f;
   --ui-text: #e8edf4;
   --ui-muted: #929eae;
   --ui-ok: #7fd6a0;
@@ -25,6 +27,46 @@
    */
   --ui-radius-lg: 8px;
   --ui-radius-sm: 4px;
+}
+
+:root[data-theme='white'] {
+  color-scheme: light;
+  --ui-bg: #edf0f2;
+  --ui-panel: rgba(255, 255, 255, 0.9);
+  --ui-panel-solid: rgba(255, 255, 255, 0.98);
+  --ui-surface: rgba(34, 52, 65, 0.055);
+  --ui-border: rgba(28, 46, 59, 0.14);
+  --ui-border-strong: rgba(28, 46, 59, 0.24);
+  --ui-gold: #315f7d;
+  --ui-gold-soft: rgba(49, 95, 125, 0.28);
+  --ui-accent-rgb: 49, 95, 125;
+  --ui-accent-ink: #ffffff;
+  --ui-text: #1f2931;
+  --ui-muted: #62717c;
+  --ui-ok: #2f8558;
+  --ui-bad: #b74848;
+  --ui-wait: #a17416;
+  --ui-shadow: 0 10px 32px rgba(30, 45, 55, 0.16);
+}
+
+:root[data-theme='normal'] {
+  color-scheme: light;
+  --ui-bg: #dfe4e7;
+  --ui-panel: rgba(247, 249, 250, 0.86);
+  --ui-panel-solid: rgba(250, 251, 252, 0.97);
+  --ui-surface: rgba(24, 46, 60, 0.065);
+  --ui-border: rgba(24, 46, 60, 0.16);
+  --ui-border-strong: rgba(24, 46, 60, 0.27);
+  --ui-gold: #245b7a;
+  --ui-gold-soft: rgba(36, 91, 122, 0.28);
+  --ui-accent-rgb: 36, 91, 122;
+  --ui-accent-ink: #ffffff;
+  --ui-text: #1e2a33;
+  --ui-muted: #5d6b75;
+  --ui-ok: #2f8056;
+  --ui-bad: #b54742;
+  --ui-wait: #98701a;
+  --ui-shadow: 0 10px 32px rgba(25, 42, 53, 0.18);
 }
 
 * {
@@ -59,15 +101,15 @@ body {
   z-index: 1;
   pointer-events: none;
   background:
-    radial-gradient(circle at 18% 12%, rgba(242, 198, 109, 0.055), transparent 28rem),
+    radial-gradient(circle at 18% 12%, rgba(var(--ui-accent-rgb), 0.07), transparent 28rem),
     linear-gradient(
       180deg,
-      rgba(6, 10, 13, 0.18),
+      rgba(6, 10, 13, 0.12),
       transparent 18%,
       transparent 78%,
-      rgba(6, 10, 13, 0.28)
+      rgba(6, 10, 13, 0.18)
     );
-  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.14);
 }
 
 #hud-top {
@@ -148,12 +190,11 @@ body {
   max-height: min(430px, 60vh);
 }
 
-/* 模态转换点图标覆盖层:内联 SVG 图标画在地图之上。
-   放在 #app 下、晚于 deck.gl overlay 插入,因此压在路网图层之上。 */
+/* 模态转换点图标覆盖层:位于路网之上、所有业务面板之下。 */
 .transfer-point-overlay {
   position: absolute;
   inset: 0;
-  z-index: 25;
+  z-index: 5;
   pointer-events: none;
   overflow: hidden;
 }
@@ -168,12 +209,23 @@ body {
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.65));
 }
 
+.transfer-point-marker__backing {
+  fill: var(--ui-panel-solid);
+  stroke: var(--ui-gold-soft);
+  stroke-width: 1;
+}
+
+.transfer-point-marker__glyph {
+  fill: var(--ui-gold);
+}
+
 #hud-status {
   position: absolute;
   left: 16px;
   bottom: 16px;
   z-index: 10;
   display: flex;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
@@ -183,7 +235,8 @@ body {
   position: absolute;
   top: 92px;
   right: 16px;
-  bottom: 48px;
+  /* 为右下角路网着色控件留出空间。 */
+  bottom: 232px;
   z-index: 20;
   width: min(540px, calc(100vw - 32px));
   display: flex;
@@ -396,7 +449,7 @@ body {
     top: auto;
     left: 16px;
     right: 16px;
-    bottom: 66px;
+    bottom: 258px;
     width: auto;
     max-height: 45vh;
   }
@@ -440,6 +493,26 @@ body {
 .chip-wait {
   border-color: rgba(240, 200, 110, 0.45);
   color: var(--ui-wait);
+}
+
+/* 比例尺：作为底部状态条子项，紧跟“底图 · 当前主题”徽标。 */
+.maplibregl-ctrl-scale {
+  padding: 2px 5px;
+  color: var(--ui-text);
+  background: var(--ui-panel);
+  border: 1px solid var(--ui-border);
+  border-top: 0;
+  border-radius: 0 0 var(--ui-radius-sm) var(--ui-radius-sm);
+  box-shadow: var(--ui-shadow);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+#hud-status .maplibregl-ctrl-scale {
+  margin: 0;
+  flex: 0 0 auto;
 }
 
 /* MapLibre 控件贴合整体深色玻璃风格。 */
@@ -510,6 +583,193 @@ body {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ───────────────────────── 底图主题：白色 / 标准彩色 ───────────────────────── */
+
+:root:is([data-theme='white'], [data-theme='normal']) .mode-control,
+:root:is([data-theme='white'], [data-theme='normal']) .road-color-control,
+:root:is([data-theme='white'], [data-theme='normal']) .path-select,
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-property--floating,
+:root:is([data-theme='white'], [data-theme='normal']) .side-section,
+:root:is([data-theme='white'], [data-theme='normal']) #hud-top,
+:root:is([data-theme='white'], [data-theme='normal']) #loading {
+  color: var(--ui-text);
+  background:
+    linear-gradient(135deg, rgba(var(--ui-accent-rgb), 0.07), transparent 48%), var(--ui-panel);
+  border-color: var(--ui-border);
+  box-shadow: var(--ui-shadow);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .gis-panel,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-scope {
+  --gis-surface: var(--ui-panel);
+  --gis-surface-solid: var(--ui-panel-solid);
+  --gis-border: var(--ui-border);
+  --gis-border-strong: var(--ui-border-strong);
+  --gis-gold: var(--ui-gold);
+  --gis-gold-edge: var(--ui-gold-soft);
+  --gis-text: var(--ui-text);
+  --gis-muted: var(--ui-muted);
+  --gis-ok: var(--ui-ok);
+  --gis-bad: var(--ui-bad);
+  --gis-wait: var(--ui-wait);
+  --gis-shadow: var(--ui-shadow);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .gis-panel,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-card,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-kpi,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-table__row,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-weight__total,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-badge,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-placeholder,
+:root:is([data-theme='white'], [data-theme='normal']) .path-select__sequence,
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__row,
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__meta,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-property__tag {
+  background: var(--ui-surface);
+  border-color: var(--ui-border);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .gis-stats .gis-placeholder--overlay {
+  background: var(--ui-panel-solid);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .mode-control__button,
+:root:is([data-theme='white'], [data-theme='normal']) .road-color-control__button,
+:root:is([data-theme='white'], [data-theme='normal']) .path-select__toggle,
+:root:is([data-theme='white'], [data-theme='normal']) .path-select__clear,
+:root:is([data-theme='white'], [data-theme='normal']) .path-select__metric-button,
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__button,
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__node,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-input,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-button {
+  color: var(--ui-text);
+  background: var(--ui-surface);
+  border-color: var(--ui-border);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .mode-control__button:hover:not(:disabled),
+:root:is([data-theme='white'], [data-theme='normal']) .road-color-control__button:hover,
+:root:is([data-theme='white'], [data-theme='normal']) .path-select__toggle:hover,
+:root:is([data-theme='white'], [data-theme='normal']) .path-select__clear:hover:not(:disabled),
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__button:hover:not(:disabled) {
+  color: var(--ui-gold);
+  border-color: var(--ui-gold-soft);
+  background: rgba(var(--ui-accent-rgb), 0.08);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .mode-control__button.is-active,
+:root:is([data-theme='white'], [data-theme='normal']) .road-color-control__button.is-active,
+:root:is([data-theme='white'], [data-theme='normal'])
+  .path-select__metric-button.is-active:not(:disabled),
+:root:is([data-theme='white'], [data-theme='normal'])
+  .path-select__cross-toggle.is-active:not(:disabled),
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__button.is-primary,
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__button.is-save {
+  color: var(--ui-accent-ink);
+  background: var(--ui-gold);
+  border-color: var(--ui-gold);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .mode-control__title,
+:root:is([data-theme='white'], [data-theme='normal']) .road-color-control__title,
+:root:is([data-theme='white'], [data-theme='normal']) .road-color-control__legend-title,
+:root:is([data-theme='white'], [data-theme='normal']) .path-select__title,
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__title,
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__meta-title,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-panel__title,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-property__name,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-property__kind,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-card__title,
+:root:is([data-theme='white'], [data-theme='normal']) #hud-top h1 {
+  color: var(--ui-gold);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .mode-control__status,
+:root:is([data-theme='white'], [data-theme='normal']) .mode-control__note,
+:root:is([data-theme='white'], [data-theme='normal']) .road-color-control__note,
+:root:is([data-theme='white'], [data-theme='normal']) .road-color-control__legend-label,
+:root:is([data-theme='white'], [data-theme='normal']) .path-select__metric-label,
+:root:is([data-theme='white'], [data-theme='normal']) .path-select__status,
+:root:is([data-theme='white'], [data-theme='normal']) .path-select__sequence-hint,
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__mode,
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__status,
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__route,
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__source,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-panel__subtitle,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-card__hint,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-note,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-property__label,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-property__subtitle,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-property__tag-key,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-property__watermark,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-kpi__label,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-kpi__hint,
+:root:is([data-theme='white'], [data-theme='normal']) #hud-top p {
+  color: var(--ui-muted);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__kind,
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__meta-value,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-property__value,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-table__cell,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-weight__total-value {
+  color: var(--ui-text);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .gis-panel,
+:root:is([data-theme='white'], [data-theme='normal']) .path-select__metric,
+:root:is([data-theme='white'], [data-theme='normal']) .path-select__cross,
+:root:is([data-theme='white'], [data-theme='normal']) .path-select__status,
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__head,
+:root:is([data-theme='white'], [data-theme='normal']) .gis-note--summary {
+  border-color: var(--ui-border);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .side-section:not(.is-collapsed) {
+  border-color: var(--ui-gold-soft);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .side-section__toggle:hover {
+  background: var(--ui-surface);
+  color: var(--ui-gold);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .turn-editor__row.is-forbidden {
+  border-color: rgba(184, 72, 72, 0.34);
+  background: rgba(184, 72, 72, 0.08);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .chip {
+  color: var(--ui-muted);
+  background: var(--ui-panel);
+  border-color: var(--ui-border);
+  box-shadow: var(--ui-shadow);
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .maplibregl-ctrl-icon {
+  filter: none;
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .maplibregl-ctrl-group button:hover {
+  background: rgba(var(--ui-accent-rgb), 0.1) !important;
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .maplibregl-ctrl-attrib,
+:root:is([data-theme='white'], [data-theme='normal']) .maplibregl-ctrl-attrib a {
+  color: var(--ui-text) !important;
+}
+
+:root:is([data-theme='white'], [data-theme='normal']) .maplibregl-ctrl-attrib {
+  background: rgba(255, 255, 255, 0.84) !important;
+}
+
+/* ECharts 画布仍由 D 的深色主题生成；轻主题下做反向校正以保证文字可读。 */
+:root:is([data-theme='white'], [data-theme='normal']) .gis-card__body canvas {
+  filter: invert(1) hue-rotate(180deg) saturate(0.72) contrast(0.92);
 }
 
 @media (prefers-reduced-motion: reduce) {
