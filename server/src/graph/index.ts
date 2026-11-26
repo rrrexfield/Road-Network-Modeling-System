@@ -15,3 +15,13 @@ export {
   type TransferUsage,
   type MultiModalPath,
 } from './multimodal-dijkstra.js';
+export {
+  compressTopology,
+  compressEdgeWeight,
+  CompressedGraph,
+  type CompressedEdge,
+  type CompressedPath,
+  type CompressionStats,
+  type CompressionInput,
+  type WayBoundaryQuery,
+} from './compression.js';

@@ -12,6 +12,12 @@
 - 新端点 `GET /api/weights/traffic` 下发默认拥堵曲线/敏感度/预置事件,供前端面板与 E 的时间轴动画(issue #66)对齐。
 - 前端:权重面板新增"时段模拟"区(0–24h 滑杆 + 拥堵/事件开关,onChange 增量第二参数);统计面板新增可达性卡片(起点/预算/模态 + KPI + 分等级可达里程条形图,接口未就绪显示占位态);demo 页端到端接线。
 - shared/ 契约字段草案(AccessibilityReport 等)已提交 A 冻结(见 docs/plans/d-sprint3-weights-stats.md §2.3),冻结前类型留在 D 模块;武汉实测数值待 A/C 在有 data/wuhan.json 的机器回填(命令已给)。全仓 53 文件 450 项测试、三包 typecheck、ESLint、改动文件 Prettier 全绿;只改 D 目录。
+### Added(作业三 · B 度-2 节点压缩 + 压缩图/原图双向映射,issue #64)
+
+- 新增 `server/src/graph/compression.ts`:`compressTopology` 度-2 节点压缩(连续直行路段合并为压缩边)。判定口径按**去重后的邻居数** `|{w | 存在边 v→w 或 w→v }| == 2`(不得用有向度),保留集五类——语义保留节点(禁转 via/换乘端点,由 `protectedNodes` 传入)、属性变化点(`wayBoundary.hasBoundary`)、方向模式变化点(非「干净直通」)、链端点(邻居数≠2)、纯环(整体保留)。压缩边记录 `originalEdgeIds` + 起止原图节点 + Σ 原边 Haversine 长度;压缩图满足 `ReadonlyAdjacency`,可直接供禁转/多模态寻路。
+- `CompressedGraph.expandEdgeIds` / `expandPath` 实现压缩路径→原图边/节点序列的逐边还原;`compressEdgeWeight` 按「逐原边求权再求和」构造压缩边权(时间口径不先平均速度再乘总长)。
+- 新增 10 项单元测试(直行链、双向路中间点、保留集各场景、路径还原一致、权重累计);graph 模块 47 项测试、server typecheck、ESLint 全绿。
+- 武汉实测(car 模态):532,029 节点 / 986,418 有向边 → 78,780 节点 / 187,570 有向边,节点压缩比 **85.2%**、边压缩比 **81.0%**(压缩耗时约 7.3 s);公平口径(两边均预计算边长)下随机保留节点对查询提速 **6.25×**。实现说明见 `docs/plans/b-sprint3-compression.md`。
 
 ### Added(作业三看板就位与 C 压缩输入合入,issue #63/#64/#65/#66/#69,PR #68)
 
