@@ -1,5 +1,7 @@
 # GISAlgo · 路网建模与拓扑构建系统(G2 组)
 
+2026-11-26 作业三集成完成：B 的 PR #72（度-2 压缩，main `ea24107`）与 D 的 PR #73（拥堵/事件时间槽权重 + 等时圈可达性，main `4f60a60`）已由 A 评审并合入；A 冻结 `shared/` 的 Sprint 3 契约，`/api/path` 新增 `compressed=1`（压缩/原图可切换）与 `hour/congestion/events` 交通参数，新增 `GET /api/compression?mode=`。验收清单与武汉实测见 [作业三验收清单](docs/作业三验收清单.md)。
+
 2026-11-20 作业三看板：PR #68（C 的作业三压缩输入接口 `CompressionWayIndex` / `collectCompressionProtectedNodes` / `PersistentTurnService.getCompressionState`）已由 A 评审并合入 main（`556c274`）；缺口单 #64(B 度-2 压缩) / #65(D 拥堵·事件·可达性) / #66(E 权重可视化) 已指派并附 A 的口径，A 侧跟踪单为 #69。分工与交付口径见 [作业三分工文档](docs/plans/a-sprint3-division.md)。
 
 2026-11-12 C 作业三压缩输入（`feature/compression-topology-input`，已合入 main `556c274`）：新增道路属性边界查询、禁转保留节点/版本快照及语义保留集合并，供 B/A 接入；未实现压缩算法或修改网页接口。见 [交接说明](docs/plans/c-sprint3-compression-input.md)。
@@ -133,6 +135,10 @@ data/derived/wuhan-roads.json (~30MB, 不入库)
 | GET | `/api/path` | 起终点选路:`from=lon,lat&to=lon,lat&metric=distance\|time`,服务端吸附到最近节点后跑 Dijkstra,返回 `PathResult` + 吸附坐标 + 路径折线;不可达返回 404。支持 `speedFactor`、`speedKmh=等级:限速,…`(与 `/api/stats` 同口径) |
 | GET | `/api/path?mode=car\|walk\|bike\|bus` | 同上,但走**该模态子图**并施加该模态的禁转(编辑器保存的禁转会立即改变路径);时间口径按该模态速度表换算;**不带 `mode` 时走基础图、不施加禁转**,与作业一行为一致 |
 | GET | `/api/path?modes=car,walk` | **跨模态路径**(issue #34):`modes` 是逗号分隔的**有序**模态序列(至少两个),服务端在模态子图之间按转换点换乘,返回 `segments` 分段明细(段间以 `TransferPoint.id` 相接);`transferPenaltySeconds` 单独给出换乘罚时(不计入 `distance`);与 `mode` 互斥,无可用换乘连接或不可达返回 404 |
+| GET | `/api/path?...&hour=&congestion=&events=&compressed=1` | 作业三参数:`hour=8.5` 启用拥堵时间槽(缺省不启用),`congestion=off` 只关拥堵、`events=off` 只关事件;`compressed=1` 在**压缩图**上求解(必须与单模态 `mode` 同用、与 `modes=` 互斥),结果按 `expandPath` 还原为原图节点/边,响应 `compression.applied` 标明是否实际使用压缩(端点被压缩时透明回退原图) |
+| GET | `/api/compression?mode=car\|walk\|bike\|bus` | 压缩图统计(`CompressionReportResponse`):压缩前后节点/有向边、压缩比、保留节点数、构建耗时、禁转表版本;首次请求触发构建(约 5–9 s),之后按 `(mode, 禁转版本号)` 命中运行时缓存 |
+| GET | `/api/accessibility?origin=&budget=&mode=&hour=` | 等时圈可达性:预算(分钟,默认 15,上限 120)内可达节点/边/里程与分等级里程;按边统计、两端均可达才计入,时间权重与 `/api/path` 同源;`origin` 缺失 400、未知 404 |
+| GET | `/api/weights/traffic` | 拥堵曲线(默认 30 分钟槽 + 11 锚点)、等级敏感度与预置事件列表,供权重面板与时间轴动画对齐 |
 | GET | `/api/weights/profile` | 权重基线:默认 `WeightProfile` + 各等级默认限速表 |
 | GET | `/api/stats` | 网络统计:里程/等级分布/边长分布/通行时间/拓扑指标;支持 `metric`、`speedFactor`、`speedKmh=等级:限速,…`;结果按配置缓存 |
 | WS | `/ws` | 消息信封 `{ type, payload }`;连接即推 `hello`(有向边数),支持 `ping`/`pong` |

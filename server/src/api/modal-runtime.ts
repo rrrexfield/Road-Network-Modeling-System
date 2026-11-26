@@ -15,11 +15,33 @@ import type {
   TravelMode,
   WayProperties,
 } from '@gisalgo/shared';
-import { createAdjacencyView, type ReadonlyAdjacency } from '../graph/index.js';
-import { getTransferPoints, PersistentTurnService, type LoadedNetwork } from '../io/index.js';
-import { buildModalTopology, type NodeAccessReport, type TopologyResult } from '../topology/index.js';
+import {
+  compressTopology,
+  createAdjacencyView,
+  type CompressedGraph,
+  type CompressionStats,
+  type ReadonlyAdjacency,
+} from '../graph/index.js';
+import {
+  getTransferPoints,
+  PersistentTurnService,
+  type LoadedNetwork,
+  type TransferPointData,
+} from '../io/index.js';
+import {
+  buildModalTopology,
+  collectCompressionProtectedNodes,
+  CompressionWayIndex,
+  matchTransferConnections,
+  type NodeAccessReport,
+  type TopologyResult,
+} from '../topology/index.js';
 import { IntersectionIndex } from './intersection-index.js';
-import { buildTransferLinks, type TransferLinkEntry } from './transfer-links.js';
+import {
+  buildTransferLinks,
+  CANDIDATE_RADIUS_METERS,
+  type TransferLinkEntry,
+} from './transfer-links.js';
 
 /** 服务端支持的交通模态,与 shared 的 TravelMode 取值一致。 */
 export const TRAVEL_MODES: readonly TravelMode[] = ['car', 'walk', 'bike', 'bus'];
@@ -27,6 +49,23 @@ export const TRAVEL_MODES: readonly TravelMode[] = ['car', 'walk', 'bike', 'bus'
 /** 判断查询参数是否为受支持的模态。 */
 export function isTravelMode(value: unknown): value is TravelMode {
   return typeof value === 'string' && (TRAVEL_MODES as readonly string[]).includes(value);
+}
+
+/**
+ * 单个模态的压缩图视图。
+ *
+ * 压缩图按 `(mode, 禁转表版本号)` 惰性构建并缓存在 `ModalRuntime` 实例上——
+ * 缓存随运行时的 LRU 淘汰一起释放，不会把已被淘汰的模态图钉在内存里。
+ */
+export interface CompressionView {
+  graph: CompressedGraph;
+  stats: CompressionStats;
+  /** 构建时使用的禁转表版本号；版本变化后下次取图会重建。 */
+  turnVersion: number;
+  /** 进入保留集的节点数（禁转 via + 换乘端点 + 属性/方向边界等）。 */
+  protectedNodeCount: number;
+  /** 最近一次构建耗时（毫秒）。 */
+  buildMs: number;
 }
 
 /**
@@ -40,6 +79,9 @@ export class ModalRuntime {
   private wayHighwayCache: ReadonlyMap<number, string> | null = null;
   private intersectionIndexCache: IntersectionIndex | null = null;
   private wayNamesCache: ReadonlyMap<number, string> | null = null;
+  private wayIndexCache: CompressionWayIndex | null = null;
+  private transferProtectedCache: ReadonlySet<number> | null = null;
+  private compressedCache: { version: number; view: CompressionView } | null = null;
 
   constructor(
     readonly mode: TravelMode,
@@ -56,6 +98,8 @@ export class ModalRuntime {
      * `excludedNodes` 列出被排除的节点与原因（如闸机需许可、条件准入）。
      */
     readonly nodeAccess: NodeAccessReport,
+    /** 转换点数据；用于把换乘端点并入压缩保留集。 */
+    readonly transferPoints: TransferPointData,
   ) {}
 
   /** 该模态的只读邻接视图；首次访问才构建（轻量：不预计算边长/出入度/紧凑坐标）。 */
@@ -94,6 +138,71 @@ export class ModalRuntime {
       this.intersectionIndexCache = new IntersectionIndex(this.topology.nodes, this.topology.edges);
     }
     return this.intersectionIndexCache;
+  }
+
+  /**
+   * 取该模态的压缩图视图（作业三，issue #69）。
+   *
+   * 缓存键 = 禁转表版本号：禁转保存后版本 +1，下次取图自动重建；只保留一个版本，
+   * 缓存挂在实例上，随运行时 LRU 淘汰一起释放。压缩函数本身是纯函数，不缓存不持久化。
+   *
+   * 换乘端点用 C 的 `matchTransferConnections` 在本模态节点表上匹配：
+   * `buildTransferLinks` 需要另一模态的节点表，单模态请求里构造其它模态会触发
+   * LRU 抖动与 GB 级内存；匹配结果覆盖该模态全部潜在换乘端点，是连接表端点的
+   * **保守超集**（只会多保留节点，不会漏保护）。
+   */
+  compressedView(): { view: CompressionView; fresh: boolean } {
+    const state = this.service.getCompressionState();
+    if (this.compressedCache !== null && this.compressedCache.version === state.version) {
+      return { view: this.compressedCache.view, fresh: false };
+    }
+    const startedAt = performance.now();
+    // 禁转绕行可能需要在 via 的**相邻节点掉头**：压缩掉该相邻节点会把这条合法绕行
+    // 从图里抹掉，压缩路径虽仍合法但可能非最优（武汉 walk 实测发现）。这里把 via 的
+    // 一邻域也纳入保留集；这是保守的一跳保护，不声称覆盖多跳绕行掉头。
+    const viaSet = new Set(state.protectedNodeIds);
+    const turnViaNodeIds = new Set(state.protectedNodeIds);
+    for (const edge of this.topology.edges) {
+      if (viaSet.has(edge.from)) turnViaNodeIds.add(edge.to);
+      if (viaSet.has(edge.to)) turnViaNodeIds.add(edge.from);
+    }
+    const protectedNodes = collectCompressionProtectedNodes(this.topology.nodes, {
+      turnViaNodeIds,
+      transferNodeIds: this.transferProtectedNodes(),
+    });
+    if (this.wayIndexCache === null) {
+      this.wayIndexCache = new CompressionWayIndex(this.topology.ways);
+    }
+    const graph = compressTopology({
+      nodes: this.topology.nodes,
+      edges: this.topology.edges,
+      protectedNodes,
+      wayBoundary: this.wayIndexCache,
+    });
+    const view: CompressionView = {
+      graph,
+      stats: graph.stats,
+      turnVersion: state.version,
+      protectedNodeCount: protectedNodes.size,
+      buildMs: Math.round(performance.now() - startedAt),
+    };
+    this.compressedCache = { version: state.version, view };
+    return { view, fresh: true };
+  }
+
+  private transferProtectedNodes(): ReadonlySet<number> {
+    if (this.transferProtectedCache !== null) return this.transferProtectedCache;
+    const report = matchTransferConnections(
+      this.transferPoints,
+      { [this.mode]: this.topology.nodes },
+      CANDIDATE_RADIUS_METERS[this.mode],
+    );
+    const nodes = new Set<number>();
+    for (const match of report.matches) {
+      if (match.mode === this.mode) nodes.add(match.nodeId);
+    }
+    this.transferProtectedCache = nodes;
+    return nodes;
   }
 }
 
@@ -255,6 +364,7 @@ export class ModalRuntimeRegistry {
       service,
       modal.excludedWays,
       modal.nodeAccess,
+      this.network.transferPoints,
     );
   }
 

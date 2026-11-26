@@ -92,6 +92,17 @@ export interface PathResponse extends PathResult {
    * 单模态路径缺省。
    */
   transferPenaltySeconds?: number;
+  /**
+   * 路径是否以压缩图求解（作业三，issue #69）。
+   *
+   * 缺省表示请求未启用压缩；`applied=false` 表示端点落在被压缩节点上，
+   * 已透明回退到原图求解（结果与不压缩一致）。
+   */
+  compression?: {
+    applied: boolean;
+    /** 求解时使用的禁转表版本号。 */
+    turnVersion: number;
+  };
 }
 
 /** 拓扑统计报告（graph 模块 computeTopologyStats 输出）。度均为有向度（入度 + 出度）。 */
@@ -366,6 +377,125 @@ export interface TransferPoint {
   name?: string;
   /** 位置 [lon, lat]。 */
   position: [number, number];
+}
+
+/* ==================== Sprint 3 · 压缩、拥堵与可达性 ==================== */
+
+/**
+ * 路网压缩前后规模统计（`GET /api/compression`，已冻结 issue #69）。
+ *
+ * 口径与 `/api/health` 的 `edgeCount` 一致：节点数为拓扑节点数，边数为**有向边**数
+ * （双向道路计两条）。压缩不改变原图边集，只把可压缩的度-2 直行链合并为压缩边。
+ */
+export interface CompressionStats {
+  originalNodeCount: number;
+  originalEdgeCount: number;
+  compressedNodeCount: number;
+  compressedEdgeCount: number;
+  /** 被压缩掉的节点数 = originalNodeCount - compressedNodeCount。 */
+  contractedNodeCount: number;
+  /** 节点压缩比（0–1）：1 - compressedNodeCount / originalNodeCount。 */
+  nodeReduction: number;
+  /** 边压缩比（0–1）：1 - compressedEdgeCount / originalEdgeCount。 */
+  edgeReduction: number;
+}
+
+/**
+ * `GET /api/compression?mode=` 响应（已冻结 issue #69）。
+ *
+ * 压缩图按 `(mode, 禁转表版本号)` 惰性构建，并缓存于该模态运行时实例：
+ * `turnVersion` 变化（禁转被保存）后，下一次请求会重建；`buildMs` 是最近一次
+ * 构建耗时，`cached` 表示本次请求是否直接命中已有缓存。
+ */
+export interface CompressionReportResponse {
+  mode: TravelMode;
+  /** 当前实际禁转 via 节点集合对应的版本号（实例内递增）。 */
+  turnVersion: number;
+  /** 压缩时进入保留集的节点数（禁转 via + 换乘端点 + 属性/方向边界等）。 */
+  protectedNodeCount: number;
+  /** 最近一次压缩构建耗时（毫秒）。 */
+  buildMs: number;
+  /** 本次请求是否命中缓存（false 表示刚完成一次构建）。 */
+  cached: boolean;
+  stats: CompressionStats;
+}
+
+/** 可达里程按 highway 等级聚合的一档（按里程降序）。 */
+export interface AccessibilityByHighway {
+  highway: string;
+  edgeCount: number;
+  lengthMeters: number;
+  /** 该等级可达里程占全部可达里程的比例，0–1。 */
+  lengthShare: number;
+}
+
+/** 可达性计算的交通条件回显；未启用拥堵/事件时整项为 null。 */
+export interface AccessibilityTrafficSummary {
+  hourOfDay: number;
+  congestionEnabled: boolean;
+  appliedEventCount: number;
+}
+
+/**
+ * 等时圈可达性报告（`GET /api/accessibility`，已冻结 issue #69）。
+ *
+ * 口径（实现理由见 `server/src/weights/accessibility.ts`）：
+ * - 按**边**统计里程，且**两端均可达**才计入（way 横跨可达边界会高估）；
+ * - 时间权重与 `/api/path` 同源（模态速度 + 权重配置 + 拥堵时间槽 + 事件）。
+ */
+export interface AccessibilityReport {
+  originNode: number;
+  /** 时间预算（秒）。 */
+  budgetSeconds: number;
+  mode: TravelMode;
+  /** 预算内可达节点数（含起点）。 */
+  reachableNodeCount: number;
+  /** 两端均可达的有向边数。 */
+  reachableEdgeCount: number;
+  reachableLengthMeters: number;
+  byHighway: AccessibilityByHighway[];
+  /** 是否触达搜索安全上限（正常为 false）。 */
+  truncated: boolean;
+  /** 参与计算的权重配置，便于前端回显。 */
+  profile: WeightProfile;
+  /** 交通条件回显；未启用拥堵/事件时为 null。 */
+  traffic: AccessibilityTrafficSummary | null;
+}
+
+/** 拥堵曲线锚点：[钟点 0–24, 拥堵系数]。 */
+export type CongestionAnchor = readonly [hour: number, factor: number];
+
+/**
+ * 拥堵时间槽参数（`GET /api/weights/traffic`，已冻结 issue #69）。
+ *
+ * 槽内系数恒定 = 曲线在槽中点的线性插值 × 等级敏感度。
+ * 拥堵系数**乘在时间上**（1 = 不拥堵，1.85 = 慢 85%）。
+ */
+export interface CongestionProfile {
+  /** 时间槽长度（分钟），默认 30。 */
+  slotMinutes: number;
+  /** 日曲线锚点；按钟点排序后线性插值。 */
+  curve: readonly CongestionAnchor[];
+  /** highway 等级 → 拥堵敏感度；未收录按 1。 */
+  highwaySensitivity: Record<string, number>;
+}
+
+/** 交通事件类型：closure = 路段封闭（不可通行）；incident = 事故降速。 */
+export type TrafficEventKind = 'closure' | 'incident';
+
+/**
+ * 确定性交通事件（已冻结 issue #69）。
+ *
+ * 事件按 **way** 粒度生效：任一 closure 命中即不可通行；多个 incident 的
+ * speedFactor 连乘。`activeHours` 为 [start, end) 钟点区间，缺省全天。
+ */
+export interface TrafficEvent {
+  wayIds: readonly number[];
+  kind: TrafficEventKind;
+  /** incident 的剩余通行能力乘子（0–1）；closure 忽略。 */
+  speedFactor?: number;
+  /** 生效钟点区间 [start, end)，0–24。 */
+  activeHours?: readonly [number, number];
 }
 
 /** 派生数据文件元信息 */

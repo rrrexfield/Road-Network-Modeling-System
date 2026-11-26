@@ -96,6 +96,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## 三、多人协作同步区(随项目增量更新)
 
+**最后更新:2026-11-26(作业三 A 侧集成:PR #72/#73 合入 + shared 契约冻结 + 压缩/交通接线 + 验收清单)**
+
+2026-11-26 A 交付。**①PR #72(B 度-2 压缩)与 PR #73(D 拥堵/事件/可达性)已评审并合入 main(`ea24107`/`4f60a60`)**;#73 与 #72 的 CHANGELOG/AI日志 冲突由 A 把 main 合入 D 分支解决。**②`shared/src/index.ts` 冻结 Sprint 3 契约**:`CompressionStats`、`CompressionReportResponse`、`AccessibilityByHighway`、`AccessibilityReport`(含 `profile` 与 `traffic` 摘要)、`AccessibilityTrafficSummary`、`CongestionAnchor`、`CongestionProfile`、`TrafficEventKind`、`TrafficEvent`;`PathResponse` 增加可选 `compression?: { applied, turnVersion }`(非破坏性)。D/B 后续把本地类型改为 re-export 即可,不得再重复定义。压缩边记录(`originalEdgeIds`)留在图模块内部,不下发前端。**③运行时接线**:`/api/path` 新增 `compressed=1|0`(只接受显式值,必须与单模态 `mode` 同用,与 `modes=` 互斥);压缩图按 `(mode, 禁转表版本号)` 惰性构建,**缓存挂在 `ModalRuntime` 实例**上;禁转谓词把合成边 id 映射为压缩边内首/末原图边;路径 `expandPath` 还原原图节点/边;端点落在被压缩节点时透明回退原图并返回 `applied=false`。新增 `GET /api/compression?mode=`。**④保留集补充**:除 issue #63 的五类外,把**禁转 via 节点的一邻域**也保留——真实数据复测发现禁转绕行需要在 via 相邻节点掉头,压缩掉该节点会让压缩路径合法但非最优(542.97 m vs 原图 491.75 m);加入后逐位一致。多跳绕行掉头仍不保证。**⑤交通接线**:`/api/path` 用 `parseTrafficParams(query, TRAFFIC_EVENTS)` 作为 `createModeEdgeWeight` 第 4 参,`server/src/index.ts` 同时传给 `/api/stats`(事件场景暂为空数组)。**⑥验收**:新增 9 项接线测试,全仓 55 文件 469 项、三包 typecheck、ESLint、前端构建全绿;新增 `docs/作业三验收清单.md`。武汉实测:car 532,029/986,418 → 78,955/187,784(节点 85.16%、边 80.96%);同一保留节点对压缩/原图路径逐位一致;walk 禁转闭环 451.42→491.75→恢复、版本 +1;hour=8.5 时间 212.93→365.87 s、`congestion=off` 回基线;可达性 5/15/30 分钟 5,117/116,265/273,652 节点。**已知**:`data/derived/wuhan-turns.sqlite` car 数据集存在 missing-segment(ordinal 49),服务拒绝覆盖(409),car 禁转写入演示改用 walk;端到端路径耗时被 O(V) 吸附主导,搜索内核 6.25×(B)。
+
 **C作业三最后更新：2026-11-12（feature/compression-topology-input，已由 A 评审并合入 main `556c274`）**
 
 topology新增CompressionWayIndex（way原属性只读查询/边界比较）及collectCompressionProtectedNodes（当前图禁转/换乘节点合并）；io的PersistentTurnService新增getCompressionState返回当前禁转via节点和实例内版本。成功setTurns后版本递增、失败不变；缓存绑定运行时实例，不跨实例比较版本。无shared/API/数据库格式改动，不重复B的邻接/度-2/方向判定；A/B仍须接入。交接见docs/plans/c-sprint3-compression-input.md。
@@ -103,6 +107,10 @@ topology新增CompressionWayIndex（way原属性只读查询/边界比较）及c
 **C节点准入补充最后更新:2026-11-06（fix/node-access分支，待A评审接入）**
 
 topology的buildModalTopology增加可选第四参数NodeTags，返回nodeAccess（checked/excludedNodes/excludedEdgeCount）；未传保持旧行为并checked=false。按模式过滤受限/未决节点的相邻段，不跨缺口补边，剩余edgeId和原始way属性不改；unknown/无许可屏障保守排除，并非实景禁行认证。io/createTurnRuntime已传nodeTags，A的ModalRuntimeRegistry两处调用尚需接入并重建Graph/转向/nearest索引及换乘缓存；未改A/B/E或shared。399项测试及类型/lint/build通过，策略和武汉实测见docs/plans/c-node-access-ready.md。线上功能尚未据此完成修复。
+
+**D作业三最后更新:2026-11-26(feature/d-sprint3-traffic-accessibility,已由 A 评审并合入 main `4f60a60`)**
+
+weights新增traffic.ts(确定性时间槽拥堵+路段事件)与accessibility.ts(等时圈),createModeEdgeWeight增加可选第4参TrafficConditions(缺省与Sprint2逐位一致);合成顺序钉死:有效速度=基础速度÷拥堵系数×事件乘子,拥堵/降速只作用time口径,封闭对time/distance均生效。parseTrafficParams与parseWeightProfileParams同在weights/routes.ts收口;新端点/api/accessibility(随registerWeightRoutes注册,A无需接线)与/api/weights/traffic(曲线/事件下发,供#66动画对齐)。前端权重面板加时段模拟区、统计面板加可达性卡片,onChange第二参数为增量。shared契约字段草案(AccessibilityReport等)已由A冻结,本地类型待D改为re-export;武汉实测数值已由A在验收清单回填。450项测试/typecheck/lint全绿,只改D目录;详见docs/plans/d-sprint3-weights-stats.md。
 
 > **更新义务**:本节是全员对齐的关键约定。每当 API、契约类型、目录结构或规范发生变化,Agent 必须在完成改动后**自动总结并更新本节**,并在"最后更新"处标注日期。
 

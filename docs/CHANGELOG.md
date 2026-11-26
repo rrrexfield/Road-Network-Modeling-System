@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+### Added(作业三 A 侧交付：契约冻结、压缩/原图路径切换与交通接线,issue #69/#74)
+
+- **PR #72（B 的度-2 压缩）与 PR #73（D 的拥堵/事件/可达性）已由 A 评审并合入 main**；#73 与 #72 在 CHANGELOG/AI日志 上冲突，由 A 把 main 合入 D 的分支并保留双方条目后合并。
+- `shared/src/index.ts` 冻结 Sprint 3 契约：`CompressionStats`、`CompressionReportResponse`、`AccessibilityByHighway`、`AccessibilityReport`（含 `profile` 与 `traffic` 摘要，补齐 D 草案遗漏）、`AccessibilityTrafficSummary`、`CongestionAnchor`、`CongestionProfile`、`TrafficEventKind`、`TrafficEvent`；`PathResponse` 增加可选 `compression?: { applied, turnVersion }`（非破坏性）。压缩边记录（`originalEdgeIds` 等）保留在图模块内部，不上线到前端。
+- `server/src/api/routes.ts`：`/api/path` 新增 `compressed=1|0`（只接受显式值，其它 400；必须与单模态 `mode` 同用）：在压缩图上用 `dijkstraWithTurnRestrictions` 求解，禁转谓词把合成边 id 映射为压缩边内**首/末原图边**，路径用 `expandPath` 还原为原图节点/边序列，距离/时间仍按逐原边权重求和；端点落在被压缩节点时**透明回退原图**并返回 `applied=false`。新增 `GET /api/compression?mode=` 返回压缩前后规模、压缩比、保留节点数、构建耗时与禁转版本（400/501/503 与既有错误码一致）。
+- `server/src/api/modal-runtime.ts`：压缩图按 `(mode, 禁转表版本号)` 惰性构建并**缓存于运行时实例**（随 LRU 淘汰释放）；换乘端点用 C 的 `matchTransferConnections` 在本模态节点表上匹配（`buildTransferLinks` 需要另一模态节点表，单模态请求构造其它模态会触发 LRU 抖动与 GB 级内存），是连接表端点的保守超集；禁转 via 节点的一邻域也纳入保留集——真实数据复测发现禁转绕行需要在 via 相邻节点掉头，压缩掉该节点会让压缩路径合法但非最优。
+- `/api/path` 的交通参数：`parseTrafficParams(query, trafficEvents)` 作为 `createModeEdgeWeight` 第 4 参，`server/src/index.ts` 组装 `TRAFFIC_EVENTS` 并同时传给 `/api/stats`（先为空数组，事件影响由单测与路由级注入场景证明）。
+- 新增 `server/src/api/compression-routes.test.ts` 9 项：保留端点压缩/原图逐位一致、被压缩端点回退、禁转保存后版本 +1 与绕行、换乘端点保留、hour/congestion=off/预置封闭事件、`compressed` 非法组合 400、`/api/compression` 200/400/501/503。全仓 **55 文件 469 项测试**、三包 typecheck、ESLint、前端构建全绿。
+- 武汉实测（本机真实派生数据）：car 532,029 节点/986,418 有向边 → 78,955/187,784（节点 **85.16%**、边 **80.96%**，压缩 5,191 ms）；同一保留节点对 2 km 路径压缩/原图 `nodeIds/edgeIds/coordinates` 逐位一致（212.93239581397935 s vs …933 s），6 km 路径同样一致；walk 五路口禁转闭环 451.42 m → 491.75 m（压缩/原图一致）→ 清空恢复，版本 +1 与重建 5,874 ms；`hour=8.5` 时间从 212.93 s → 365.87 s 且 `congestion=off` 精确回基线；可达性 5/15/30 分钟为 5,117/116,265/273,652 节点，15 分钟高峰期收缩到 25,932 节点。新增 `docs/作业三验收清单.md`。
+- 真实数据已知问题：`data/derived/wuhan-turns.sqlite` 的 car 数据集存在 `missing-segment`（ordinal 49），服务按设计拒绝覆盖（409），car 禁转写入演示改用 walk；该文件为 gitignore 派生生成物，重建派生数据即可恢复。端到端路径耗时被 O(V) 坐标吸附主导（约 0.18 s/请求），压缩搜索收益在 API 层被掩盖，搜索内核公平基准 6.25×（B）。
+
 ### Added(D 作业三交付:拥堵/事件时间槽权重 + 等时圈可达性,issue #65)
 
 - `server/src/weights/traffic.ts`(新增):确定性时间槽拥堵模型——30 分钟槽(可配),槽系数=锚点日曲线在槽中点的线性插值 × 等级敏感度,槽内恒定保证"同输入同结果";路段级事件(closure 封闭 → 不可通行 / incident 降速乘子连乘,activeHours 控生效窗口)。合成顺序钉死:有效速度 = 基础速度 ÷ 拥堵系数 × 事件乘子;拥堵/降速只作用 time 口径,封闭对 time/distance 均生效。
