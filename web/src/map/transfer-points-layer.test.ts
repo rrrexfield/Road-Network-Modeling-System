@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { transferPointIconMarkup } from './transfer-point-icons.js';
-import { shouldShowTransferLabels } from './transfer-points-layer.js';
+import { shouldShowTransferLabels, transferPointIconScale } from './transfer-points-layer.js';
 
 describe('转换点图标', () => {
   it('每种转换点类型生成各自的内联 SVG', () => {
@@ -12,9 +12,8 @@ describe('转换点图标', () => {
     for (const [kind, svg] of Object.entries(markup)) {
       expect(svg.startsWith('<svg')).toBe(true);
       expect(svg).toContain('</svg>');
-      // 深色圆角底板 + 金色字形
-      expect(svg).toContain('rect');
-      expect(svg).toContain('#f2c66d');
+      expect(svg).toContain('transfer-point-marker__backing');
+      expect(svg).toContain('transfer-point-marker__glyph');
       expect(svg.length).toBeGreaterThan(100);
       expect(kind.length).toBeGreaterThan(0);
     }
@@ -34,7 +33,14 @@ describe('转换点图标', () => {
 
   it('只在放大到路口级后显示图标', () => {
     expect(shouldShowTransferLabels(12)).toBe(false);
-    expect(shouldShowTransferLabels(13.49)).toBe(false);
-    expect(shouldShowTransferLabels(13.5)).toBe(true);
+    expect(shouldShowTransferLabels(14.99)).toBe(false);
+    expect(shouldShowTransferLabels(15)).toBe(true);
+  });
+
+  it('路口级图标随缩放继续变大并封顶', () => {
+    expect(transferPointIconScale(15)).toBe(1);
+    expect(transferPointIconScale(17)).toBeGreaterThan(1);
+    expect(transferPointIconScale(20)).toBeGreaterThan(2);
+    expect(transferPointIconScale(30)).toBe(2.4);
   });
 });

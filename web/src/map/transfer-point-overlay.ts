@@ -14,6 +14,7 @@
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import type { TransferPoint } from '@gisalgo/shared';
 import { transferPointIconMarkup } from './transfer-point-icons.js';
+import { transferPointIconScale } from './transfer-points-layer.js';
 
 /** 覆盖层句柄。 */
 export interface TransferPointOverlay {
@@ -42,13 +43,20 @@ export function createTransferPointOverlay(map: MaplibreMap): TransferPointOverl
 
   function syncPositions(): void {
     const { width, height } = map.getCanvas().getBoundingClientRect();
+    const scale = transferPointIconScale(map.getZoom());
+    const margin = 24 * scale;
     for (const item of items.values()) {
       const point = map.project(item.position);
       const visible =
-        point.x >= -32 && point.y >= -32 && point.x <= width + 32 && point.y <= height + 32;
+        point.x >= -margin &&
+        point.y >= -margin &&
+        point.x <= width + margin &&
+        point.y <= height + margin;
       item.element.style.display = visible ? '' : 'none';
       if (!visible) continue;
-      item.element.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%)`;
+      item.element.style.left = `${point.x}px`;
+      item.element.style.top = `${point.y}px`;
+      item.element.style.transform = `translate(-50%, -50%) scale(${scale.toFixed(3)})`;
     }
   }
 

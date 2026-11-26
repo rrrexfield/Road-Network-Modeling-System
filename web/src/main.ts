@@ -1,6 +1,6 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './style.css';
-import { Map as MaplibreMap, NavigationControl } from 'maplibre-gl';
+import { Map as MaplibreMap, ScaleControl } from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PathLayer } from '@deck.gl/layers';
 import type { Layer } from '@deck.gl/core';
@@ -22,21 +22,35 @@ import {
   type WsStatus,
 } from './api-client';
 import {
-  BASEMAP_STYLE_URL,
+  MAP_THEME_LABELS,
+  MAP_THEME_STYLE_URLS,
   WUHAN_CENTER,
   WUHAN_ZOOM,
-  buildFallbackStyle,
+  createRoadColorControl,
   createModeControl,
   createPathSelection,
   createRoadsLayer,
   createTransferPointOverlay,
   createTransferPointsLayers,
+  createThemeControl,
   isBasemapReachable,
+  loadBasemapStyle,
+  readStoredMapTheme,
+  shouldShowTransferLabels,
+  storeMapTheme,
+  transportationLayerIds,
   travelModeLabel,
   type DisplayMode,
+  type MapTheme,
   type PathSelectionHandle,
+  type RoadColorMode,
 } from './map/index.js';
-import { createStatsPanel, fetchStats, type StatsPanelHandle } from './panels/stats/index.js';
+import {
+  createStatsPanel,
+  fetchStats,
+  fetchWeightProfile,
+  type StatsPanelHandle,
+} from './panels/stats/index.js';
 import { createPropertyPanel } from './panels/property/index.js';
 import { createWeightPanel, type WeightPanelHandle } from './panels/weight/index.js';
 import {
@@ -47,6 +61,10 @@ import {
 
 /** 选路模块句柄；在 main() 中创建后供面板回调使用。 */
 let pathSelection: PathSelectionHandle | null = null;
+/** 权重或着色模式变化后由宿主重建路网图层。 */
+let refreshRoadLayer: (() => void) | null = null;
+let refreshTransferPointPresentation: (() => void) | null = null;
+let roadSpeedTable: Readonly<Record<string, number>> = {};
 /** 当前成功显示的交通模式；全量基础图降级时为 null。 */
 let currentMode: DisplayMode | null = null;
 /**
@@ -136,6 +154,7 @@ async function initStatsPanel(): Promise<void> {
   const weightPanel = createWeightPanel({
     onChange: (profile) => {
       weightProfile = { ...weightProfile, ...profile };
+      refreshRoadLayer?.();
       void refreshStats(statsPanel, weightPanel);
       // 权重参数影响"用时最短"口径的路径,配置变化后重算当前路径。
       pathSelection?.recompute();
@@ -143,6 +162,11 @@ async function initStatsPanel(): Promise<void> {
   });
   host.append(createCollapsibleSection('权重配置', weightPanel.element, true).element);
 
+  const profileResponse = await fetchWeightProfile();
+  if (profileResponse !== null) {
+    roadSpeedTable = profileResponse.speedTable;
+    refreshRoadLayer?.();
+  }
   await refreshStats(statsPanel, weightPanel);
 }
 
@@ -180,21 +204,59 @@ async function refreshStats(
 }
 
 async function main(): Promise<void> {
-  const basemapOnline = await isBasemapReachable(BASEMAP_STYLE_URL);
+  const initialTheme = readStoredMapTheme(window.localStorage);
+  let mapTheme: MapTheme = initialTheme;
+  document.documentElement.dataset.theme = initialTheme;
+  const basemapOnline = await isBasemapReachable(MAP_THEME_STYLE_URLS[initialTheme]);
+  const initialStyle = await loadBasemapStyle(initialTheme, basemapOnline);
   setChip(
     $('chip-basemap'),
-    basemapOnline ? '底图 · 在线(OpenFreeMap Dark)' : '底图 · 离线(纯色降级)',
+    basemapOnline
+      ? `底图 · ${MAP_THEME_LABELS[initialTheme]}`
+      : `底图 · ${MAP_THEME_LABELS[initialTheme]}（离线降级）`,
     basemapOnline,
   );
 
   const map = new MaplibreMap({
     container: 'map',
-    style: basemapOnline ? BASEMAP_STYLE_URL : buildFallbackStyle(),
+    style: initialStyle,
     center: WUHAN_CENTER,
     zoom: WUHAN_ZOOM,
     attributionControl: { compact: true },
   });
-  map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right');
+  const scaleControl = new ScaleControl({ maxWidth: 120, unit: 'metric' });
+  const scaleElement = scaleControl.onAdd(map);
+  document.getElementById('hud-status')?.append(scaleElement);
+
+  const suppressBasemapTransportation = (): void => {
+    if (!map.isStyleLoaded()) return;
+    for (const layerId of transportationLayerIds(map.getStyle().layers)) {
+      map.setLayoutProperty(layerId, 'visibility', 'none');
+    }
+  };
+  map.on('style.load', suppressBasemapTransportation);
+  if (map.isStyleLoaded()) suppressBasemapTransportation();
+
+  const applyTheme = async (theme: MapTheme): Promise<void> => {
+    mapTheme = theme;
+    document.documentElement.dataset.theme = theme;
+    storeMapTheme(window.localStorage, theme);
+    map.setStyle(await loadBasemapStyle(theme, basemapOnline));
+    setChip(
+      $('chip-basemap'),
+      basemapOnline
+        ? `底图 · ${MAP_THEME_LABELS[theme]}`
+        : `底图 · ${MAP_THEME_LABELS[theme]}（离线降级）`,
+      basemapOnline,
+    );
+    refreshTransferPointPresentation?.();
+  };
+
+  const themeControl = createThemeControl({
+    initialTheme,
+    onChange: (theme) => void applyTheme(theme),
+  });
+  (document.getElementById('app') ?? document.body).append(themeControl.element);
 
   const propertyPanel = createPropertyPanel();
   propertyPanel.element.classList.add('gis-property--floating');
@@ -233,6 +295,8 @@ async function main(): Promise<void> {
   const transferOverlay = createTransferPointOverlay(map);
 
   let roadsLayer: PathLayer<RoadFeature> | null = null;
+  let currentRoadFeatures: RoadFeature[] = [];
+  let roadColorMode: RoadColorMode = 'highway';
   let transferPoints: TransferPoint[] = [];
   let transferPointLayers: Layer[] = [];
   let restrictionLayers: Layer[] = [];
@@ -275,12 +339,37 @@ async function main(): Promise<void> {
   });
   map.addControl(overlay);
 
+  const rebuildRoadsLayer = (): void => {
+    roadsLayer =
+      currentRoadFeatures.length === 0
+        ? null
+        : createRoadsLayer(currentRoadFeatures, {
+            colorMode: roadColorMode,
+            speedContext: {
+              speedFactor: weightProfile.speedFactor,
+              speedOverridesKmh: weightProfile.speedOverridesKmh,
+              speedTable: roadSpeedTable,
+            },
+          });
+    refreshLayers();
+  };
+  refreshRoadLayer = rebuildRoadsLayer;
+
+  const roadColorControl = createRoadColorControl({
+    initialMode: roadColorMode,
+    onChange: (mode) => {
+      roadColorMode = mode;
+      rebuildRoadsLayer();
+    },
+  });
+
   // 左栏堆叠容器:选路卡与转向编辑器纵向排布。
   // 两者原本各自写死 top 偏移,转向编辑器一展开就会压到选路卡上(选路卡加了跨模态行后更高),
   // 改成同一容器内常规流排布,展开/收起都不会互相遮挡。
   const leftStack = document.createElement('div');
   leftStack.className = 'left-stack';
   (document.getElementById('app') ?? document.body).append(leftStack);
+  (document.getElementById('app') ?? document.body).append(roadColorControl.element);
 
   pathSelection = createPathSelection({
     map,
@@ -335,13 +424,15 @@ async function main(): Promise<void> {
 
   const refreshTransferPoints = (): void => {
     // 城市级缩放只画小点;放大到路口级后改用 Font Awesome 图标(DOM 覆盖层)。
-    transferPointLayers = createTransferPointsLayers(transferPoints, map.getZoom());
+    transferPointLayers = createTransferPointsLayers(transferPoints, map.getZoom(), mapTheme);
     refreshLayers();
     // 图标只画视口内的点,避免城市级下生成上千个 DOM 节点。
-    const visible =
-      map.getZoom() >= 12.5 ? transferPoints.filter((point) => inViewport(point.position)) : [];
+    const visible = shouldShowTransferLabels(map.getZoom())
+      ? transferPoints.filter((point) => inViewport(point.position))
+      : [];
     transferOverlay.setPoints(visible);
   };
+  refreshTransferPointPresentation = refreshTransferPoints;
 
   async function activateMode(mode: DisplayMode, initial = false): Promise<void> {
     if (!initial && currentMode === mode) return;
@@ -369,11 +460,14 @@ async function main(): Promise<void> {
       }
       if (token !== modeRequestToken) return;
 
-      roadsLayer = createRoadsLayer(network.features);
+      currentRoadFeatures = network.features;
+      rebuildRoadsLayer();
       transferPoints = points;
-      transferPointLayers = createTransferPointsLayers(points, map.getZoom());
+      transferPointLayers = createTransferPointsLayers(points, map.getZoom(), mapTheme);
       transferOverlay.setPoints(
-        map.getZoom() >= 12.5 ? points.filter((point) => inViewport(point.position)) : [],
+        shouldShowTransferLabels(map.getZoom())
+          ? points.filter((point) => inViewport(point.position))
+          : [],
       );
       currentRoadNames.clear();
       currentRoadGeometries.clear();
@@ -401,7 +495,8 @@ async function main(): Promise<void> {
         try {
           const baseNetwork = await fetchNetwork();
           if (token !== modeRequestToken) return;
-          roadsLayer = createRoadsLayer(baseNetwork.features);
+          currentRoadFeatures = baseNetwork.features;
+          rebuildRoadsLayer();
           transferPoints = [];
           transferPointLayers = [];
           transferOverlay.setPoints([]);

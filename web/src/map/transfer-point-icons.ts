@@ -18,11 +18,6 @@ const ICON_DEFINITIONS: Record<TransferPoint['kind'], IconDefinition> = {
   subway: faTrainSubway,
 };
 
-/** 图标底板与字形的颜色(与底板描边同一金色)。 */
-const BACKING_FILL = 'rgba(14, 19, 23, 0.92)';
-const BACKING_STROKE = 'rgba(242, 198, 109, 0.55)';
-const GLYPH_FILL = '#f2c66d';
-
 /** 图标画布边长(与 CSS 中的图标尺寸保持一致)。 */
 const CANVAS = 24;
 /** 字形在画布内的留白。 */
@@ -41,25 +36,26 @@ function glyphOf(kind: TransferPoint['kind']): { path: string; width: number; he
 }
 
 /**
- * 生成转换点图标的**内联 SVG** 标记(带深色圆角底板 + 金色字形)。
+ * 生成转换点图标的**内联 SVG** 标记。
  *
  * @param kind 转换点类型。
  * @returns 可直接插入 DOM 的 SVG 字符串。
  * @remarks 字符串只由本地常量与 FA 的路径数据拼成，不含任何外部输入，
- * 因此用 `innerHTML` 插入是安全的。
+ * 因此用 `innerHTML` 插入是安全的。底板与字形通过 CSS 类读取主题变量，
+ * 主题切换时无需重建 SVG。
  */
 export function transferPointIconMarkup(kind: TransferPoint['kind']): string {
   const { path, width, height } = glyphOf(kind);
   // 字形等比缩放到画布内(留 PADDING 边距),再平移到位。
   const scale = (CANVAS - PADDING * 2) / Math.max(width, height);
-  const offsetX = PADDING + ((CANVAS - PADDING * 2 - width * scale) / 2);
-  const offsetY = PADDING + ((CANVAS - PADDING * 2 - height * scale) / 2);
+  const offsetX = PADDING + (CANVAS - PADDING * 2 - width * scale) / 2;
+  const offsetY = PADDING + (CANVAS - PADDING * 2 - height * scale) / 2;
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CANVAS} ${CANVAS}" width="100%" height="100%">` +
-    `<rect x="0.5" y="0.5" width="${CANVAS - 1}" height="${CANVAS - 1}" rx="6" ` +
-    `fill="${BACKING_FILL}" stroke="${BACKING_STROKE}"/>` +
+    `<rect class="transfer-point-marker__backing" x="0.5" y="0.5" ` +
+    `width="${CANVAS - 1}" height="${CANVAS - 1}" rx="6"/>` +
     `<path transform="translate(${offsetX.toFixed(3)} ${offsetY.toFixed(3)}) scale(${scale.toFixed(5)})" ` +
-    `fill="${GLYPH_FILL}" d="${path}"/>` +
+    `class="transfer-point-marker__glyph" d="${path}"/>` +
     '</svg>'
   );
 }

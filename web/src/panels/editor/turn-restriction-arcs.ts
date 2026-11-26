@@ -179,17 +179,17 @@ function quadraticPath(
   return path;
 }
 
-/** 掉头仅沿目标道路臂画短线，避免箭头尖端受地图缩放和定位误差影响而漂移。 */
-function uTurnRoadLine(target: LocalPoint): LocalPoint[] {
-  const radius = Math.hypot(target.x, target.y);
-  if (radius < 1) return [];
-  const ux = target.x / radius;
-  const uy = target.y / radius;
-  const start = Math.min(5, radius * 0.35);
-  return [
-    { x: ux * start, y: uy * start },
-    { x: ux * radius, y: uy * radius },
-  ];
+/**
+ * 掉头只标记目标 Way 穿过路口的两侧道路臂。
+ *
+ * TurnAction 没有入口边端点，单凭 angleDelta 无法稳定判断掉头应指向哪一侧；
+ * 因此不画箭头，也不猜单侧，而是把目标道路在路口附近整体标红。
+ */
+function uTurnRoadLine(targets: readonly ArmCandidate[], center: [number, number]): LocalPoint[] {
+  const points = targets.slice(0, 2).map((target) => localPoint(center, target.position));
+  if (points.length === 0) return [];
+  if (points.length === 1) return [{ x: 0, y: 0 }, points[0]!];
+  return [points[0]!, { x: 0, y: 0 }, points[1]!];
 }
 
 function arrowhead(
@@ -232,17 +232,10 @@ export function buildRestrictionArrows(
     const toGeometry = wayGeometries.get(turn.toWayId);
     if (fromGeometry === undefined || toGeometry === undefined) continue;
 
-    const pair = chooseArmPair(
-      armCandidates(fromGeometry, center),
-      armCandidates(toGeometry, center),
-      turn,
-    );
-    if (pair === null) continue;
-
-    const from = localPoint(center, pair.from.position);
-    const to = localPoint(center, pair.to.position);
+    const fromArms = armCandidates(fromGeometry, center);
+    const toArms = armCandidates(toGeometry, center);
     if (turn.turnKind === 'u_turn') {
-      const line = uTurnRoadLine(to);
+      const line = uTurnRoadLine(toArms, center);
       if (line.length < 2) continue;
       arrows.push({
         key: `${turn.fromEdge}:${turn.toEdge}`,
@@ -251,6 +244,11 @@ export function buildRestrictionArrows(
       continue;
     }
 
+    const pair = chooseArmPair(fromArms, toArms, turn);
+    if (pair === null) continue;
+
+    const from = localPoint(center, pair.from.position);
+    const to = localPoint(center, pair.to.position);
     const path = quadraticPath(from, centerLocal, to);
     const end = path[path.length - 1];
     const previous = path[path.length - 2];
