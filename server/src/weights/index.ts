@@ -44,7 +44,32 @@ export {
 } from './mode-weight.js';
 export {
   parseWeightProfileParams,
+  parseTrafficParams,
   registerWeightRoutes,
   type WeightRoutesOptions,
 } from './routes.js';
+export {
+  computeAccessibility,
+  type AccessibilityInput,
+  type AccessibilityReport,
+} from './accessibility.js';
+export {
+  congestionFactorAt,
+  curveFactorAtHour,
+  buildEventLookup,
+  normalizeCongestionProfile,
+  slotCount,
+  slotIndexForHour,
+  clampHourOfDay,
+  DEFAULT_CONGESTION_CURVE,
+  DEFAULT_CONGESTION_PROFILE,
+  DEFAULT_HIGHWAY_SENSITIVITY,
+  isExplicitOff,
+  type CongestionAnchor,
+  type CongestionProfile,
+  type EventEffect,
+  type TrafficConditions,
+  type TrafficEvent,
+  type TrafficEventKind,
+} from './traffic.js';
 export type { WeightProfileResponse } from '@gisalgo/shared';
