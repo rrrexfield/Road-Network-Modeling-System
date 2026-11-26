@@ -5,6 +5,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
 import { fileURLToPath } from 'node:url';
+import type { TrafficEvent } from '@gisalgo/shared';
 import { loadNetwork } from './io/loader.js';
 import { registerRoutes } from './api/routes.js';
 import { createModalRuntimeRegistry, setActiveModalRuntimeRegistry } from './api/index.js';
@@ -17,6 +18,15 @@ const TURNS_DB_PATH = fileURLToPath(
   new URL('../../data/derived/wuhan-turns.sqlite', import.meta.url),
 );
 const PORT = 3000;
+
+/**
+ * 服务端预置交通事件场景(Sprint 3 · issue #65)。
+ *
+ * 先用空数组:拥堵时间槽由查询串 `hour=` 启用,事件需要具体 wayId 才有意义
+ * (预置场景的选取属演示标定,不在启动时凭空捏造)。`/api/path` 与 `/api/stats`
+ * 共用这一份场景;查询串 `events=off` 可按次关闭。
+ */
+const TRAFFIC_EVENTS: readonly TrafficEvent[] = [];
 
 async function main(): Promise<void> {
   const app = Fastify({ logger: true });
@@ -92,7 +102,7 @@ async function main(): Promise<void> {
       edgeCount: graph.edgeCount,
       wayCount: topology.ways.size,
     },
-    { graph, wayHighway },
+    { graph, wayHighway, trafficEvents: TRAFFIC_EVENTS },
     modal,
   );
   await app.register(registerWeightRoutes, {
@@ -106,6 +116,7 @@ async function main(): Promise<void> {
       ways: topology.ways,
     },
     topology: topologyStats,
+    events: TRAFFIC_EVENTS,
   });
   
 

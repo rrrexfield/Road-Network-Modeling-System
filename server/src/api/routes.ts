@@ -2,9 +2,18 @@
  * REST + WebSocket 路由。
  */
 import type { FastifyInstance } from 'fastify';
-import type { HealthResponse, PathResponse, TravelMode, WSMessage } from '@gisalgo/shared';
+import type {
+  CompressionReportResponse,
+  HealthResponse,
+  PathResponse,
+  PathResult,
+  TrafficEvent,
+  TravelMode,
+  WSMessage,
+} from '@gisalgo/shared';
 import type { LoadedNetwork } from '../io/loader.js';
 import {
+  compressEdgeWeight,
   dijkstra,
   dijkstraWithTurnRestrictions,
   type EdgeWeightFn,
@@ -15,11 +24,12 @@ import {
 import {
   createModeEdgeWeight,
   normalizeWeightProfile,
+  parseTrafficParams,
   parseWeightProfileParams,
 } from '../weights/index.js';
 import { registerModalRoutes, parseMode } from './modal-routes.js';
 import { findMultimodalPath, parseModeSequence, snapToNode } from './multimodal-path.js';
-import type { ModalRuntimeRegistry } from './modal-runtime.js';
+import { type CompressionView, type ModalRuntimeRegistry } from './modal-runtime.js';
 
 interface WsLike {
   send(data: string): void;
@@ -38,6 +48,13 @@ export interface PathDeps {
   graph: Graph;
   /** wayId → highway 等级,供时间权重查表 */
   wayHighway: ReadonlyMap<number, string>;
+  /**
+   * 服务端预置事件场景（Sprint 3 · issue #65）。
+   *
+   * 与 `/api/stats` 的 `registerWeightRoutes({ events })` 共用同一份场景；
+   * 缺省或空数组表示没有预置事件（查询串 `hour=` 仍启用拥堵时间槽）。
+   */
+  trafficEvents?: readonly TrafficEvent[];
 }
 
 /** 解析 "lon,lat" 形式的查询参数;非法返回 null。 */
@@ -50,6 +67,34 @@ export function parseLonLat(raw: string | undefined): [number, number] | null {
   if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
   if (lon < -180 || lon > 180 || lat < -90 || lat > 90) return null;
   return [lon, lat];
+}
+
+/**
+ * 解析 `compressed` 查询参数（作业三）。
+ *
+ * @returns 缺省 `false`；`1/true` 为真、`0/false` 为假；其它值返回 null（由调用方报 400）。
+ * @remarks 用显式白名单而不是 truthy 判断，避免 `compressed=yes` 被静默当作关闭。
+ */
+export function parseCompressedFlag(raw: unknown): boolean | null {
+  if (raw === undefined) return false;
+  if (raw === '1' || raw === 'true') return true;
+  if (raw === '0' || raw === 'false') return false;
+  return null;
+}
+
+/** 首次构建压缩图时记录规模与耗时（命中缓存不打印，避免请求日志噪声）。 */
+function logCompressionBuild(
+  log: { info: (message: string) => void },
+  mode: TravelMode,
+  view: CompressionView,
+): void {
+  const { stats } = view;
+  log.info(
+    `模态 ${mode} 压缩图构建完成: ${view.buildMs} ms, ` +
+      `节点 ${stats.originalNodeCount.toLocaleString()} → ${stats.compressedNodeCount.toLocaleString()}, ` +
+      `有向边 ${stats.originalEdgeCount.toLocaleString()} → ${stats.compressedEdgeCount.toLocaleString()}, ` +
+      `保留节点 ${view.protectedNodeCount.toLocaleString()}`,
+  );
 }
 
 /**
@@ -121,6 +166,7 @@ export async function registerRoutes(
         metric?: string;
         mode?: unknown;
         modes?: unknown;
+        compressed?: unknown;
       };
 
       const fromPoint = parseLonLat(query.from);
@@ -137,6 +183,26 @@ export async function registerRoutes(
         ...parseWeightProfileParams(query as Record<string, unknown>),
         metric: query.metric === 'time' ? ('time' as const) : ('distance' as const),
       });
+
+      // 交通条件(Sprint 3 · issue #65):`hour=` 启用拥堵时间槽,缺省不启用(零行为变化);
+      // 与 /api/stats 共用 parseTrafficParams 的解析口径。
+      const traffic = parseTrafficParams(query as Record<string, unknown>, pathDeps.trafficEvents);
+
+      // 压缩图开关(作业三 · issue #69):只对单模态 mode 有意义,基础图没有运行时/版本/保留集。
+      const compressedRequested = parseCompressedFlag(query.compressed);
+      if (compressedRequested === null) {
+        return reply.code(400).send({ error: { message: 'compressed 只接受 1/0/true/false' } });
+      }
+      if (compressedRequested && query.modes !== undefined) {
+        return reply
+          .code(400)
+          .send({ error: { message: 'compressed 不能与 modes 同时使用:压缩图只用于单模态路径' } });
+      }
+      if (compressedRequested && query.mode === undefined) {
+        return reply
+          .code(400)
+          .send({ error: { message: 'compressed 需要同时指定 mode:基础图没有模态压缩图' } });
+      }
 
       // 跨模态路径(issue #34):modes 是有序模态序列,例如 modes=car,walk。
       // 与单模态的 mode 参数互斥——两者语义不同,混用无法判定该走哪套路网。
@@ -186,6 +252,8 @@ export async function registerRoutes(
       // 显式 mode 时走该模态的速度表（issue #47）。
       let activeMode: TravelMode = 'car';
       let isTurnForbidden: TurnRestrictionPredicate | undefined;
+      let compressionView: CompressionView | undefined;
+      let turnVersion = 0;
       if (query.mode !== undefined) {
         const mode = parseMode(query.mode);
         if (mode === null) {
@@ -206,6 +274,12 @@ export async function registerRoutes(
         activeWayHighway = runtime.wayHighway;
         activeMode = mode;
         isTurnForbidden = (via, from, to) => runtime.service.isForbidden(via, from, to);
+        if (compressedRequested) {
+          const { view, fresh } = runtime.compressedView();
+          compressionView = view;
+          turnVersion = view.turnVersion;
+          if (fresh) logCompressionBuild(request.log, mode, view);
+        }
       }
 
       const startId = snapToNode(activeGraph, fromPoint[0], fromPoint[1]);
@@ -216,16 +290,52 @@ export async function registerRoutes(
 
       // metric=time 走 D 的时间权重(里程/有效限速),distance 走里程;
       // 速度来源按当前模态取值(issue #47):car 沿用汽车限速表,walk/bike/bus 用模态速度表。
+      // traffic 缺省为 undefined,与 Sprint 2 逐位一致。
       const weight: EdgeWeightFn = createModeEdgeWeight(
         { nodes: network.nodes, wayHighway: activeWayHighway },
         activeMode,
         profile,
+        traffic,
       );
 
-      const result =
-        isTurnForbidden === undefined
-          ? dijkstra(baseGraph, startId, endId, weight)
-          : dijkstraWithTurnRestrictions(activeGraph, startId, endId, isTurnForbidden, weight);
+      let result: PathResult;
+      let responseNodeIds: number[];
+      let responseEdgeIds: number[];
+      let compressionApplied = false;
+      if (
+        compressionView !== undefined &&
+        compressionView.graph.hasNode(startId) &&
+        compressionView.graph.hasNode(endId)
+      ) {
+        // 压缩图:合成边 id 不能直接进禁转表,映射为压缩边内首/末原图边
+        // (via 节点全部在保留集,压缩边不会跨过 via)。
+        const cg = compressionView.graph;
+        const forbidden: TurnRestrictionPredicate = (via, fromEdgeId, toEdgeId) =>
+          isTurnForbidden!(
+            via,
+            cg.edge(fromEdgeId)!.originalEdgeIds.at(-1)!,
+            cg.edge(toEdgeId)!.originalEdgeIds[0]!,
+          );
+        result = dijkstraWithTurnRestrictions(
+          cg,
+          startId,
+          endId,
+          forbidden,
+          compressEdgeWeight(cg, weight) as EdgeWeightFn,
+        );
+        const expanded = cg.expandPath(result.nodeIds, result.edgeIds);
+        responseNodeIds = expanded.nodeIds;
+        responseEdgeIds = expanded.edgeIds;
+        compressionApplied = true;
+      } else {
+        // 端点落在被压缩节点上时透明回退原图,避免吸附到很远的保留节点导致路径失真。
+        result =
+          isTurnForbidden === undefined
+            ? dijkstra(baseGraph, startId, endId, weight)
+            : dijkstraWithTurnRestrictions(activeGraph, startId, endId, isTurnForbidden, weight);
+        responseNodeIds = result.nodeIds;
+        responseEdgeIds = result.edgeIds;
+      }
 
       // 不可达时返回 Infinity + 空序列;REST 层转成 404 而不是下发 Infinity
       if (result.nodeIds.length === 0) {
@@ -233,7 +343,7 @@ export async function registerRoutes(
       }
 
       const coordinates: [number, number][] = [];
-      for (const nodeId of result.nodeIds) {
+      for (const nodeId of responseNodeIds) {
         const c = activeGraph.coordinates(nodeId);
         if (c !== undefined) coordinates.push([c[1], c[0]]);
       }
@@ -246,15 +356,48 @@ export async function registerRoutes(
 
       const body: PathResponse = {
         distance: result.distance,
-        nodeIds: result.nodeIds,
-        edgeIds: result.edgeIds,
+        nodeIds: responseNodeIds,
+        edgeIds: responseEdgeIds,
         from: [start[1], start[0]],
         to: [end[1], end[0]],
         coordinates,
       };
+      if (compressedRequested) {
+        body.compression = { applied: compressionApplied, turnVersion };
+      }
       return body;
     });
   }
+
+  // 作业三(issue #69):压缩图统计。首次请求会触发该模态的压缩构建(约数秒),
+  // 之后按 (mode, 禁转表版本号) 命中运行时实例上的缓存。
+  app.get('/api/compression', (request, reply) => {
+    if (modal === undefined) {
+      return reply.code(501).send({ error: { message: '多模态路网未启用' } });
+    }
+    const mode = parseMode((request.query as { mode?: unknown }).mode);
+    if (mode === null) {
+      return reply
+        .code(400)
+        .send({ error: { message: 'mode 必须是 car / walk / bike / bus 之一' } });
+    }
+    if (!modal.ready) {
+      return reply
+        .code(503)
+        .send({ error: { message: modal.unavailableReason ?? '派生数据不可用' } });
+    }
+    const { view, fresh } = modal.runtime(mode).compressedView();
+    if (fresh) logCompressionBuild(request.log, mode, view);
+    const body: CompressionReportResponse = {
+      mode,
+      turnVersion: view.turnVersion,
+      protectedNodeCount: view.protectedNodeCount,
+      buildMs: view.buildMs,
+      cached: !fresh,
+      stats: view.stats,
+    };
+    return body;
+  });
 
   if (modal !== undefined) {
     // 作业二:转换点与转向限制读写(issue #24 冻结的契约)
