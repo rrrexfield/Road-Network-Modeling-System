@@ -15,8 +15,14 @@
 import type { TransferPoint, TravelMode } from '@gisalgo/shared';
 import { FALLBACK_SPEED_KMH, speedKmh, travelSeconds } from './speed.js';
 import {
+  clampHourOfDay,
+  congestionFactorAt,
+  buildEventLookup,
+  normalizeCongestionProfile,
+  type TrafficConditions,
+} from './traffic.js';
+import {
   createDistanceWeight,
-  createEdgeWeight,
   DEFAULT_WEIGHT_PROFILE,
   UNKNOWN_HIGHWAY,
   type EdgeWeightFn,
@@ -104,30 +110,70 @@ export function effectiveModeSpeedKmh(
  * @param context 网络上下文(节点坐标表 + way→等级表)。
  * @param mode 交通模态;car 等价于 `createEdgeWeight`(既有汽车模型)。
  * @param profile 权重配置;省略用 DEFAULT_WEIGHT_PROFILE。
+ * @param traffic 可选交通条件(Sprint 3 · issue #65):钟点 + 拥堵参数 + 事件。
+ *   省略时行为与 Sprint 2 完全一致(零回归)。
  * @returns metric='distance' 时为里程(米)权重,metric='time' 时为按模态速度的时间(秒)权重。
- * @remarks 前置条件与 `EdgeWeightFn` 一致:返回值 ≥ 0 且有限(图内注入路径上成立);
- * 里程与 car 模态共用同一 Haversine 口径,保证跨模态比较时"距离"含义一致。
- * 复杂度 O(1)/边(速度按等级记忆化,里程按边记忆化)。
+ * @returns 合成顺序(钉死,A 冻结契约引用,见 traffic.ts):
+ *   有效速度 = (覆盖限速 ?? 模态默认限速) × 全局速度系数 ÷ 拥堵系数(时间槽 × 等级敏感度) × 事件乘子;
+ *   封闭事件 → Infinity(不可通行),对 distance 口径同样生效;拥堵与事故降速只作用于 time。
+ * @remarks 前置条件与 `EdgeWeightFn` 一致:可通行边的返回值 ≥ 0 且有限(图内注入路径上
+ *   成立);Infinity 是既定的"不可通行"口径(speed.ts:速度非正 → Infinity)。
+ *   里程与 car 模态共用同一 Haversine 口径,保证跨模态比较时"距离"含义一致。
+ *   复杂度 O(1)/边(速度按等级记忆化,里程按边记忆化)。
  */
 export function createModeEdgeWeight(
   context: NetworkContext,
   mode: TravelMode,
   profile: WeightProfile = DEFAULT_WEIGHT_PROFILE,
+  traffic?: TrafficConditions,
 ): EdgeWeightFn {
-  if (mode === 'car') return createEdgeWeight(context, profile);
-  if (profile.metric === 'distance') return createDistanceWeight(context);
+  if (profile.metric === 'distance') {
+    const base = createDistanceWeight(context);
+    // 拥堵与事故降速不影响里程口径;封闭是"不可通行",对 distance 同样生效。
+    if (!traffic || !traffic.events || traffic.events.length === 0) return base;
+    const events = buildEventLookup(traffic.events, clampHourOfDay(traffic.hourOfDay));
+    return (edge) => (events.get(edge.wayId)?.closure ? Number.POSITIVE_INFINITY : base(edge));
+  }
 
   const lengthOf = createDistanceWeight(context);
+  const hourOfDay = traffic ? clampHourOfDay(traffic.hourOfDay) : 0;
+  // congestion 显式给出才启用(解析层 congestion=off 时不给该字段,保证可关)。
+  const congestion =
+    traffic && !traffic.congestionDisabled ? normalizeCongestionProfile(traffic.congestion) : null;
+  const events =
+    traffic && traffic.events && traffic.events.length > 0
+      ? buildEventLookup(traffic.events, hourOfDay)
+      : null;
+
   const speedCache = new Map<string, number>();
   return (edge) => {
     const highway = context.wayHighway.get(edge.wayId) ?? UNKNOWN_HIGHWAY;
     let speed = speedCache.get(highway);
     if (speed === undefined) {
-      speed = effectiveModeSpeedKmh(mode, highway, profile);
+      const base =
+        mode === 'car'
+          ? effectiveCarSpeedKmh(highway, profile)
+          : effectiveModeSpeedKmh(mode, highway, profile);
+      speed =
+        congestion !== null ? base / congestionFactorAt(congestion, hourOfDay, highway) : base;
       speedCache.set(highway, speed);
+    }
+    if (events !== null) {
+      const effect = events.get(edge.wayId);
+      if (effect !== undefined) {
+        if (effect.closure) return Number.POSITIVE_INFINITY;
+        speed *= effect.factor;
+      }
     }
     return travelSeconds(lengthOf(edge), speed);
   };
+}
+
+/** car 模态有效速度:与 weight.ts 的 effectiveSpeedKmh 同一实现,单独引用避免循环依赖表述。 */
+function effectiveCarSpeedKmh(highway: string, profile: WeightProfile): number {
+  const override = profile.speedOverridesKmh[highway];
+  const base = override ?? speedKmh(highway);
+  return base * profile.speedFactor;
 }
 
 /**
