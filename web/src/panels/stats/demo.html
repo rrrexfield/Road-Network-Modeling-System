@@ -25,11 +25,15 @@
         <div id="slot-weight"></div>
       </main>
 
+      <div id="slot-access" style="margin-top: 18px"></div>
+
       <p class="demo-footnote">
         数据来源：服务端 <code>GET /api/stats</code>（由
         <code>server/src/weights</code> 插件提供，注册依赖 A 的集成
         issue）；接口未就绪时页头会标注"离线示例"。权重面板中的通行时间为即时预估，
         权威值由服务端按同一配置重算。拓扑指标由 B 的图引擎提供，接入前显示占位态。
+        时段模拟与可达性为 Sprint 3 新增：拥堵为确定性时间槽模拟，等时圈来自
+        <code>GET /api/accessibility</code>。
       </p>
     </div>
     <script type="module" src="./demo.ts"></script>

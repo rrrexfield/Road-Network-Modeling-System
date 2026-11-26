@@ -18,10 +18,25 @@ import './weight-panel.css';
 
 /** 面板选项。 */
 export interface WeightPanelOptions {
-  /** 配置变化回调;拖动滑杆时按 debounceMs 去抖后触发。 */
-  onChange?: (profile: WeightProfile) => void;
+  /**
+   * 配置变化回调;拖动滑杆时按 debounceMs 去抖后触发。
+   * 第二参数为时段模拟(Sprint 3)状态:hourEnabled=false 时省略,调用方按"无交通条件"处理。
+   */
+  onChange?: (profile: WeightProfile, traffic?: WeightPanelTraffic) => void;
   /** 去抖毫秒数,默认 240。 */
   debounceMs?: number;
+}
+
+/** 时段模拟(拥堵时间槽 + 事件场景)的面板状态。 */
+export interface WeightPanelTraffic {
+  /** 是否启用时段模拟;false 时其余字段无意义。 */
+  hourEnabled: boolean;
+  /** 参考钟点(0–24,0.5 步进 = 30 分钟槽)。 */
+  hourOfDay: number;
+  /** 拥堵时间槽是否启用。 */
+  congestionEnabled: boolean;
+  /** 事件场景是否启用。 */
+  eventsEnabled: boolean;
 }
 
 /** 面板句柄。 */
@@ -31,6 +46,8 @@ export interface WeightPanelHandle {
   update(stats: NetworkStats, speedTable?: Readonly<Record<string, number>>): void;
   /** 读取当前配置。 */
   getProfile(): WeightProfile;
+  /** 读取时段模拟状态。 */
+  getTraffic(): WeightPanelTraffic;
   dispose(): void;
 }
 
@@ -110,6 +127,83 @@ export function createWeightPanel(options: WeightPanelOptions = {}): WeightPanel
       '优化目标由起终点选路卡选择;选"最短距离"时本面板的参数不参与路径计算。',
   );
   root.append(factorGroup, factorHint);
+
+  // ---- 时段模拟(Sprint 3 · issue #65):拥堵时间槽 + 事件场景 ----
+  const trafficState: WeightPanelTraffic = {
+    hourEnabled: false,
+    hourOfDay: 8.5,
+    congestionEnabled: true,
+    eventsEnabled: true,
+  };
+  const trafficGroup = element('div', 'gis-field gis-traffic');
+  const trafficCheck = document.createElement('input');
+  trafficCheck.type = 'checkbox';
+  trafficCheck.className = 'gis-check';
+  trafficCheck.id = 'gis-traffic-toggle';
+  const trafficLabel = element(
+    'label',
+    'gis-field__label gis-traffic__label',
+    '时段模拟(拥堵时间槽)',
+  );
+  trafficLabel.htmlFor = trafficCheck.id;
+  const trafficValue = element('span', 'gis-field__value', '08:30 · 平峰');
+  trafficCheck.addEventListener('change', () => {
+    trafficState.hourEnabled = trafficCheck.checked;
+    hourInput.disabled = !trafficCheck.checked;
+    congestionCheck.disabled = !trafficCheck.checked;
+    eventsCheck.disabled = !trafficCheck.checked;
+    syncControls();
+    scheduleEmit();
+  });
+  const hourInput = document.createElement('input');
+  hourInput.type = 'range';
+  hourInput.className = 'gis-range';
+  hourInput.min = '0';
+  hourInput.max = '24';
+  hourInput.step = '0.5';
+  hourInput.value = String(trafficState.hourOfDay);
+  hourInput.disabled = true;
+  hourInput.addEventListener('input', () => {
+    trafficState.hourOfDay = Number(hourInput.value);
+    syncControls();
+    scheduleEmit();
+  });
+  trafficGroup.append(trafficCheck, trafficLabel, trafficValue, hourInput);
+
+  const congestionCheck = document.createElement('input');
+  congestionCheck.type = 'checkbox';
+  congestionCheck.className = 'gis-check';
+  congestionCheck.id = 'gis-congestion-toggle';
+  congestionCheck.checked = true;
+  congestionCheck.disabled = true;
+  const congestionLabel = element('label', 'gis-note gis-traffic__sub', '拥堵时间槽(早晚高峰)');
+  congestionLabel.htmlFor = congestionCheck.id;
+  congestionCheck.addEventListener('change', () => {
+    trafficState.congestionEnabled = congestionCheck.checked;
+    scheduleEmit();
+  });
+
+  const eventsCheck = document.createElement('input');
+  eventsCheck.type = 'checkbox';
+  eventsCheck.className = 'gis-check';
+  eventsCheck.id = 'gis-events-toggle';
+  eventsCheck.checked = true;
+  eventsCheck.disabled = true;
+  const eventsLabel = element('label', 'gis-note gis-traffic__sub', '事件场景(封闭/事故降速)');
+  eventsLabel.htmlFor = eventsCheck.id;
+  eventsCheck.addEventListener('change', () => {
+    trafficState.eventsEnabled = eventsCheck.checked;
+    scheduleEmit();
+  });
+
+  trafficGroup.append(congestionCheck, congestionLabel, eventsCheck, eventsLabel);
+  const trafficHint = element(
+    'p',
+    'gis-note',
+    '确定性模拟:同一钟点重复计算结果逐位相同(服务端按 30 分钟槽取拥堵曲线,' +
+      '封闭路段按不可通行处理)。合成顺序:基础限速 × 全局系数 ÷ 拥堵系数 × 事件乘子。',
+  );
+  root.append(trafficGroup, trafficHint);
 
   // ---- 等级限速与明细 ----
   const tableHead = element('div', 'gis-table__head');
@@ -214,7 +308,25 @@ export function createWeightPanel(options: WeightPanelOptions = {}): WeightPanel
   }
 
   /** 按当前配置刷新全部输入控件与只读展示。 */
+  /** 钟点 → HH:MM 文案;30 分钟步进下分钟只可能是 00/30。 */
+  function formatHour(hour: number): string {
+    const h = Math.floor(hour);
+    const m = Math.round((hour - h) * 60);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+
+  /** 时段描述:按默认曲线粗分,用于滑杆旁的即时提示(权威值由服务端重算)。 */
+  function slotLabel(hour: number): string {
+    if (hour >= 7 && hour < 9.5) return '早高峰';
+    if (hour >= 17 && hour < 19.5) return '晚高峰';
+    if (hour < 5.5 || hour >= 23) return '夜间畅通';
+    return '平峰';
+  }
+
   function syncControls(): void {
+    trafficValue.textContent = trafficState.hourEnabled
+      ? `${formatHour(trafficState.hourOfDay)} · ${slotLabel(trafficState.hourOfDay)}`
+      : '未启用';
     summaryBadge.textContent = `×${profile.speedFactor.toFixed(2)}`;
     summaryBadge.className = 'gis-badge gis-badge--ok';
     factorValue.textContent = `×${profile.speedFactor.toFixed(2)}`;
@@ -236,7 +348,7 @@ export function createWeightPanel(options: WeightPanelOptions = {}): WeightPanel
 
   function emit(): void {
     syncControls();
-    options.onChange?.(profile);
+    options.onChange?.(profile, trafficState.hourEnabled ? { ...trafficState } : undefined);
   }
 
   function scheduleEmit(): void {
@@ -271,6 +383,7 @@ export function createWeightPanel(options: WeightPanelOptions = {}): WeightPanel
         : '未取到服务端限速表,基准限速由统计数据反算;修改后由服务端重算权威值,面板显示为即时预估。';
     },
     getProfile: () => profile,
+    getTraffic: () => ({ ...trafficState }),
     dispose: () => {
       if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
     },

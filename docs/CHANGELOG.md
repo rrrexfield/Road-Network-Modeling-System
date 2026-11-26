@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### Added(D 作业三交付:拥堵/事件时间槽权重 + 等时圈可达性,issue #65)
+
+- `server/src/weights/traffic.ts`(新增):确定性时间槽拥堵模型——30 分钟槽(可配),槽系数=锚点日曲线在槽中点的线性插值 × 等级敏感度,槽内恒定保证"同输入同结果";路段级事件(closure 封闭 → 不可通行 / incident 降速乘子连乘,activeHours 控生效窗口)。合成顺序钉死:有效速度 = 基础速度 ÷ 拥堵系数 × 事件乘子;拥堵/降速只作用 time 口径,封闭对 time/distance 均生效。
+- `createModeEdgeWeight` 增加可选第 4 参 `TrafficConditions`,缺省与 Sprint 2 逐位一致(零回归);交通参数解析 `parseTrafficParams` 与既有 `parseWeightProfileParams` 同在 routes.ts 收口,`/api/path` 与 `/api/stats` 共用。`/api/stats` 传 `hour` 后时间口径随时间槽变化、里程口径不变,事件不计入统计(统计描述路网固有属性)。
+- `server/src/weights/accessibility.ts`(新增):等时圈可达性——限界 Dijkstra(预算早停,与 B 的全路径搜索职责分离),时间权重与 /api/path 同源;口径:按边统计里程、两端均可达才计入(way 横跨边界会高估)。新端点 `GET /api/accessibility`(随 registerWeightRoutes 注册,A 无需额外接线),400/404 语义明确,结果按参数缓存。
+- 新端点 `GET /api/weights/traffic` 下发默认拥堵曲线/敏感度/预置事件,供前端面板与 E 的时间轴动画(issue #66)对齐。
+- 前端:权重面板新增"时段模拟"区(0–24h 滑杆 + 拥堵/事件开关,onChange 增量第二参数);统计面板新增可达性卡片(起点/预算/模态 + KPI + 分等级可达里程条形图,接口未就绪显示占位态);demo 页端到端接线。
+- shared/ 契约字段草案(AccessibilityReport 等)已提交 A 冻结(见 docs/plans/d-sprint3-weights-stats.md §2.3),冻结前类型留在 D 模块;武汉实测数值待 A/C 在有 data/wuhan.json 的机器回填(命令已给)。全仓 53 文件 450 项测试、三包 typecheck、ESLint、改动文件 Prettier 全绿;只改 D 目录。
+
 ### Added(作业三看板就位与 C 压缩输入合入,issue #63/#64/#65/#66/#69,PR #68)
 
 - PR #68 由 A 评审通过并合入 main(`556c274`):C 的作业三压缩输入接口——`CompressionWayIndex`(道路属性只读查询与属性边界比较)、`collectCompressionProtectedNodes`(禁转/换乘语义保留集合并)、`PersistentTurnService.getCompressionState()`(当前实际禁转 via 节点 + 实例内版本号,成功保存后递增、失败不变,不新增持久化表)。A 本地复核:全仓 411 项测试(51 文件)、shared/server/web 三包 typecheck、全仓 ESLint、前端生产构建全绿。
