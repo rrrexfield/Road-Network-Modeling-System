@@ -1,6 +1,6 @@
 # C 作业三：压缩输入与禁转状态交接
 
-2026-11-12；关联 #63/#64，基于 main f8ea4e3。分支 `feature/compression-topology-input`，待审核，尚未接入网页。
+2026-11-12实现，2026-11-21状态更新；关联 #63/#64，基于 main f8ea4e3。[PR #68](https://github.com/rrrexfield/Road-Network-Modeling-System/pull/68)已由A批准，于2026-11-20合入main（556c274）。输入模块已交付，压缩网页接线由A另行完成。
 
 ## 本次提供什么
 
@@ -42,3 +42,5 @@ const protectedNodes = collectCompressionProtectedNodes(runtime.topology.nodes, 
 ## 后续
 
 B消费这些查询并实现压缩与原边映射；A接入实际换乘路网节点、压缩缓存及路由。B产出同一轮压缩节点/边数和耗时后，C再整理报告拓扑部分，不重复计算D已有等级里程统计。
+
+报告口径与待填结果已整理于[压缩效果对比报告](../压缩效果对比报告.md)，当前为待B结果的草稿，不代表压缩已验收。
